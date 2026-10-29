@@ -1,10 +1,13 @@
-// Capcom NOVA Synthetic Space Voice (Web Speech API)
+// Capcom NOVA Natural Space Voice Engine
 import { soundFx } from './audio';
 
 class SpaceSpeechEngine {
   private isEnabled: boolean = true;
   private voice: SpeechSynthesisVoice | null = null;
   private isSpeaking: boolean = false;
+  private availableVoices: SpeechSynthesisVoice[] = [];
+  private rate: number = 0.96; // Slightly slower, warm conversational cadence
+  private pitch: number = 0.98; // Slightly deeper, natural human resonance
 
   constructor() {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -15,16 +18,40 @@ class SpaceSpeechEngine {
     }
   }
 
-  private initVoice() {
+  public initVoice() {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
     const voices = window.speechSynthesis.getVoices();
-    // Prefer Spanish voices (es-ES, es-MX, es-US, or any es-)
-    const esVoice = voices.find(v => v.lang.startsWith('es')) || 
-                    voices.find(v => v.lang.includes('es')) || 
-                    voices[0];
-    if (esVoice) {
-      this.voice = esVoice;
+    this.availableVoices = voices;
+
+    // Filter for Spanish voices and prioritize Natural / Neural / Google human voices over robotic ones
+    const spanishVoices = voices.filter(v => v.lang.startsWith('es') || v.lang.includes('es'));
+    
+    // Priority order for high-definition natural human voices:
+    const naturalVoice = 
+      spanishVoices.find(v => v.name.includes('Natural') || v.name.includes('Online')) || // Edge Natural neural voices (Jorge, Dalia, Alvaro)
+      spanishVoices.find(v => v.name.includes('Google')) || // Chrome Google high-res voices
+      spanishVoices.find(v => v.name.includes('Paulina') || v.name.includes('Monica') || v.name.includes('Sofia')) ||
+      spanishVoices[0] ||
+      voices[0];
+
+    if (naturalVoice) {
+      this.voice = naturalVoice;
     }
+  }
+
+  public getVoices(): SpeechSynthesisVoice[] {
+    return this.availableVoices.filter(v => v.lang.startsWith('es') || v.lang.includes('es'));
+  }
+
+  public setVoice(voiceName: string) {
+    const found = this.availableVoices.find(v => v.name === voiceName);
+    if (found) {
+      this.voice = found;
+    }
+  }
+
+  public getCurrentVoiceName(): string {
+    return this.voice ? this.voice.name : 'Voz del Sistema';
   }
 
   public setEnabled(enabled: boolean) {
@@ -43,16 +70,28 @@ class SpaceSpeechEngine {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
 
     try {
-      window.speechSynthesis.cancel(); // Stop any pending speech
+      window.speechSynthesis.cancel();
       soundFx.playRadioBeep();
 
-      const utterance = new SpeechSynthesisUtterance(text);
+      // Clean text of emojis and symbols that make speech synthesis stutter
+      const cleanText = text
+        .replace(/[🚀🛰️🔬🚨☀️🌪️🥬⚠️🌱🧪❄️🕳️💧🏆💡🎯🏅❤️😊⚡💨🥗☢️]/g, '')
+        .replace(/O₂/g, 'oxígeno')
+        .replace(/CO₂/g, 'dióxido de carbono')
+        .replace(/H₂O/g, 'agua')
+        .replace(/mSv/g, 'milisieverts')
+        .replace(/kW/g, 'kilovatios')
+        .replace(/kWh/g, 'kilovatios hora')
+        .replace(/km\/s/g, 'kilómetros por segundo')
+        .trim();
+
+      const utterance = new SpeechSynthesisUtterance(cleanText);
       if (this.voice) {
         utterance.voice = this.voice;
       }
-      utterance.rate = 1.05; // Slightly authoritative flight-director cadence
-      utterance.pitch = 1.0;
-      utterance.lang = 'es-ES';
+      utterance.rate = this.rate;
+      utterance.pitch = this.pitch;
+      utterance.lang = this.voice ? this.voice.lang : 'es-MX';
 
       utterance.onstart = () => {
         this.isSpeaking = true;
@@ -70,7 +109,7 @@ class SpaceSpeechEngine {
 
       window.speechSynthesis.speak(utterance);
     } catch {
-      // Graceful degradation if blocked by browser autoplay policy
+      // Graceful degradation
     }
   }
 

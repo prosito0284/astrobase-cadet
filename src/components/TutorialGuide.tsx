@@ -1,16 +1,11 @@
 import React, { useState } from 'react';
 import { 
-  Bot, 
   X, 
   ChevronRight, 
   ChevronLeft, 
   Sparkles, 
   CheckCircle2, 
-  Zap, 
-  Wind, 
-  ShieldAlert, 
-  Radio, 
-  Sprout 
+  TreePine
 } from 'lucide-react';
 import { soundFx } from '../utils/audio';
 
@@ -30,8 +25,8 @@ export const TutorialGuide: React.FC<TutorialGuideProps> = ({ isOpen, onClose, l
       titleEs: '¡Bienvenido a la Base Espacial, Cadete!',
       titleEn: 'Welcome to the Space Outpost, Cadet!',
       icon: '🚀',
-      contentEs: 'Soy NOVA, tu asistente de vuelo de la NASA. Tu misión es administrar una colonia humana permanente en la Luna o en Marte. Cada decisión que tomes implica sacrificios: no existe ninguna opción mágica que sea 100% segura. ¡Tus decisiones definirán el éxito de la misión!',
-      contentEn: 'I am NOVA, your NASA flight assistant. Your mission is to command a permanent human base on the Moon or Mars. Every decision requires real trade-offs: there is no magic cost-free choice. Your engineering decisions dictate crew survival!',
+      contentEs: 'Soy NOVA, el asistente de vuelo inteligente desarrollado por el equipo Troncos Intergalácticos para el Desafío de la NASA. Tu misión es administrar una colonia humana permanente en la Luna o en Marte. Cada decisión que tomes implica sacrificios reales de ingeniería.',
+      contentEn: 'I am NOVA, your flight director created by team Troncos Intergalácticos for the NASA Challenge. Your mission is to command a permanent human base on the Moon or Mars. Every choice requires real engineering trade-offs.',
       tipEs: 'Consejo: Revisa tus reservas de Oxígeno, Batería y Agua antes de pasar al siguiente Sol.',
       tipEn: 'Pro Tip: Check your Oxygen, Battery, and Water reserves before advancing to the next Sol.',
     },
@@ -77,7 +72,7 @@ export const TutorialGuide: React.FC<TutorialGuideProps> = ({ isOpen, onClose, l
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-fadeIn">
-      <div className="bg-slate-900 border-2 border-cyan-400 rounded-3xl max-w-xl w-full p-4 sm:p-6 shadow-[0_0_50px_rgba(6,182,212,0.35)] relative">
+      <div className="bg-slate-900 border-2 border-emerald-400 rounded-3xl max-w-xl w-full p-4 sm:p-6 shadow-[0_0_50px_rgba(16,185,129,0.35)] relative">
         {/* Close Button */}
         <button
           onClick={() => {
@@ -91,7 +86,7 @@ export const TutorialGuide: React.FC<TutorialGuideProps> = ({ isOpen, onClose, l
 
         {/* NOVA Bot Avatar & Title */}
         <div className="flex items-center gap-3 border-b border-slate-800 pb-3 mb-4">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-600 to-indigo-600 flex items-center justify-center text-2xl shadow-lg shadow-cyan-500/30 border border-cyan-300/40">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-600 to-indigo-600 flex items-center justify-center text-2xl shadow-lg shadow-emerald-500/30 border border-emerald-300/40">
             🤖
           </div>
           <div>
@@ -99,8 +94,8 @@ export const TutorialGuide: React.FC<TutorialGuideProps> = ({ isOpen, onClose, l
               <h3 className="text-base font-black text-slate-100">
                 Capcom NOVA
               </h3>
-              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-cyan-950 border border-cyan-500 text-cyan-300">
-                AI Flight Director
+              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-950 border border-emerald-500 text-emerald-300">
+                Troncos Intergalácticos
               </span>
             </div>
             <p className="text-xs text-slate-400">
@@ -117,7 +112,7 @@ export const TutorialGuide: React.FC<TutorialGuideProps> = ({ isOpen, onClose, l
               <span
                 key={idx}
                 className={`w-2 h-2 rounded-full transition-all ${
-                  idx === currentStep ? 'bg-cyan-400 w-4' : 'bg-slate-700'
+                  idx === currentStep ? 'bg-emerald-400 w-4' : 'bg-slate-700'
                 }`}
               />
             ))}
@@ -128,7 +123,7 @@ export const TutorialGuide: React.FC<TutorialGuideProps> = ({ isOpen, onClose, l
         <div className="bg-slate-950/90 border border-slate-800 rounded-2xl p-4 my-2">
           <div className="flex items-center gap-2.5 mb-2">
             <span className="text-2xl">{current.icon}</span>
-            <h4 className="text-sm sm:text-base font-black text-cyan-200">
+            <h4 className="text-sm sm:text-base font-black text-emerald-200">
               {lang === 'es' ? current.titleEs : current.titleEn}
             </h4>
           </div>
@@ -162,7 +157,7 @@ export const TutorialGuide: React.FC<TutorialGuideProps> = ({ isOpen, onClose, l
                 soundFx.playClick();
                 setCurrentStep(p => Math.min(steps.length - 1, p + 1));
               }}
-              className="flex items-center gap-1 px-4 py-2 rounded-xl text-xs font-black bg-cyan-600 hover:bg-cyan-500 text-white shadow-md shadow-cyan-900/40 transition-all"
+              className="flex items-center gap-1 px-4 py-2 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-900/40 transition-all"
             >
               <span>{lang === 'es' ? 'Siguiente' : 'Next'}</span>
               <ChevronRight className="w-4 h-4" />
@@ -173,7 +168,7 @@ export const TutorialGuide: React.FC<TutorialGuideProps> = ({ isOpen, onClose, l
                 soundFx.playVictory();
                 onClose();
               }}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-900/40 transition-all"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-md shadow-emerald-900/40 transition-all"
             >
               <CheckCircle2 className="w-4 h-4" />
               <span>{lang === 'es' ? '¡Listo para el Despegue!' : 'Ready for Launch!'}</span>

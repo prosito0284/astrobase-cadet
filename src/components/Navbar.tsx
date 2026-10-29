@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { BaseLocation, GameDifficulty } from '../types/game';
 import { 
   Rocket, 
@@ -15,7 +15,10 @@ import {
   History,
   Sprout,
   Compass,
-  GraduationCap
+  GraduationCap,
+  Maximize,
+  Minimize,
+  TreePine
 } from 'lucide-react';
 import { soundFx } from '../utils/audio';
 
@@ -66,36 +69,51 @@ export const Navbar: React.FC<NavbarProps> = ({
   lang,
   onToggleLang,
 }) => {
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+      setIsFullscreen(true);
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+        setIsFullscreen(false);
+      }
+    }
+  };
+
   return (
     <header className="bg-slate-900/95 backdrop-blur-md border-b border-cyan-500/30 sticky top-0 z-40 px-3 py-2 shadow-xl shadow-cyan-950/20">
       <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2.5">
-        {/* Brand / Logo */}
-        <div className="flex items-center gap-2">
-          <div className="relative flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-600 via-blue-700 to-indigo-900 border border-cyan-400/40 shadow-lg shadow-cyan-500/30 flex-shrink-0">
-            <Rocket className="w-5 h-5 text-cyan-200 animate-pulse-subtle" />
-            <span className="absolute -bottom-1 -right-1 text-[9px] bg-red-600 font-black px-1 rounded text-white tracking-wider">
+        {/* Brand / Logo + TEAM BRANDING: TRONCOS INTERGALÁCTICOS */}
+        <div className="flex items-center gap-2.5">
+          <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-600 via-cyan-700 to-indigo-900 border border-emerald-400/50 shadow-lg shadow-emerald-500/30 flex-shrink-0">
+            <TreePine className="w-5 h-5 text-emerald-200" />
+            <span className="absolute -bottom-1 -right-1 text-[8px] bg-red-600 font-black px-1 rounded text-white tracking-wider">
               NASA
             </span>
           </div>
           <div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 flex-wrap">
               <h1 className="text-sm sm:text-base font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-sky-100 to-amber-300">
                 ASTROBASE CADET
               </h1>
-              {activeCrisisTitle ? (
+              {/* Official Team Badge */}
+              <span className="flex items-center gap-1 text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-gradient-to-r from-emerald-950 to-teal-950 border border-emerald-400/60 text-emerald-300 shadow-sm shadow-emerald-950/60">
+                <span>🌲</span>
+                <span>Troncos Intergalácticos</span>
+              </span>
+              {activeCrisisTitle && (
                 <span className="text-[9px] uppercase font-black px-1.5 py-0.2 rounded bg-red-950 border border-red-500 text-red-300 animate-pulse">
                   CRISIS: {activeCrisisTitle}
-                </span>
-              ) : (
-                <span className="hidden sm:inline-block text-[9px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full bg-cyan-950/80 border border-cyan-500/40 text-cyan-300">
-                  STEM v3.0 PRO
                 </span>
               )}
             </div>
             <p className="text-[10px] text-slate-400 font-medium hidden md:block">
               {lang === 'es' 
-                ? 'Simulador de Misiones Espaciales con Datos Abiertos de la NASA' 
-                : 'Space Mission Simulator Powered by NASA Open Datasets'}
+                ? 'Desarrollado por Troncos Intergalácticos • Datos Abiertos de la NASA' 
+                : 'Developed by Troncos Intergalácticos • NASA Open Science Data'}
             </p>
           </div>
         </div>
@@ -244,9 +262,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                 ? 'bg-cyan-950/80 border-cyan-400 text-cyan-300 shadow-sm shadow-cyan-500/30' 
                 : 'bg-slate-800 border-slate-700 text-slate-500'
             }`}
-            title={isVoiceEnabled ? 'Voz de Capcom NOVA Activa' : 'Activar Voz de Capcom NOVA'}
+            title={isVoiceEnabled ? 'Voz Natural de Capcom NOVA Activa' : 'Activar Voz Natural de Capcom NOVA'}
           >
             {isVoiceEnabled ? <Mic className="w-3.5 h-3.5 text-cyan-300" /> : <MicOff className="w-3.5 h-3.5 text-slate-400" />}
+          </button>
+
+          {/* Fullscreen Button */}
+          <button
+            onClick={toggleFullscreen}
+            className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-300 transition-all hidden sm:block"
+            title={isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa (Proyector/Aula)'}
+          >
+            {isFullscreen ? <Minimize className="w-3.5 h-3.5 text-amber-300" /> : <Maximize className="w-3.5 h-3.5 text-cyan-400" />}
           </button>
 
           {/* Audio Mute Toggle */}

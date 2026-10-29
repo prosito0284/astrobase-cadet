@@ -74,7 +74,7 @@ export function App() {
   useEffect(() => {
     const timer = setTimeout(() => {
       spaceVoice.speak(
-        '¡Saludos, Comandante! Capcom NOVA en línea. Todos los sistemas de soporte vital y telemetría de la NASA están activos.'
+        '¡Saludos, Comandante! Capcom NOVA en línea, desarrollado por el equipo Troncos Intergalácticos. Todos los sistemas de telemetría de la NASA están listos para la misión.'
       );
     }, 1000);
     return () => clearTimeout(timer);
@@ -575,11 +575,16 @@ export function App() {
       {/* Footer */}
       <footer className="bg-slate-950 border-t border-slate-900 py-3 px-4 text-center text-xs text-slate-500">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
-          <span>
-            {lang === 'es' 
-              ? 'Desarrollado para el Desafío: Simulador de misiones para astronautas jóvenes' 
-              : 'Built for the Youth Astronaut Mission Simulator Challenge'}
-          </span>
+          <div className="flex items-center gap-1.5 font-medium">
+            <span>🚀</span>
+            <span className="text-slate-400">
+              {lang === 'es' ? 'Desarrollado con orgullo por el equipo' : 'Proudly developed by team'}
+            </span>
+            <span className="text-emerald-400 font-black">
+              Troncos Intergalácticos
+            </span>
+            <span className="text-slate-500">• NASA STEM Challenge</span>
+          </div>
           <div className="flex items-center gap-2">
             <button 
               onClick={() => setIsHistoricalCrisesOpen(true)}

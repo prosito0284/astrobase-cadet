@@ -1,7 +1,9 @@
 # 🚀 ASTROBASE CADET: Simulador de Misiones para Jóvenes Astronautas
 > **NASA Deep Space Mission Simulator for Young Astronauts (Ages 7–12)**  
-> *Desarrollado para el desafío: Simulador de misiones para astronautas jóvenes (NASA Space Apps Challenge)*
+> *Desarrollado con orgullo por el equipo:* **🌲 Troncos Intergalácticos**  
+> *Para el Desafío: Simulador de misiones para astronautas jóvenes (NASA Space Apps Challenge)*
 
+![Equipo](https://img.shields.io/badge/Equipo-Troncos_Intergal%C3%A1cticos-emerald?style=for-the-badge&logo=spacex)
 ![NASA STEM Sim](https://img.shields.io/badge/NASA_Open_Data-DONKI_%7C_OSDR_%7C_Artemis_%7C_MEDA-blue?style=for-the-badge&logo=nasa)
 ![Target Audience](https://img.shields.io/badge/Edades-7_a_12_a%C3%B1os_(STEM)-emerald?style=for-the-badge)
 ![Zero Install](https://img.shields.io/badge/Plataforma-Navegador_Web_(100%25_Offline)-purple?style=for-the-badge)

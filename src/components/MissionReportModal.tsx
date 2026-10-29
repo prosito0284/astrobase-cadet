@@ -6,14 +6,8 @@ import {
   X, 
   CheckCircle2, 
   Sparkles, 
-  Wind, 
-  Zap, 
-  Droplets, 
-  Sprout, 
-  ShieldCheck, 
-  Rocket, 
-  Calendar,
-  Share2
+  TreePine,
+  ShieldCheck
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { soundFx } from '../utils/audio';
@@ -36,7 +30,6 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
   location,
   currentDay,
   totalDays,
-  difficulty,
   resources,
   crew,
   lang,
@@ -58,7 +51,6 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
   };
 
   const avgCrewHealth = Math.round(crew.reduce((acc, c) => acc + c.health, 0) / crew.length);
-  const avgCrewMorale = Math.round(crew.reduce((acc, c) => acc + c.morale, 0) / crew.length);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md animate-fadeIn print:p-0 print:bg-white">
@@ -70,9 +62,14 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
               <Award className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-black text-slate-100 flex items-center gap-2">
-                <span>{lang === 'es' ? 'Informe Oficial de Misión & Certificado' : 'Official Mission Debrief & Certificate'}</span>
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base sm:text-lg font-black text-slate-100">
+                  {lang === 'es' ? 'Informe Oficial de Misión & Certificado' : 'Official Mission Debrief & Certificate'}
+                </h2>
+                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-950 border border-emerald-500 text-emerald-300">
+                  Por Troncos Intergalácticos
+                </span>
+              </div>
               <p className="text-xs text-slate-400">
                 {lang === 'es' 
                   ? 'Evaluación de supervivencia, ingeniería y datos científicos recopilados.' 
@@ -114,9 +111,9 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
           <div className="absolute top-3 left-4 text-xs font-mono font-bold text-amber-400/60 print:text-slate-600">
             DOC: NASA-CADET-{location.toUpperCase()}-{currentDay}
           </div>
-          <div className="absolute top-3 right-4 flex items-center gap-1 text-xs font-black text-red-500">
-            <span className="w-2.5 h-2.5 rounded-full bg-red-600 inline-block" />
-            <span>NASA STEM EXPLORATION</span>
+          <div className="absolute top-3 right-4 flex items-center gap-1 text-xs font-black text-emerald-400 print:text-slate-700">
+            <span>🌲</span>
+            <span>TRONCOS INTERGALÁCTICOS</span>
           </div>
 
           <div className="flex justify-center my-3">
@@ -129,7 +126,7 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
             {lang === 'es' ? 'CERTIFICADO DE COMANDANTE DE MISIÓN' : 'MISSION COMMANDER CERTIFICATE'}
           </h3>
           <p className="text-xs text-slate-400 mt-1 uppercase tracking-widest font-semibold print:text-slate-600">
-            {lang === 'es' ? 'Programa de Exploración Espacial Juvenil de la NASA' : 'NASA Youth Deep Space Exploration Program'}
+            {lang === 'es' ? 'Simulador Desarrollado por el Equipo Troncos Intergalácticos (NASA STEM)' : 'Simulator Developed by Team Troncos Intergalácticos (NASA STEM)'}
           </p>
 
           <p className="text-xs sm:text-sm text-slate-200 mt-4 max-w-lg mx-auto leading-relaxed print:text-slate-800">
@@ -202,8 +199,12 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
             </div>
           </div>
 
-          {/* Signatures */}
+          {/* Signatures including Troncos Intergalácticos */}
           <div className="mt-6 pt-4 border-t border-slate-800/80 flex items-center justify-between text-xs font-mono text-slate-400 print:text-slate-600 print:border-slate-300">
+            <div>
+              <div className="font-sans font-bold text-emerald-400 print:text-black">Troncos Intergalácticos</div>
+              <div className="text-[10px]">Equipo de Desarrollo & Ingeniería</div>
+            </div>
             <div>
               <div className="font-sans font-bold text-slate-200 print:text-black">Capcom NOVA</div>
               <div className="text-[10px]">Director de Vuelo de IA, NASA</div>
