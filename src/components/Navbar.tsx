@@ -38,6 +38,9 @@ interface NavbarProps {
   onOpenRoverMission: () => void;
   onOpenHistoricalCrises: () => void;
   onOpenNasaQuiz: () => void;
+  isBatteryFault: boolean;
+  onOpenWiring: () => void;
+  onOpenIceMine: () => void;
   onToggleMute: () => void;
   onToggleVoice: () => void;
   onChangeLocation: (loc: BaseLocation) => void;
@@ -54,6 +57,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   isMuted,
   isVoiceEnabled,
   activeCrisisTitle,
+  isBatteryFault,
   onAdvanceDay,
   onOpenDossier,
   onOpenGuide,
@@ -62,6 +66,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenRoverMission,
   onOpenHistoricalCrises,
   onOpenNasaQuiz,
+  onOpenWiring,
+  onOpenIceMine,
   onToggleMute,
   onToggleVoice,
   onChangeLocation,
@@ -189,6 +195,34 @@ export const Navbar: React.FC<NavbarProps> = ({
             <Sprout className="w-3.5 h-3.5 text-emerald-400" />
             <span className="hidden lg:inline">{lang === 'es' ? 'Invernadero' : 'Veggie'}</span>
           </button>
+
+          {/* Ice Mine Button (Requires 2 Astronauts) */}
+          <button
+            onClick={() => {
+              soundFx.playClick();
+              onOpenIceMine();
+            }}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-950/70 hover:bg-blue-900/80 border border-blue-500/50 text-blue-300 text-xs font-bold transition-all"
+            title="Mina de Hielo Criogénica (Requiere 2 astronautas)"
+          >
+            <span className="text-xs">⛏️</span>
+            <span className="hidden lg:inline">{lang === 'es' ? 'Mina Hielo' : 'Ice Mine'}</span>
+          </button>
+
+          {/* Battery Failure Indicator & Wiring Repair Button */}
+          {isBatteryFault && (
+            <button
+              onClick={() => {
+                soundFx.playAlert();
+                onOpenWiring();
+              }}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-red-950 border border-red-500 text-red-200 text-xs font-black transition-all animate-bounce shadow-md shadow-red-950"
+              title="¡Alerta de Cortocircuito en Baterías! Haz clic para abrir el minijuego de cableado"
+            >
+              <span className="text-xs">⚡</span>
+              <span>{lang === 'es' ? 'Fallo Batería (Cablear)' : 'Fix Wiring!'}</span>
+            </button>
+          )}
 
           {/* Rover Mission Button */}
           <button

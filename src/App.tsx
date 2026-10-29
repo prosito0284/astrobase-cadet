@@ -32,10 +32,12 @@ import { NasaQuizModal } from './components/NasaQuizModal';
 import { GameOverModal } from './components/GameOverModal';
 import { CommMiniGameModal } from './components/CommMiniGameModal';
 import { OxygenEmergencyBanner } from './components/OxygenEmergencyBanner';
+import { WiringMiniGameModal } from './components/WiringMiniGameModal';
+import { IceMineModal } from './components/IceMineModal';
 import { soundFx } from './utils/audio';
 import { spaceVoice } from './utils/speech';
 import confetti from 'canvas-confetti';
-import { Sparkles, Thermometer, AlertTriangle, WifiOff } from 'lucide-react';
+import { Sparkles, Thermometer, AlertTriangle, WifiOff, Zap } from 'lucide-react';
 
 const createInitialColonyData = (loc: BaseLocation): ColonySaveData => {
   const scen = SCENARIOS.find(s => s.location === loc) || SCENARIOS[0];
@@ -52,6 +54,9 @@ const createInitialColonyData = (loc: BaseLocation): ColonySaveData => {
     isCommBlackout: false,
     solarFluctuation: false,
     emergencyO2Active: false,
+    batteryFault: false,
+    batteryLockoutTurns: 0,
+    assignedToMine: [],
   };
 };
 
@@ -64,7 +69,7 @@ export function App() {
   // INDEPENDENT PERSISTENT COLONY STATE (MOON & MARS MAINTAIN SEPARATE PROGRESS)
   const [colonies, setColonies] = useState<{ moon: ColonySaveData; mars: ColonySaveData }>(() => {
     try {
-      const saved = localStorage.getItem('astrobase_dual_save_v3');
+      const saved = localStorage.getItem('astrobase_dual_save_v4');
       if (saved) {
         return JSON.parse(saved);
       }
@@ -97,12 +102,14 @@ export function App() {
   const [isNasaQuizOpen, setIsNasaQuizOpen] = useState(false);
   const [isGameOverOpen, setIsGameOverOpen] = useState(false);
   const [gameOverCause, setGameOverCause] = useState<string>('');
+  const [isWiringOpen, setIsWiringOpen] = useState(false);
+  const [isIceMineOpen, setIsIceMineOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Save to localStorage whenever colonies state changes
   useEffect(() => {
     try {
-      localStorage.setItem('astrobase_dual_save_v3', JSON.stringify(colonies));
+      localStorage.setItem('astrobase_dual_save_v4', JSON.stringify(colonies));
     } catch {
       // LocalStorage quota fallback
     }
@@ -202,6 +209,43 @@ export function App() {
     spaceVoice.speak(upgradeMsg);
   };
 
+  // Ice Mine toggle assignment handler
+  const handleToggleAssignAstronaut = (astronautId: string) => {
+    const livingCrew = currentColony.crew.filter(c => c.status !== 'deceased');
+    const isCurrentlyAssigned = currentColony.assignedToMine.includes(astronautId);
+
+    if (isCurrentlyAssigned) {
+      // Unassign
+      updateCurrentColony(prev => ({
+        ...prev,
+        assignedToMine: prev.assignedToMine.filter(id => id !== astronautId),
+        crew: prev.crew.map(c => c.id === astronautId ? { ...c, isAssignedToMine: false } : c),
+      }));
+      showToast('Astronauta regresado al hábitat.');
+    } else {
+      // Trying to assign
+      if (currentColony.assignedToMine.length >= 2) {
+        showToast('La mina ya tiene el máximo de 2 mineros asignados.');
+        return;
+      }
+      // Rule: Base cannot be left with fewer than 1 person!
+      const remainingInBase = livingCrew.length - currentColony.assignedToMine.length;
+      if (remainingInBase <= 1) {
+        soundFx.playAlert();
+        showToast('¡Regla de Seguridad! No puedes dejar la base desatendida. Al menos 1 astronauta debe quedarse.');
+        spaceVoice.speak('Atención. La base requiere al menos un tripulante en el hábitat.');
+        return;
+      }
+
+      updateCurrentColony(prev => ({
+        ...prev,
+        assignedToMine: [...prev.assignedToMine, astronautId],
+        crew: prev.crew.map(c => c.id === astronautId ? { ...c, isAssignedToMine: true } : c),
+      }));
+      showToast('Astronauta asignado a la mina de hielo criogénico.');
+    }
+  };
+
   // Advance Day / Sol simulation loop with all requested mechanics
   const handleAdvanceDay = () => {
     const maxDays = activeCrisis ? activeCrisis.targetDays : currentScenario.targetDays;
@@ -220,27 +264,34 @@ export function App() {
     const isNightNow = location === 'moon' && nextDay >= 10 && nextDay <= 18;
     const isDustNow = location === 'mars' && (nextDay >= 5 && nextDay <= 8 || activeCrisis?.specialCondition === 'solar_blackout');
 
-    // 1. TEMPERATURE CYCLE (Moon: +120°C day / -180°C night | Mars: +20°C day / -85°C night)
+    // 1. TEMPERATURE CYCLE
     let currentTemp = 0;
     let isExtreme = false;
-
     if (location === 'moon') {
       currentTemp = isNightNow ? -180 : 120;
       isExtreme = isNightNow || currentTemp > 100;
     } else {
-      // Mars diurnal swing
       currentTemp = (nextDay % 2 === 0) ? -85 : 20;
       isExtreme = currentTemp < -50;
     }
 
-    // 2. SOLAR FLUCTUATIONS & COMM BLACKOUT PROBABILITY (Only in Normal difficulty)
+    // 2. BATTERY FAULT & COMM BLACKOUT PROBABILITY (Normal Mode)
+    let newBatteryFault = currentColony.batteryFault;
+    let newBatteryLockout = Math.max(0, currentColony.batteryLockoutTurns - 1);
     let hasSolarFluctuation = false;
     let hasCommBlackout = currentColony.isCommBlackout;
 
     if (difficulty === 'normal') {
-      // 25% chance of solar brownout fluctuation
+      // 15% chance of battery short-circuit
+      if (!newBatteryFault && Math.random() < 0.15 && nextDay > 2) {
+        newBatteryFault = true;
+        soundFx.playAlert();
+        spaceVoice.speak('¡Alerta en bancos de energía! Cortocircuito detectado en el cableado de baterías.');
+        setIsWiringOpen(true);
+      }
+
       hasSolarFluctuation = Math.random() < 0.25;
-      // 20% chance of radio communication blackout if not already in blackout
+
       if (!hasCommBlackout && Math.random() < 0.20 && nextDay > 3) {
         hasCommBlackout = true;
         soundFx.playAlert();
@@ -248,28 +299,30 @@ export function App() {
       }
     }
 
-    // 3. LIVING CREW & O2 / FOOD / WATER CONSUMPTION
+    // 3. LIVING CREW & OXYGEN CONSUMPTION (INCLUDING MINING PENALTY OF 1.5% EXTRA O2)
     const livingCrew = currentColony.crew.filter(c => c.status !== 'deceased');
     const livingCount = livingCrew.length;
+    const assignedMinersCount = currentColony.assignedToMine.filter(id => livingCrew.some(c => c.id === id)).length;
 
-    // In Fácil: humans do NOT consume food or water, minimal O2
-    // In Normal: O2 consumed strictly per living human (2.5 per person), water 3.5L per person, food 2.5 per person
     let crewO2Consumption = 0;
     let crewWaterConsumption = 0;
     let crewFoodConsumption = 0;
 
     if (difficulty === 'facil') {
       crewO2Consumption = livingCount * 1.0;
-      crewWaterConsumption = 0; // "los humanos no neseciten comida ni agua"
-      crewFoodConsumption = 0;  // "los humanos no neseciten comida ni agua"
+      crewWaterConsumption = 0;
+      crewFoodConsumption = 0;
     } else {
-      crewO2Consumption = livingCount * 2.5; // O2 per living person!
+      // Normal living crew O2:
+      // Regular crew: 2.5 O2
+      // The 2 miners consume 1.5% more O2 (2.5 * 1.015 = 2.5375, rounded to ~2.6)
+      const regularCrewCount = livingCount - assignedMinersCount;
+      crewO2Consumption = (regularCrewCount * 2.5) + (assignedMinersCount * 2.5 * 1.015);
       crewWaterConsumption = livingCount * 3.5;
       crewFoodConsumption = livingCount * 2.5;
     }
 
     // 4. MODULE EFFICIENCY & TEMPERATURE CYCLE
-    // "que aya un siclo que baja y alta temperatura que afecten a todos los sistemas eseptuando a los sistemas de energia"
     let totalProd = 0;
     let totalCons = 0;
     let deltaO2 = 0;
@@ -278,13 +331,19 @@ export function App() {
     let deltaShield = 0;
     let deltaScience = 0;
 
+    // Extra ice mine water production if 2 miners are assigned!
+    if (assignedMinersCount === 2) {
+      deltaH2O += 22; // Great water harvest!
+    }
+
     currentColony.modules.forEach(mod => {
       if (!mod.isActive) return;
 
       // Energy systems (Solar & Battery) are EXEMPT from extreme temperature degradation!
       if (mod.id === 'solar_farm') {
         let efficiency = 1.0;
-        if (hasSolarFluctuation) efficiency *= 0.6; // Light scarcity in normal mode
+        if (hasSolarFluctuation) efficiency *= 0.6;
+        if (newBatteryFault) efficiency *= 0.1; // Battery short-circuit halts power accumulation!
 
         if (isNightNow) {
           totalProd += 0;
@@ -297,20 +356,16 @@ export function App() {
         totalCons += mod.powerRequired * mod.level;
       }
 
-      // Non-energy systems: affected by extreme temperature (25% efficiency penalty if extreme)
+      // Non-energy systems: affected by extreme temperature
       const systemThermalEfficiency = (isExtreme && mod.category !== 'power' && difficulty === 'normal') ? 0.75 : 1.0;
 
-      // Day / Night Plant Oxygen Cycle in Normal:
-      // "que las plantas generen oxigeno pero tambien lo consuman"
+      // Day / Night Plant Oxygen Cycle
       if (mod.id === 'greenhouse') {
         if (difficulty === 'normal' && isNightNow) {
-          // At night, plants consume O2 via cellular respiration!
-          deltaO2 += -2 * mod.level;
+          deltaO2 += -2 * mod.level; // Night respiration
         } else {
-          // Daytime photosynthesis generates O2
           deltaO2 += (difficulty === 'facil' ? 8 : mod.oxygenDelta) * mod.level * systemThermalEfficiency;
         }
-        // More loot in easy mode!
         deltaFood += (difficulty === 'facil' ? 18 : mod.foodDelta) * mod.level * systemThermalEfficiency;
       } else {
         deltaO2 += mod.oxygenDelta * mod.level * systemThermalEfficiency;
@@ -322,14 +377,12 @@ export function App() {
       deltaScience += mod.scienceDelta * mod.level * systemThermalEfficiency;
     });
 
-    // Net resource balance
     deltaO2 -= crewO2Consumption;
     deltaH2O -= crewWaterConsumption;
     deltaFood -= crewFoodConsumption;
 
     const netPower = totalProd - totalCons;
 
-    // Calculate new resources
     let newEnergy = currentColony.resources.energy + (netPower * 0.4);
     let newOxygen = currentColony.resources.oxygen + deltaO2;
     let newWater = currentColony.resources.water + deltaH2O;
@@ -338,56 +391,79 @@ export function App() {
     let newRad = currentColony.resources.radiationExposure + (currentColony.radiationActive ? 6 : 0.5);
     let newScience = currentColony.resources.sciencePoints + Math.max(1, deltaScience);
 
+    // 5. CHANCE OF 1/5000 SPACE DEBRIS IMPACT!
+    // "que aya una posibilidad de 1/5000 que caiga basura y esta baje todo a la mitad de lo que tenian"
+    const isSpaceDebrisImpact = Math.random() < (1 / 5000);
+    if (isSpaceDebrisImpact) {
+      newOxygen *= 0.5;
+      newWater *= 0.5;
+      newEnergy *= 0.5;
+      newFood *= 0.5;
+      newShield *= 0.5;
+      soundFx.playAlert();
+      showToast('💥 ¡COLISIÓN CATASTRÓFICA DE BASURA ESPACIAL (Probabilidad 1/5000)! Todos los recursos se han reducido a la mitad.');
+      spaceVoice.speak('¡Alerta de impacto orbital severo! Basura espacial ha dañado los depósitos. Recursos reducidos a la mitad.');
+    }
+
     newEnergy = Math.max(0, Math.min(currentColony.resources.maxEnergy, newEnergy));
-    newOxygen = Math.max(0, Math.min(currentColony.resources.maxOxygen, newOxygen));
     newWater = Math.max(0, Math.min(currentColony.resources.maxWater, newWater));
     newFood = Math.max(0, Math.min(currentColony.resources.maxFood, newFood));
 
-    // 5. CREW HEALTH, MORALE & ACTUAL MORTALITY! ("no se mueren" FIXED)
+    // 6. INSTA-KILL CHECK IF OXYGEN HITS 0!
+    // "que al quedarse sin oxigeno sea insta kill"
+    let isInstaKillOxygen = false;
+    if (newOxygen <= 0) {
+      newOxygen = 0;
+      isInstaKillOxygen = true;
+    }
+
     let anyDeathOccurred = false;
     let latestDeathName = '';
     let latestDeathCause = '';
 
     const updatedCrew = currentColony.crew.map(c => {
-      if (c.status === 'deceased') return c; // Already dead
+      if (c.status === 'deceased') return c;
+
+      // INSTA KILL ON ZERO OXYGEN!
+      if (isInstaKillOxygen) {
+        anyDeathOccurred = true;
+        latestDeathName = c.name;
+        latestDeathCause = 'Muerte instantánea por asfixia en el vacío (0% O₂)';
+        return {
+          ...c,
+          health: 0,
+          morale: 0,
+          status: 'deceased' as CrewStatus,
+          causeOfDeath: latestDeathCause,
+        };
+      }
 
       let healthDelta = 0;
       let moraleDelta = 0;
       let primaryFatalCause = '';
 
       if (difficulty === 'facil') {
-        // Fácil: low penalty, moral stays high, no starvation
         if (newOxygen < 20) healthDelta -= 5;
         if (newEnergy === 0) healthDelta -= 5;
         moraleDelta += 1;
       } else {
-        // Normal: realistic severe penalties and fatal risks!
-        if (newOxygen <= 5) {
-          healthDelta -= 35;
-          primaryFatalCause = 'Asfixia por falta de oxígeno (O₂ agotado)';
-        } else if (newOxygen < 25) {
+        if (newOxygen < 25) {
           healthDelta -= 15;
           primaryFatalCause = 'Hipoxia severa por baja presión de O₂';
         }
-
         if (newWater <= 0) {
           healthDelta -= 20;
           primaryFatalCause = 'Deshidratación crítica en ambiente espacial';
         }
-
         if (newEnergy <= 0) {
-          healthDelta -= 25; // Freezing to death (-180°C / -85°C)!
-          primaryFatalCause = isNightNow 
-            ? 'Hipotermia letal durante la noche espacial' 
-            : 'Fallo total de presurización térmica';
+          healthDelta -= 25;
+          primaryFatalCause = isNightNow ? 'Hipotermia letal durante la noche polar' : 'Fallo térmico del hábitat';
         }
-
         if (currentColony.radiationActive && newShield < 40) {
           healthDelta -= 20;
           primaryFatalCause = 'Dosis letal de radiación ionizante solar (DONKI)';
         }
 
-        // Morale swings
         if (newFood > 60 && newOxygen > 50) moraleDelta += 3;
         if (newFood < 20) moraleDelta -= 8;
         if (newOxygen < 30) moraleDelta -= 10;
@@ -397,7 +473,6 @@ export function App() {
       const calculatedHealth = Math.max(0, Math.min(100, c.health + healthDelta));
       const calculatedMorale = Math.max(0, Math.min(100, c.morale + moraleDelta));
 
-      // MORTALITY CHECK!
       if (calculatedHealth <= 0 && difficulty === 'normal') {
         anyDeathOccurred = true;
         latestDeathName = c.name;
@@ -406,7 +481,7 @@ export function App() {
           ...c,
           health: 0,
           morale: 0,
-          status: 'deceased' as const,
+          status: 'deceased' as CrewStatus,
           causeOfDeath: latestDeathCause,
         };
       }
@@ -419,7 +494,6 @@ export function App() {
       };
     });
 
-    // Check if entire crew has perished!
     const totalLivingRemaining = updatedCrew.filter(c => c.status !== 'deceased').length;
 
     // Apply colony update
@@ -445,14 +519,16 @@ export function App() {
       isTemperatureExtreme: isExtreme,
       solarFluctuation: hasSolarFluctuation,
       isCommBlackout: hasCommBlackout,
+      batteryFault: newBatteryFault,
+      batteryLockoutTurns: newBatteryLockout,
     }));
 
-    // Voice & Sound alerts for deaths or game over
-    if (totalLivingRemaining === 0) {
+    // Voice & Sound alerts
+    if (isInstaKillOxygen || totalLivingRemaining === 0) {
       soundFx.playAlert();
-      setGameOverCause(latestDeathCause || 'Agotamiento total de los recursos vitales de la colonia.');
+      setGameOverCause(isInstaKillOxygen ? '¡MUERTE INSTANTÁNEA POR ASFIXIA AL QUEDARSE SIN OXÍGENO (0% O₂)!' : (latestDeathCause || 'Agotamiento de recursos vitales'));
       setIsGameOverOpen(true);
-      spaceVoice.speak('Alerta fatal. La tripulación no ha sobrevivido. Misión fracasada.');
+      spaceVoice.speak('Alerta catastrófica. Oxígeno al cero por ciento. Muerte instantánea de la tripulación. Misión terminada.');
       return;
     } else if (anyDeathOccurred) {
       soundFx.playAlert();
@@ -460,7 +536,7 @@ export function App() {
       spaceVoice.speak(`Alerta médica fatal. El astronauta ${latestDeathName} ha fallecido.`);
     }
 
-    // Trigger Mission Events on specific days
+    // Trigger Mission Events
     if (nextDay === 3) {
       updateCurrentColony(p => ({ ...p, radiationActive: true }));
       soundFx.playAlert();
@@ -471,24 +547,13 @@ export function App() {
       soundFx.playAlert();
       const ev = MISSION_EVENTS.find(e => e.id === 'mars_dust_storm_meda') || MISSION_EVENTS[1];
       setCurrentEvent(ev);
-      spaceVoice.speak('Alerta meteorológica MEDA. Tormenta de polvo aproximándose al cráter Jezero.');
     } else if (nextDay === 7) {
       soundFx.playAlert();
       const ev = MISSION_EVENTS.find(e => e.id === 'osdr_veggie_crisis') || MISSION_EVENTS[2];
       setCurrentEvent(ev);
-      spaceVoice.speak('Alerta biológica en el invernadero espacial Veggie.');
     } else if (nextDay === 10 && location === 'moon') {
       soundFx.playAlert();
       const ev = MISSION_EVENTS.find(e => e.id === 'lunar_night_approaching') || MISSION_EVENTS[3];
-      setCurrentEvent(ev);
-      spaceVoice.speak('Iniciando aproximación de la noche polar lunar. Catorce días continuos de oscuridad.');
-    } else if (nextDay === 12) {
-      soundFx.playAlert();
-      const ev = MISSION_EVENTS.find(e => e.id === 'comm_delay_emergency') || MISSION_EVENTS[4];
-      setCurrentEvent(ev);
-    } else if (nextDay === 15) {
-      soundFx.playAlert();
-      const ev = MISSION_EVENTS.find(e => e.id === 'osdr_bone_density_loss') || MISSION_EVENTS[5];
       setCurrentEvent(ev);
     } else {
       const advText = lang === 'es'
@@ -541,7 +606,6 @@ export function App() {
 
   // Botanical harvest callback
   const handleBotanicalHarvest = (foodGain: number, scienceGain: number, moraleGain: number) => {
-    // In easy mode: plant loot is multiplied!
     const multiplier = difficulty === 'facil' ? 1.5 : 1.0;
     const actualFood = Math.round(foodGain * multiplier);
 
@@ -584,17 +648,27 @@ export function App() {
     spaceVoice.speak('El rover ha regresado al muelle con las muestras recolectadas.');
   };
 
-  // Add science points from quiz
-  const handleAddScienceFromQuiz = (pts: number) => {
+  // Quiz completed callback with +20 Science bonus & +20% Morale!
+  // "que al completar al quiz se den un bonus de 20 puntos de ciencia y que se suva el animo en un 20%"
+  const handleQuizBonus = (scienceBonus: number, moraleBonus: number) => {
     updateCurrentColony(prev => ({
       ...prev,
       resources: {
         ...prev.resources,
-        sciencePoints: prev.resources.sciencePoints + pts,
+        sciencePoints: prev.resources.sciencePoints + scienceBonus,
       },
+      crew: prev.crew.map(c => {
+        if (c.status === 'deceased') return c;
+        return {
+          ...c,
+          morale: Math.min(100, c.morale + moraleBonus),
+        };
+      }),
     }));
-    showToast(`¡Quiz completado! +${pts} Puntos de Ciencia agregados.`);
-    spaceVoice.speak(`Felicitaciones, Cadete. Ganaste ${pts} puntos de ciencia en el desafío STEM.`);
+    soundFx.playVictory();
+    const msg = `🎉 ¡Desafío Quiz Superado! +${scienceBonus} Puntos de Ciencia Bonus y +${moraleBonus}% de Ánimo para toda la tripulación.`;
+    showToast(msg);
+    spaceVoice.speak('Excelente trabajo en el desafío STEM. Bono de ciencia acreditado y moral de la tripulación aumentada al máximo.');
   };
 
   // Emergency Oxygen Deployment with 2-second delay callback!
@@ -611,13 +685,23 @@ export function App() {
     spaceVoice.speak('Presión de oxígeno normalizada en el hábitat.');
   };
 
+  // Wiring repair success callback
+  const handleWiringSuccess = () => {
+    updateCurrentColony(prev => ({
+      ...prev,
+      batteryFault: false,
+    }));
+    setIsWiringOpen(false);
+    showToast('¡Cortocircuito reparado! El cableado de baterías está 100% operativo.');
+    spaceVoice.speak('Cableado de batería restaurado. Carga eléctrica normalizada.');
+  };
+
   // Restart after Game Over or manually
   const handleRestartMission = (newDiff?: GameDifficulty) => {
     const diff = newDiff || difficulty;
     setDifficulty(diff);
     setIsGameOverOpen(false);
 
-    // Reset current colony
     setColonies(all => ({
       ...all,
       [location]: createInitialColonyData(location),
@@ -648,6 +732,7 @@ export function App() {
         isMuted={isMuted}
         isVoiceEnabled={isVoiceEnabled}
         activeCrisisTitle={activeCrisis ? activeCrisis.titleEs : null}
+        isBatteryFault={currentColony.batteryFault}
         onAdvanceDay={handleAdvanceDay}
         onOpenDossier={() => setIsDossierOpen(true)}
         onOpenGuide={() => setIsGuideOpen(true)}
@@ -656,6 +741,8 @@ export function App() {
         onOpenRoverMission={() => setIsRoverMissionOpen(true)}
         onOpenHistoricalCrises={() => setIsHistoricalCrisesOpen(true)}
         onOpenNasaQuiz={() => setIsNasaQuizOpen(true)}
+        onOpenWiring={() => setIsWiringOpen(true)}
+        onOpenIceMine={() => setIsIceMineOpen(true)}
         onToggleMute={() => setIsMuted(soundFx.toggleMute())}
         onToggleVoice={handleToggleVoice}
         onChangeLocation={handleChangeLocation}
@@ -709,13 +796,22 @@ export function App() {
 
             {/* Comm Blackout Alert Indicator */}
             {currentColony.isCommBlackout && (
-              <button
-                onClick={() => setIsRoverMissionOpen(false)}
-                className="flex items-center gap-1 font-mono font-bold px-2 py-0.5 rounded-lg bg-red-950 border border-red-500 text-red-300 animate-bounce cursor-pointer"
-                title="Haz clic para abrir el minijuego de radio y calibrar la antena"
+              <div
+                className="flex items-center gap-1 font-mono font-bold px-2 py-0.5 rounded-lg bg-red-950 border border-red-500 text-red-300 animate-bounce"
               >
                 <WifiOff className="w-3.5 h-3.5 text-red-400" />
                 <span>BLACKOUT DSN</span>
+              </div>
+            )}
+
+            {/* Battery Fault Indicator */}
+            {currentColony.batteryFault && (
+              <button
+                onClick={() => setIsWiringOpen(true)}
+                className="flex items-center gap-1 font-mono font-bold px-2 py-0.5 rounded-lg bg-amber-950 border border-amber-500 text-amber-300 animate-pulse cursor-pointer"
+              >
+                <Zap className="w-3.5 h-3.5 text-amber-400" />
+                <span>FALLO BATERÍA (CABLEAR)</span>
               </button>
             )}
 
@@ -853,11 +949,17 @@ export function App() {
       <NasaQuizModal
         isOpen={isNasaQuizOpen}
         onClose={() => setIsNasaQuizOpen(false)}
-        onAddSciencePoints={handleAddScienceFromQuiz}
+        onAddSciencePoints={(pts) => {
+          updateCurrentColony(prev => ({
+            ...prev,
+            resources: { ...prev.resources, sciencePoints: prev.resources.sciencePoints + pts }
+          }));
+        }}
+        onQuizBonus={handleQuizBonus}
         lang={lang}
       />
 
-      {/* Game Over Modal on Crew Extinction */}
+      {/* Game Over Modal on Crew Extinction or Insta-Kill */}
       <GameOverModal
         isOpen={isGameOverOpen}
         location={location}
@@ -872,6 +974,23 @@ export function App() {
       <CommMiniGameModal
         isOpen={currentColony.isCommBlackout}
         onRestoreComm={handleRestoreCommunications}
+        lang={lang}
+      />
+
+      {/* Wiring Mini-Game Modal (Battery Short-Circuit) */}
+      <WiringMiniGameModal
+        isOpen={isWiringOpen}
+        onSuccess={handleWiringSuccess}
+        lang={lang}
+      />
+
+      {/* Cryogenic Ice Mine Assignment Modal */}
+      <IceMineModal
+        isOpen={isIceMineOpen}
+        onClose={() => setIsIceMineOpen(false)}
+        crew={currentColony.crew}
+        assignedToMine={currentColony.assignedToMine}
+        onToggleAssignAstronaut={handleToggleAssignAstronaut}
         lang={lang}
       />
 
@@ -901,6 +1020,13 @@ export function App() {
               className="text-emerald-400 hover:underline font-bold"
             >
               {lang === 'es' ? 'Invernadero Veggie' : 'Veggie Lab'}
+            </button>
+            <span>•</span>
+            <button 
+              onClick={() => setIsIceMineOpen(true)}
+              className="text-blue-400 hover:underline font-bold"
+            >
+              {lang === 'es' ? 'Mina Hielo Criogénica' : 'Ice Mine'}
             </button>
             <span>•</span>
             <button 

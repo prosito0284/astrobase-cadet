@@ -15,6 +15,7 @@ export interface Astronaut {
   causeOfDeath?: string;
   skills: string;
   quote: string;
+  isAssignedToMine?: boolean;
 }
 
 export interface ResourceState {
@@ -131,4 +132,7 @@ export interface ColonySaveData {
   isCommBlackout: boolean;
   solarFluctuation: boolean;
   emergencyO2Active: boolean;
+  batteryFault: boolean;
+  batteryLockoutTurns: number;
+  assignedToMine: string[]; // IDs of astronauts assigned to the ice mine
 }

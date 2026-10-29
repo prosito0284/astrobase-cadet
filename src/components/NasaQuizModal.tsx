@@ -16,6 +16,7 @@ interface NasaQuizModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAddSciencePoints: (pts: number) => void;
+  onQuizBonus: (scienceBonus: number, moraleBonus: number) => void;
   lang: 'es' | 'en';
 }
 
@@ -137,6 +138,7 @@ export const NasaQuizModal: React.FC<NasaQuizModalProps> = ({
   isOpen,
   onClose,
   onAddSciencePoints,
+  onQuizBonus,
   lang,
 }) => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -175,6 +177,8 @@ export const NasaQuizModal: React.FC<NasaQuizModalProps> = ({
       confetti({ particleCount: 120, spread: 80, origin: { y: 0.5 } });
       const scienceEarned = score * 10;
       onAddSciencePoints(scienceEarned);
+      // Give the requested +20 science bonus and +20% crew morale!
+      onQuizBonus(20, 20);
     }
   };
 
@@ -307,12 +311,15 @@ export const NasaQuizModal: React.FC<NasaQuizModalProps> = ({
                 : `You scored ${score} out of ${QUIZ_QUESTIONS.length} questions correctly. Outstanding mastery of NASA open science!`}
             </p>
 
-            <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800 max-w-xs mx-auto">
+            <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800 max-w-sm mx-auto space-y-1">
               <span className="text-xs text-slate-400 block font-semibold">
-                {lang === 'es' ? 'Puntos de Ciencia Ganados:' : 'Science Points Earned:'}
+                {lang === 'es' ? 'Puntos y Recompensas Ganadas:' : 'Rewards Earned:'}
               </span>
-              <span className="text-2xl font-black text-cyan-400">
-                +{score * 10} pts
+              <span className="text-2xl font-black text-cyan-400 block">
+                +{score * 10 + 20} pts Ciencia
+              </span>
+              <span className="text-xs font-black text-emerald-400 bg-emerald-950/60 px-2.5 py-1 rounded-full border border-emerald-600/50 inline-block mt-1">
+                🎉 +20% Ánimo & Moral para toda la tripulación
               </span>
             </div>
 
