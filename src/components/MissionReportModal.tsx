@@ -30,6 +30,7 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
   location,
   currentDay,
   totalDays,
+  difficulty,
   resources,
   crew,
   lang,
@@ -125,6 +126,13 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
           <h3 className="text-xl sm:text-2xl font-black text-amber-300 tracking-wider uppercase print:text-black">
             {lang === 'es' ? 'CERTIFICADO DE COMANDANTE DE MISIÓN' : 'MISSION COMMANDER CERTIFICATE'}
           </h3>
+          {difficulty === 'dificil' && (
+            <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-red-600 via-amber-500 to-red-600 border border-amber-400 text-white text-xs font-black uppercase tracking-wider shadow-lg shadow-red-950/50 print:bg-slate-200 print:text-black">
+              <span>🔥</span>
+              <span>{lang === 'es' ? 'HONOR MÁXIMO: COMANDANTE SUPREMO (MODO DIFÍCIL)' : 'MAX HONOR: SUPREME COMMANDER (HARD MODE)'}</span>
+              <span>🔥</span>
+            </div>
+          )}
           <p className="text-xs text-slate-400 mt-1 uppercase tracking-widest font-semibold print:text-slate-600">
             {lang === 'es' ? 'Simulador Desarrollado por el Equipo Troncos Intergalácticos (NASA STEM)' : 'Simulator Developed by Team Troncos Intergalácticos (NASA STEM)'}
           </p>

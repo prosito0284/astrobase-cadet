@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
+import { GameDifficulty } from '../types/game';
 import { 
   Zap, 
   X, 
   CheckCircle2, 
   AlertTriangle, 
   RotateCcw,
-  Sparkles
+  Sparkles,
+  ShieldAlert
 } from 'lucide-react';
 import { soundFx } from '../utils/audio';
 import confetti from 'canvas-confetti';
@@ -13,7 +15,12 @@ import confetti from 'canvas-confetti';
 interface WiringMiniGameModalProps {
   isOpen: boolean;
   onSuccess: () => void;
+  onClose?: () => void;
   lang: 'es' | 'en';
+  difficulty?: GameDifficulty;
+  batteryLockoutSeconds?: number;
+  availableCrewCount?: number;
+  onShockCrew?: () => void;
 }
 
 interface WireNode {
@@ -33,7 +40,12 @@ const WIRE_TYPES: WireNode[] = [
 export const WiringMiniGameModal: React.FC<WiringMiniGameModalProps> = ({
   isOpen,
   onSuccess,
+  onClose,
   lang,
+  difficulty = 'normal',
+  batteryLockoutSeconds = 0,
+  availableCrewCount = 4,
+  onShockCrew,
 }) => {
   // Left nodes are in standard order, right terminals are scrambled
   const leftWires = WIRE_TYPES;
@@ -46,12 +58,34 @@ export const WiringMiniGameModal: React.FC<WiringMiniGameModalProps> = ({
 
   if (!isOpen) return null;
 
+  const requiresTwoCrew = difficulty === 'dificil';
+  const hasEnoughCrew = !requiresTwoCrew || availableCrewCount >= 2;
+  const isLockedOut = batteryLockoutSeconds > 0;
+
   const handleSelectLeft = (id: string) => {
+    if (isLockedOut) {
+      soundFx.playAlert();
+      onShockCrew?.();
+      return;
+    }
+    if (!hasEnoughCrew) {
+      soundFx.playAlert();
+      return;
+    }
     soundFx.playClick();
     setSelectedLeft(id);
   };
 
   const handleSelectRight = (rightId: string) => {
+    if (isLockedOut) {
+      soundFx.playAlert();
+      onShockCrew?.();
+      return;
+    }
+    if (!hasEnoughCrew) {
+      soundFx.playAlert();
+      return;
+    }
     if (!selectedLeft) return;
     soundFx.playClick();
 
@@ -107,7 +141,41 @@ export const WiringMiniGameModal: React.FC<WiringMiniGameModalProps> = ({
               </p>
             </div>
           </div>
+
+          {onClose && (
+            <button
+              onClick={() => {
+                soundFx.playClick();
+                onClose();
+              }}
+              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
         </div>
+
+        {/* Lockout Hazard Warning (Hard Mode: 5s critical lockout) */}
+        {isLockedOut && (
+          <div className="mt-3 p-3 rounded-2xl bg-red-950/90 border-2 border-red-500 text-red-200 text-xs font-bold flex items-center gap-2 animate-bounce">
+            <ShieldAlert className="w-5 h-5 text-red-400 flex-shrink-0 animate-pulse" />
+            <div className="text-left">
+              <span className="block font-black text-white">¡ALTO VOLTAJE CRÍTICO! BLOQUEO DE SEGURIDAD ({batteryLockoutSeconds}s)</span>
+              La batería acumula 2 fallos. Fuga activa: -4% energía/segundo. Si tocas los cables ahora, los astronautas recibirán una descarga de 50% de daño e incapacidad de 1 día.
+            </div>
+          </div>
+        )}
+
+        {/* Crew Requirement Warning */}
+        {requiresTwoCrew && !hasEnoughCrew && !isLockedOut && (
+          <div className="mt-3 p-3 rounded-2xl bg-amber-950/90 border border-amber-500 text-amber-200 text-xs font-bold flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0" />
+            <div className="text-left">
+              <span className="block font-black text-white">¡REQUERIMIENTO: 2 ASTRONAUTAS ACTIVOS!</span>
+              En Modo Difícil el circuito de alta potencia requiere 2 técnicos simultáneos. Actualmente disponibles en base: {availableCrewCount}.
+            </div>
+          </div>
+        )}
 
         {/* Electrical Box Board */}
         <div className="my-4 bg-slate-950 border border-slate-800 rounded-2xl p-4 sm:p-6 relative">

@@ -39,8 +39,11 @@ interface NavbarProps {
   onOpenHistoricalCrises: () => void;
   onOpenNasaQuiz: () => void;
   isBatteryFault: boolean;
+  wiringErrorActive?: boolean;
+  canExpandPopulation?: boolean;
   onOpenWiring: () => void;
   onOpenIceMine: () => void;
+  onOpenPopulationExpansion?: () => void;
   onToggleMute: () => void;
   onToggleVoice: () => void;
   onChangeLocation: (loc: BaseLocation) => void;
@@ -58,6 +61,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   isVoiceEnabled,
   activeCrisisTitle,
   isBatteryFault,
+  wiringErrorActive,
+  canExpandPopulation,
   onAdvanceDay,
   onOpenDossier,
   onOpenGuide,
@@ -68,6 +73,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenNasaQuiz,
   onOpenWiring,
   onOpenIceMine,
+  onOpenPopulationExpansion,
   onToggleMute,
   onToggleVoice,
   onChangeLocation,
@@ -224,6 +230,36 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           )}
 
+          {/* Hard Mode Wiring Error / Sudden Light Drop Indicator */}
+          {wiringErrorActive && (
+            <button
+              onClick={() => {
+                soundFx.playAlert();
+                onOpenWiring();
+              }}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-950 border border-amber-500 text-amber-200 text-xs font-black transition-all animate-pulse shadow-md shadow-amber-950"
+              title="¡Fallo de cableado general! La iluminación ha caído y el O2 se escapa. Requiere 2 astronautas para reparar."
+            >
+              <span className="text-xs">💡</span>
+              <span>{lang === 'es' ? 'Fallo Luz (2 Astronautas)' : 'Fix Light Wiring (2 Crew)'}</span>
+            </button>
+          )}
+
+          {/* Population Expansion Day 15 Button */}
+          {canExpandPopulation && onOpenPopulationExpansion && (
+            <button
+              onClick={() => {
+                soundFx.playVictory();
+                onOpenPopulationExpansion();
+              }}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-950 border border-emerald-500 text-emerald-200 text-xs font-black transition-all animate-bounce shadow-md shadow-emerald-950"
+              title="¡Protocolo de Expansión de Tripulación Disponible! Aumenta de 4 a 6 astronautas sacrificando 25% de recursos."
+            >
+              <span className="text-xs">👥</span>
+              <span>{lang === 'es' ? '+2 Astronautas (Día 15)' : 'Expand Crew (Day 15)'}</span>
+            </button>
+          )}
+
           {/* Rover Mission Button */}
           <button
             onClick={() => {
@@ -313,6 +349,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <option value="facil">🟢 {lang === 'es' ? 'Fácil (Sin Hambre/Sed)' : 'Easy (Immune)'}</option>
             <option value="normal">🔴 {lang === 'es' ? 'Normal (O₂ por persona & Letal)' : 'Normal (Realistic)'}</option>
+            <option value="dificil">🔥 {lang === 'es' ? 'Difícil (Supervivencia Extrema)' : 'Hard (Extreme Survival)'}</option>
           </select>
 
           {/* Fullscreen Button */}

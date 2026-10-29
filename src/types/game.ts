@@ -1,6 +1,6 @@
 export type BaseLocation = 'moon' | 'mars';
 
-export type GameDifficulty = 'facil' | 'normal';
+export type GameDifficulty = 'facil' | 'normal' | 'dificil';
 
 export type CrewStatus = 'alive' | 'critical' | 'deceased';
 
@@ -16,6 +16,7 @@ export interface Astronaut {
   skills: string;
   quote: string;
   isAssignedToMine?: boolean;
+  isShockDisabledDays?: number; // Inability to perform tasks after electrical shock
 }
 
 export interface ResourceState {
@@ -133,6 +134,14 @@ export interface ColonySaveData {
   solarFluctuation: boolean;
   emergencyO2Active: boolean;
   batteryFault: boolean;
+  batteryFaultCount: number;
+  batteryLockoutSeconds: number; // 5s critical battery overload lock
   batteryLockoutTurns: number;
-  assignedToMine: string[]; // IDs of astronauts assigned to the ice mine
+  wiringErrorActive: boolean;    // Sudden light drop caused by wiring error
+  sandstormEnergyHaltDays: number; // Martian sandstorm disabling energy for 1 day
+  plantsNeedDoubleWaterOnce: boolean; // Solar flare consequence: double water for 1 crop cycle
+  plantsWipedGrowth: boolean;    // Solar flare consequence: crop growth reset
+  empStunSeconds: number;        // 1s task freeze on solar flare
+  populationExpanded: boolean;   // True if expanded from 4 to 6 on Day 15
+  assignedToMine: string[];      // IDs of astronauts assigned to the ice mine
 }

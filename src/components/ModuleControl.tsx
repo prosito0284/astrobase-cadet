@@ -1,5 +1,5 @@
 import React from 'react';
-import { BaseModule } from '../types/game';
+import { BaseModule, GameDifficulty } from '../types/game';
 import { 
   Power, 
   Wrench, 
@@ -22,6 +22,7 @@ interface ModuleControlProps {
   onUpgradeModule: (id: string) => void;
   onRepairModule: (id: string) => void;
   lang: 'es' | 'en';
+  difficulty?: GameDifficulty;
 }
 
 export const ModuleControl: React.FC<ModuleControlProps> = ({
@@ -32,6 +33,7 @@ export const ModuleControl: React.FC<ModuleControlProps> = ({
   onUpgradeModule,
   onRepairModule,
   lang,
+  difficulty = 'normal',
 }) => {
   const activeModule = modules.find(m => m.id === selectedModuleId) || modules[0];
 
@@ -135,7 +137,11 @@ export const ModuleControl: React.FC<ModuleControlProps> = ({
                 title="Mejora la eficiencia y capacidad del módulo"
               >
                 <ArrowUpCircle className="w-3.5 h-3.5" />
-                <span>{lang === 'es' ? 'Mejorar' : 'Upgrade'}</span>
+                <span>
+                  {activeModule.id === 'storm_bunker' && difficulty === 'dificil'
+                    ? (lang === 'es' ? 'Mejorar (20 pts)' : 'Upgrade (20 pts)')
+                    : (lang === 'es' ? 'Mejorar (10 pts)' : 'Upgrade (10 pts)')}
+                </span>
               </button>
             </div>
           </div>

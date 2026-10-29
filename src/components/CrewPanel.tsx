@@ -1,17 +1,18 @@
 import React from 'react';
-import { Astronaut } from '../types/game';
+import { Astronaut, GameDifficulty } from '../types/game';
 import { 
   Users, 
   Heart, 
   Smile, 
   Skull,
   AlertTriangle,
-  Activity
+  Activity,
+  Zap
 } from 'lucide-react';
 
 interface CrewPanelProps {
   crew: Astronaut[];
-  difficulty: 'facil' | 'normal';
+  difficulty: GameDifficulty;
   lang: 'es' | 'en';
 }
 
@@ -43,9 +44,13 @@ export const CrewPanel: React.FC<CrewPanelProps> = ({ crew, difficulty, lang }) 
                 ? (lang === 'es' 
                     ? 'Modo Fácil: Los astronautas son inmortales al hambre y sed, con moral protegida.'
                     : 'Easy Mode: Astronauts are immune to hunger and thirst with shielded morale.')
-                : (lang === 'es'
+                : difficulty === 'normal'
+                ? (lang === 'es'
                     ? 'Modo Normal: El O₂ se consume por cada astronauta vivo. Si la salud llega a 0, fallecen.'
-                    : 'Normal Mode: O₂ consumption is per living human. Health hitting 0 is fatal.')}
+                    : 'Normal Mode: O₂ consumption is per living human. Health hitting 0 is fatal.')
+                : (lang === 'es'
+                    ? 'Modo Difícil: Supervivencia extrema. Consumo +15%, moral -25%, fallos eléctricos y asfixia en 1s.'
+                    : 'Hard Mode: Extreme survival. +15% water use, -25% morale, electrical shocks and 1s asphyxiation.')}
             </p>
           </div>
         </div>
@@ -92,6 +97,18 @@ export const CrewPanel: React.FC<CrewPanelProps> = ({ crew, difficulty, lang }) 
                     <div className="text-[10px] font-bold text-cyan-400 truncate">
                       {member.role}
                     </div>
+
+                    {member.isAssignedToMine && !isDead && (
+                      <span className="inline-block mt-0.5 text-[9px] bg-blue-900/80 text-blue-300 border border-blue-500/50 px-1.5 py-0.2 rounded font-bold">
+                        ⛏️ {lang === 'es' ? 'En Mina Hielo' : 'In Ice Mine'}
+                      </span>
+                    )}
+
+                    {(member.isShockDisabledDays ?? 0) > 0 && !isDead && (
+                      <span className="inline-block mt-0.5 text-[9px] bg-amber-900/80 text-amber-300 border border-amber-500/50 px-1.5 py-0.2 rounded font-bold animate-pulse">
+                        ⚡ {lang === 'es' ? `Incapacitado (${member.isShockDisabledDays}d)` : `Shocked (${member.isShockDisabledDays}d)`}
+                      </span>
+                    )}
 
                     {isDead ? (
                       <div className="text-[10px] text-red-300 font-bold mt-1 flex items-center gap-1">

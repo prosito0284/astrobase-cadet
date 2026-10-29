@@ -46,3 +46,28 @@ export const INITIAL_CREW: Astronaut[] = [
     quote: '«El regolito bajo nuestras botas guarda los secretos de los primeros días del sistema solar.»',
   },
 ];
+
+export const EXPANDED_CREW_MEMBERS: Astronaut[] = [
+  {
+    id: 'santi',
+    name: 'Cadete Santi Gomez',
+    role: 'Especialista Robótica & DSN',
+    avatar: '🧑‍🚀',
+    health: 100,
+    morale: 90,
+    status: 'alive',
+    skills: 'Optimización de enlaces de radio, calibración de baterías y pilotaje de rovers.',
+    quote: '«Un buen cableado y una antena alineada salvan más vidas que mil trajes espaciales.»',
+  },
+  {
+    id: 'elena',
+    name: 'Dra. Elena Ruiz',
+    role: 'Médico Espacial & Radioprotección',
+    avatar: '👩‍⚕️',
+    health: 100,
+    morale: 92,
+    status: 'alive',
+    skills: 'Contramedidas de densidad ósea, tratamiento de hipoxia y soporte psicológico.',
+    quote: '«El cuerpo humano en el espacio es frágil, pero con la ciencia correcta podemos habitar cualquier mundo.»',
+  },
+];

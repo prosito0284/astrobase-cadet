@@ -1,5 +1,5 @@
 import React from 'react';
-import { Astronaut } from '../types/game';
+import { Astronaut, GameDifficulty } from '../types/game';
 import { 
   Droplets, 
   X, 
@@ -8,7 +8,7 @@ import {
   AlertTriangle, 
   CheckCircle2, 
   ShieldAlert,
-  Pickaxe
+  WifiOff
 } from 'lucide-react';
 import { soundFx } from '../utils/audio';
 
@@ -17,6 +17,9 @@ interface IceMineModalProps {
   onClose: () => void;
   crew: Astronaut[];
   assignedToMine: string[];
+  difficulty: GameDifficulty;
+  isCommBlackout: boolean;
+  populationExpanded: boolean;
   onToggleAssignAstronaut: (astronautId: string) => void;
   lang: 'es' | 'en';
 }
@@ -26,6 +29,9 @@ export const IceMineModal: React.FC<IceMineModalProps> = ({
   onClose,
   crew,
   assignedToMine,
+  difficulty,
+  isCommBlackout,
+  populationExpanded,
   onToggleAssignAstronaut,
   lang,
 }) => {
@@ -35,6 +41,24 @@ export const IceMineModal: React.FC<IceMineModalProps> = ({
   const livingCount = livingCrew.length;
   const assignedCount = assignedToMine.length;
   const remainingInBase = livingCount - assignedCount;
+
+  // In Hard mode without population expansion: requires 1 miner!
+  // In Normal mode, Easy mode, or Hard mode with population expanded to 6: requires 2 miners!
+  const requiredMiners = (difficulty === 'dificil' && !populationExpanded) ? 1 : 2;
+
+  // Calculate projected water production
+  let projectedWater = 22;
+  if (difficulty === 'dificil') {
+    if (!populationExpanded) {
+      // 70% less water
+      projectedWater = Math.round(22 * 0.3); // ~7 L
+    } else {
+      // 40% less water
+      projectedWater = Math.round(22 * 0.6); // ~13 L
+    }
+  }
+
+  const isOperative = assignedCount === requiredMiners && !isCommBlackout;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md animate-fadeIn">
@@ -49,17 +73,23 @@ export const IceMineModal: React.FC<IceMineModalProps> = ({
               <h3 className="text-sm sm:text-base font-black text-slate-100 flex items-center gap-2">
                 <span>{lang === 'es' ? 'Mina de Hielo Criogénico (ISRU)' : 'Cryogenic Ice Mine (ISRU)'}</span>
                 <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase ${
-                  assignedCount === 2 
+                  isCommBlackout
+                    ? 'bg-red-950 text-red-300 border border-red-500 animate-bounce'
+                    : isOperative
                     ? 'bg-emerald-950 text-emerald-300 border border-emerald-500' 
                     : 'bg-amber-950 text-amber-300 border border-amber-500'
                 }`}>
-                  {assignedCount === 2 ? 'OPERATIVA (2/2)' : `REQUIERE 2 MINEROS (${assignedCount}/2)`}
+                  {isCommBlackout 
+                    ? 'BLOQUEADO POR BLACKOUT DSN' 
+                    : isOperative 
+                    ? `OPERATIVA (${assignedCount}/${requiredMiners})` 
+                    : `REQUIERE ${requiredMiners} MINERO(S) (${assignedCount}/${requiredMiners})`}
                 </span>
               </h3>
               <p className="text-[11px] text-slate-400">
                 {lang === 'es' 
-                  ? 'Extrae hielo para soporte vital. Requiere 2 astronautas asignados.' 
-                  : 'Harvests crater water ice. Demands 2 assigned crew operators.'}
+                  ? 'Extrae hielo para soporte vital en cráteres polares.' 
+                  : 'Harvests crater water ice in permanently shadowed regions.'}
               </p>
             </div>
           </div>
@@ -75,14 +105,25 @@ export const IceMineModal: React.FC<IceMineModalProps> = ({
           </button>
         </div>
 
+        {/* Warning if Comm Blackout */}
+        {isCommBlackout && (
+          <div className="my-2.5 p-3 rounded-2xl bg-red-950/80 border border-red-500 text-xs text-red-200 flex items-center gap-2 animate-pulse">
+            <WifiOff className="w-5 h-5 text-red-400 flex-shrink-0" />
+            <div>
+              <span className="font-bold block">¡Pérdida de Comunicación con Houston!</span>
+              La perforación exterior está inhabilitada por falta de telemetría DSN. Calibra la antena para reanudar la extracción.
+            </div>
+          </div>
+        )}
+
         {/* Operational Constraints Banner */}
-        <div className="my-3 p-3 rounded-2xl bg-slate-950 border border-blue-500/30 text-xs space-y-1.5 leading-relaxed">
+        <div className="my-2.5 p-3 rounded-2xl bg-slate-950 border border-blue-500/30 text-xs space-y-1.5 leading-relaxed">
           <div className="flex items-center gap-1.5 text-cyan-300 font-bold">
             <Wind className="w-3.5 h-3.5 text-sky-400 flex-shrink-0" />
             <span>Condición 1: Consumo de Oxígeno +1.5%</span>
           </div>
           <p className="text-slate-300 text-[11px]">
-            Los 2 astronautas asignados a la perforación consumen un <b>1.5% más de oxígeno</b> por esfuerzo físico en trajes EVA a -240 °C.
+            Los astronautas asignados a la perforación consumen un <b>1.5% más de oxígeno</b> por esfuerzo físico en trajes EVA a -240 °C.
           </p>
 
           <div className="flex items-center gap-1.5 text-amber-300 font-bold pt-1 border-t border-slate-900">
@@ -98,21 +139,19 @@ export const IceMineModal: React.FC<IceMineModalProps> = ({
             <span>Condición 3: Regla de Seguridad de la Base</span>
           </div>
           <p className="text-slate-300 text-[11px]">
-            <b>La base nunca puede quedarse con menos de 1 persona</b> para mantener el soporte vital y evitar muertes. (Quedan en base: <b className="text-emerald-400">{remainingInBase} astronautas</b>).
+            <b>La base nunca puede quedarse con menos de 1 persona</b> para mantener el hábitat y evitar muertes. (Quedan en base: <b className="text-emerald-400">{remainingInBase} astronautas</b>).
           </p>
         </div>
 
         {/* Astronaut Assignment Cards */}
         <div className="my-2 space-y-2">
           <label className="text-[11px] font-black uppercase text-slate-400 tracking-wider block">
-            {lang === 'es' ? 'Selecciona 2 astronautas para la expedición de minería:' : 'Assign 2 crew members to mining sortie:'}
+            {lang === 'es' ? `Selecciona ${requiredMiners} astronauta(s) para la mina:` : `Assign ${requiredMiners} crew member(s):`}
           </label>
 
           {livingCrew.map(c => {
             const isAssigned = assignedToMine.includes(c.id);
-            // Cannot assign if already 2 and not this one
-            // Cannot assign if remainingInBase <= 1 and this one is not already assigned
-            const canToggleOn = !isAssigned && assignedCount < 2 && remainingInBase > 1;
+            const canToggleOn = !isAssigned && assignedCount < requiredMiners && remainingInBase > 1;
 
             return (
               <div 
@@ -172,7 +211,7 @@ export const IceMineModal: React.FC<IceMineModalProps> = ({
         {/* Footer info */}
         <div className="mt-3 pt-3 border-t border-slate-800 flex items-center justify-between text-xs">
           <span className="text-slate-400 font-mono">
-            Producción: <b className="text-cyan-300">{assignedCount === 2 ? '+22 L Agua/día' : '0 L (Incompleta)'}</b>
+            Producción: <b className="text-cyan-300">{isOperative ? `+${projectedWater} L Agua/día` : '0 L (Inactiva o Blackout)'}</b>
           </span>
           <button
             onClick={onClose}
