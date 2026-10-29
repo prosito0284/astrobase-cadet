@@ -1,6 +1,8 @@
 export type BaseLocation = 'moon' | 'mars';
 
-export type GameDifficulty = 'cadet' | 'commander' | 'scientist';
+export type GameDifficulty = 'facil' | 'normal';
+
+export type CrewStatus = 'alive' | 'critical' | 'deceased';
 
 export interface Astronaut {
   id: string;
@@ -9,6 +11,8 @@ export interface Astronaut {
   avatar: string;
   health: number; // 0 - 100
   morale: number; // 0 - 100
+  status: CrewStatus;
+  causeOfDeath?: string;
   skills: string;
   quote: string;
 }
@@ -105,11 +109,26 @@ export interface MissionScenario {
   subtitleEn: string;
   descriptionEs: string;
   descriptionEn: string;
-  commDelaySeconds: number; // 1.3s for Moon, 600s (10 min) for Mars
+  commDelaySeconds: number;
   commDelayTextEs: string;
   commDelayTextEn: string;
   targetDays: number;
   initialResources: ResourceState;
   environmentalNotesEs: string[];
   environmentalNotesEn: string[];
+}
+
+export interface ColonySaveData {
+  currentDay: number;
+  resources: ResourceState;
+  modules: BaseModule[];
+  crew: Astronaut[];
+  radiationActive: boolean;
+  dustStormActive: boolean;
+  isLunarNight: boolean;
+  currentTemperatureCelsius: number;
+  isTemperatureExtreme: boolean;
+  isCommBlackout: boolean;
+  solarFluctuation: boolean;
+  emergencyO2Active: boolean;
 }

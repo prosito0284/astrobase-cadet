@@ -267,6 +267,20 @@ export const Navbar: React.FC<NavbarProps> = ({
             {isVoiceEnabled ? <Mic className="w-3.5 h-3.5 text-cyan-300" /> : <MicOff className="w-3.5 h-3.5 text-slate-400" />}
           </button>
 
+          {/* Difficulty Dropdown */}
+          <select
+            value={difficulty}
+            onChange={(e) => {
+              soundFx.playClick();
+              onChangeDifficulty(e.target.value as GameDifficulty);
+            }}
+            className="bg-slate-900 border border-slate-700 text-xs font-bold rounded-lg px-2 py-1 text-cyan-300 focus:outline-none focus:border-cyan-400 cursor-pointer"
+            title="Selecciona la dificultad de la simulación"
+          >
+            <option value="facil">🟢 {lang === 'es' ? 'Fácil (Sin Hambre/Sed)' : 'Easy (Immune)'}</option>
+            <option value="normal">🔴 {lang === 'es' ? 'Normal (O₂ por persona & Letal)' : 'Normal (Realistic)'}</option>
+          </select>
+
           {/* Fullscreen Button */}
           <button
             onClick={toggleFullscreen}

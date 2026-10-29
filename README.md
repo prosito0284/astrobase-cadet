@@ -1,117 +1,153 @@
-# 🚀 ASTROBASE CADET: Simulador de Misiones para Jóvenes Astronautas
-> **NASA Deep Space Mission Simulator for Young Astronauts (Ages 7–12)**  
-> *Desarrollado con orgullo por el equipo:* **🌲 Troncos Intergalácticos**  
-> *Para el Desafío: Simulador de misiones para astronautas jóvenes (NASA Space Apps Challenge)*
+# 🌍 EarthTrend Detective: NASA Environmental Trend & Climate Analytics
 
-![Equipo](https://img.shields.io/badge/Equipo-Troncos_Intergal%C3%A1cticos-emerald?style=for-the-badge&logo=spacex)
-![NASA STEM Sim](https://img.shields.io/badge/NASA_Open_Data-DONKI_%7C_OSDR_%7C_Artemis_%7C_MEDA-blue?style=for-the-badge&logo=nasa)
-![Target Audience](https://img.shields.io/badge/Edades-7_a_12_a%C3%B1os_(STEM)-emerald?style=for-the-badge)
-![Zero Install](https://img.shields.io/badge/Plataforma-Navegador_Web_(100%25_Offline)-purple?style=for-the-badge)
+> **Prototipo científico y estadístico interactivo para el reto de detección, descomposición estacional y validación de significancia de tendencias en variables geofísicas de la Tierra.**
+> Desarrollado bajo estándares de la NASA para la comunidad científica, educativa y de ciencia ciudadana.
 
----
-
-## 🌟 Resumen del Proyecto
-
-**ASTROBASE CADET** es un simulador interactivo de supervivencia y gestión de bases espaciales diseñado específicamente para estudiantes de **7 a 12 años**, así como para docentes y familias. 
-
-A diferencia de los juegos infantiles abstractos o excesivamente simplificados, ASTROBASE CADET pone a los jóvenes al mando de una base real en el **Polo Sur Lunar (Artemis III)** o en el **Cráter Jezero de Marte (Misión Ares)**, enfrentándolos a los mismos dilemas de ingeniería que los directores de vuelo de la NASA resuelven a diario:
-
-- **Soporte Vital (ECLSS):** Electrólisis de agua y reciclaje de oxígeno vs acumulación de dióxido de carbono ($CO_2$).
-- **Administración de Energía:** Paneles solares fotovoltaicos enfrentados a los **14 días de gélida noche lunar (-180 °C)** y a las **tormentas globales de polvo marciano** medidas por el rover Perseverance.
-- **Protección contra la Radiación:** Alertas de fulguraciones solares clase X y eyecciones de masa coronal (CME) basadas en la base de datos **DONKI de la NASA**, que exigen decidir entre gastar batería en escudos electromagnéticos o blindar con regolito y agua rica en hidrógeno.
-- **Producción de Alimentos:** Invernadero hidropónico espacial basado en los experimentos **OSDR OSD-379 (VEGGIE)** de la NASA (lechuga Outredgeous y mostaza Mizuna) para equilibrar calorías, salud psicológica y reciclaje de nutrientes.
-- **Retrasos en las Comunicaciones (Velocidad de la Luz):** En la Luna la señal tarda **1.3 segundos**, pero en Marte la señal tarda entre **4 y 22 minutos** por viaje. Los cadetes aprenden por qué una tripulación marciana debe operar con **autonomía** sin poder esperar a que Houston responda en una emergencia.
+![Python](https://img.shields.io/badge/Python-3.10%2B-blue?style=for-the-badge&logo=python)
+![Streamlit](https://img.shields.io/badge/Streamlit-1.35%2B-FF4B4B?style=for-the-badge&logo=streamlit)
+![Plotly](https://img.shields.io/badge/Plotly-Interactive_Graphs-3F4F75?style=for-the-badge&logo=plotly)
+![NASA POWER](https://img.shields.io/badge/NASA-POWER_API_In_Vivo-0B3D91?style=for-the-badge&logo=nasa)
+![SciPy](https://img.shields.io/badge/SciPy-Mann--Kendall_%26_OLS-8CAAE6?style=for-the-badge&logo=scipy)
 
 ---
 
-## 🎯 ¿Cómo Resuelve los Requisitos del Desafío?
+## 🌟 Resumen del Sistema
 
-### 1. Público Objetivo y Accesibilidad (7 a 12 años)
-- **Lenguaje claro y libre de tecnicismos intimidantes:** Todo concepto complejo (ej. regolito, $CO_2$, dosis de radiación en milisieverts, opacidad de polvo Tau) se explica con analogías claras dentro del juego.
-- **Asistente de Vuelo Capcom NOVA:** Guía tutorial interactiva paso a paso diseñada para niños.
-- **3 Niveles de Dificultad Dinámicos:**
-  - 🚀 **Modo Cadete (7–9 años):** Asistencia guiada, avisos preventivos y consumo de soporte vital moderado.
-  - 🛰️ **Modo Comandante (10–12 años):** Simulación balanceada donde cada decisión tiene consecuencias inmediatas y medibles.
-  - 🔬 **Modo Científico NASA (Avanzado / Aulas STEM):** Acceso a telemetría cruda, curvas de radiación y calculadora interactiva de fotosíntesis y blindaje.
-- **Zero Install, Zero Signup:** Corre directamente en cualquier navegador moderno en computadoras, tabletas o teléfonos.
+**EarthTrend Detective** es una estación de trabajo analítica full-stack que permite a estudiantes, investigadores y tomadores de decisiones investigar qué está cambiando en la Tierra, a qué ritmo y si las alteraciones observadas son estadísticamente significativas o mero ruido de la variabilidad climática natural.
 
-### 2. Uso Auténtico de Datos Abiertos de la NASA
-En lugar de inventar estadísticas o números arbitrarios, el juego integra datos reales documentados y verificables:
-
-| Base de Datos NASA | Identificador Real | Aplicación en el Juego |
-| :--- | :--- | :--- |
-| **DONKI** *(Space Weather Database)* | `DONKI: CME-2024-05-10T07:24:00` | Evento de tormenta solar clase X con velocidad CME de 1.240 km/s y flujo de protones >100 MeV. Obliga a activar el refugio de tormenta. |
-| **DONKI** *(SEP Flux Events)* | `DONKI: SEP-2023-07-18` | Partículas energéticas solares que penetran cascos no blindados; enseña la eficacia del agua y regolito como absorbedores de protones. |
-| **OSDR** *(Open Science Data Repository)* | `OSDR Accession: OSD-379 / OSD-120` | Experimento VEGGIE en la ISS (mostaza Mizuna y lechuga bajo luces LED rojo/azul). Modela la tasa de fotosíntesis (1 m² absorbe 22g de CO2/día). |
-| **OSDR** *(Human Research / Twins Study)* | `OSDR OSD-174 & NASA Twins Study` | Pérdida de 1.2% de densidad ósea mensual en baja gravedad (0.16g en Luna, 0.38g en Marte) y requerimiento de ejercicio vigoroso diario. |
-| **Artemis III / LRO Diviner** | `LRO Diviner Lunar South Pole Data` | Temperaturas extremas en el cráter Shackleton (40 Kelvin / -246 °C) y depósitos de hielo al 5.5% en peso para In-Situ Resource Utilization (ISRU). |
-| **Perseverance Mars 2020 (MEDA)** | `Mars 2020 MEDA Environmental Station` | Presión atmosférica marciana real de 610 Pa y eventos de polvo atmosférico (Tau = 2.1) que reducen la radiación solar incidente en más del 75%. |
-
-### 3. Compromisos de Ingeniería Reales (Sin "Opciones Gratuitas")
-Ninguna decisión es completamente segura ni gratuita:
-- Si ahorras energía apagando los lechos de zeolita o la calefacción, la tripulación se congela o sube el $CO_2$.
-- Si enciendes el escudo de regolito electromagnético contra una CME de DONKI, agotas las baterías de reserva que necesitas para sobrevivir a la noche polar.
-- Si esperas instrucciones de Houston en Marte ante una fuga de electrólisis, la señal tarda 20 minutos de viaje ida y vuelta y la tripulación consume oxígeno de reserva mientras espera.
-- Si mandas al rover a limpiar los paneles solares durante una tormenta de polvo marciana, desgastas el vehículo y arriesgas la salud de los tripulantes exteriores.
+El sistema combina:
+1. **Conexión en vivo con la API abierta de NASA POWER** (`https://power.larc.nasa.gov/api/temporal/monthly/point`), sin necesidad de API Key.
+2. **Motor de Respaldo Físico Hiperrealista (Fallback):** Generador climatológico basado en física de reanálisis (MERRA-2, GLDAS, GPM, MODIS y OMI) para asegurar un funcionamiento al 100% incluso en entornos offline o ante fallos de conectividad.
+3. **Desestacionalización Rigurosa:** Cálculo de anomalías climatológicas restando el promedio multianual de cada mes, revelando la verdadera tendencia secular que el ciclo verano/invierno suele ocultar.
+4. **Validación Estadística Dual:**
+   - **Regresión OLS** con pendiente anual y decenal, estadístico $t$ e **Intervalo de Confianza al 95%** (banda de predicción hiperbólica).
+   - **Test No Paramétrico de Mann-Kendall** con estadístico $Z$, $\tau$ de Kendall, varianza con corrección de empates y pendiente de Sen (*Sen's Slope*).
+5. **Informe Automático del Detective:** Narrativa pedagógica generada dinámicamente que traduce los números a un diagnóstico comprensible para estudiantes de preparatoria y universidad.
 
 ---
 
-## 🛠️ Tecnologías y Arquitectura
+## 🏗️ Arquitectura de Archivos
 
-- **Framework:** React 19 + TypeScript (Strict Type Safety).
-- **Herramienta de Construcción:** Vite 8 (Ultra-rápido, compila en menos de 1 segundo).
-- **Estilos:** Tailwind CSS v4 (Interfaz espacial moderna, responsiva, con modo de alto contraste para niños).
-- **Motor de Audio:** Web Audio API Sintetizado (Efectos de sonido 100% integrados sin descargas de audio externas que puedan fallar).
-- **Iconografía:** Lucide React.
-- **Celebraciones & Logros:** Canvas Confetti.
-- **Certificación Oficial:** Generador de Informe de Misión y Certificado Imprimible / Exportable a PDF.
-
----
-
-## 🚀 Cómo Ejecutar el Proyecto Localmente
-
-### Requisitos Previos
-- Node.js versión 18 o superior (`v20+` recomendado).
-- Gestor de paquetes `npm`.
-
-### Pasos de Instalación
-
-1. Clona o abre el repositorio en tu computadora:
-   ```bash
-   git clone <URL_DEL_REPOSITORIO>
-   cd kind-hawking
-   ```
-
-2. Instala las dependencias:
-   ```bash
-   npm install
-   ```
-
-3. Inicia el servidor de desarrollo local:
-   ```bash
-   npm run dev
-   ```
-   Abre en tu navegador la dirección indicada (usualmente `http://localhost:5173`).
-
-4. Para compilar la versión de producción optimizada:
-   ```bash
-   npm run build
-   npm run preview
-   ```
+```
+kind-hawking/
+├── requirements.txt      # Dependencias exactas (Streamlit, Plotly, Folium, SciPy, Statsmodels, etc.)
+├── data_engine.py       # Cliente NASA POWER API + generador físico sintético de reanálisis
+├── stats_engine.py      # Motor matemático (anomalías, OLS, Mann-Kendall, CI 95%, diagnósticos)
+├── app.py               # Interfaz de usuario Streamlit con tema espacial NASA y mapa Folium
+└── README.md            # Documentación completa y guía de ejecución
+```
 
 ---
 
-## 👩‍🏫 Guía para Docentes y Salón de Clases (Alineación STEM / NGSS)
+## 🔬 Catálogo de Variables y Glosario Científico
 
-ASTROBASE CADET se diseñó para apoyar los estándares de educación científica **Next Generation Science Standards (NGSS)**:
-- **MS-ESS1-3 (Earth’s Place in the Universe):** Comprender los ciclos día/noche en otros cuerpos celestes (Luna = 28 días terrestres, Marte = 24.6 horas).
-- **MS-PS3-3 (Energy):** Minimizar y maximizar la transferencia térmica en ambientes extremos (-180 °C a +120 °C).
-- **MS-LS1-5 (From Molecules to Organisms):** Fotosíntesis vegetal en ambientes cerrados y reciclaje de oxígeno por transpiración vegetal.
-- **MS-ETS1-2 (Engineering Design):** Evaluar soluciones de ingeniería basadas en restricciones y recursos limitados.
+| Código | Variable Ambiental | Instrumento / Modelo de Origen | Unidad | Relevancia en el Sistema Tierra |
+| :--- | :--- | :--- | :--- | :--- |
+| **`T2M`** | Temperatura Superficial del Aire a 2m | **Reanálisis MERRA-2** (GMAO / NASA) | °C | Pulso térmico fundamental del calentamiento global antropogénico y estrés térmico biológico. |
+| **`PRECTOTCORR`** | Precipitación Total Corregida | **Misión Satelital GPM & MERRA-2** | mm/día | Regula el agua dulce, recarga de acuíferos y balance hidrológico. Muestra la intensificación de sequías e inundaciones. |
+| **`GWETROOT`** | Humedad del Suelo en Zona Radicular | **Modelo GLDAS** (NASA GSFC) | Fracción (0 a 1) | Indicador crítico de sequía agrícola, absorción radicular de la vegetación y riesgo de megaincendios forestales. |
+| **`MODIS_NDVI`** | Índice de Vegetación (NDVI) | **Sensor MODIS** (Satélites Terra y Aqua) | Índice (-0.1 a 1) | Mide el vigor fotosintético y densidad de clorofila. Detecta deforestación, degradación del dosel y reverdecimiento. |
+| **`EVPTRNS`** | Evapotranspiración / Flujo de Vapor | **GLDAS & Sonda AIRS** (Satélite Aqua) | mm/día | Puente de vapor de agua y calor latente entre biosfera y atmósfera; motor de los 'ríos voladores' continentales. |
+| **`TO3`** | Columna Total de Ozono Atmosférico | **Instrumento OMI** (Satélite Aura) / MERRA-2 | Unidades Dobson (DU) | Escudo planetario contra la radiación UV-B solar. Monitorea la recuperación de la estratósfera post-Montreal. |
 
 ---
 
-## 📜 Licencia y Créditos
-- Desarrollado como solución al desafío de educación espacial para astronautas jóvenes.
-- Datos científicos abiertos cortesía de la **NASA** (*Goddard Space Flight Center, Ames Research Center, Jet Propulsion Laboratory*).
-- Software distribuido bajo la licencia MIT.
+## 🕵️ Casos de Demostración Preconfigurados ("Modo Detective")
+
+La aplicación incluye un selector rápido de tres escenarios paradigmáticos con hipótesis científicas precargadas:
+
+### Caso A: Mismo Forzamiento, Tendencias Opuestas
+- **Región:** Desierto de Chihuahua / Norte de México (Lat: 28.63, Lon: -106.08) vs. Zona Monzónica Tropical (Sudeste Asiático).
+- **Enigma:** El calentamiento global intensifica el ciclo hidrológico de forma asimétrica: las regiones áridas subtropicales se vuelven aún más secas ($\Delta\text{GWETROOT} < 0$), mientras que zonas tropicales experimentan eventos pluviométricos extremos.
+
+### Caso B: Deforestación y Clima en la Amazonía
+- **Región:** Rondônia / Cuenca Sur de la Amazonía (Lat: -10.85, Lon: -61.95).
+- **Enigma:** En el 'Arco de Deforestación', la pérdida de cobertura selvática reduce el reciclaje de humedad radicular y el verdor biológico ($\text{NDVI}$ y $\text{GWETROOT}$ con pendientes negativas estadísticamente significativas con $p < 0.001$).
+
+### Caso C: Isla de Calor Urbana y Atmósfera
+- **Región:** Megaciudad del Valle de México / CDMX (Lat: 19.43, Lon: -99.13).
+- **Enigma:** La acelerada urbanización y sustitución de cubierta vegetal por asfalto/concreto genera una tasa de calentamiento local de más de $+0.35$ a $+0.45\text{ °C}$ por década, superando con creces la tasa media planetaria.
+
+---
+
+## 📊 Metodología Científica y Motor Estadístico
+
+### 1. Desestacionalización (Anomalías Climatológicas)
+Para cada mes $m \in \{1, \dots, 12\}$, se calcula el promedio histórico multianual $\bar{y}_m$:
+$$\bar{y}_m = \frac{1}{K} \sum_{k=1}^K y_{m, k}$$
+La anomalía climática de cada observación $t$ se obtiene sustrayendo su climatología:
+$$y_{\text{anom}}(t) = y(t) - \bar{y}_{\text{mes}(t)}$$
+Esto elimina la oscilación de 12 meses provocada por la inclinación orbital terrestre, permitiendo evaluar la pendiente real secular.
+
+### 2. Regresión Lineal por Mínimos Cuadrados Ordinarios (OLS)
+Ajuste de la recta:
+$$\hat{y}(t) = \beta_0 + \beta_1 t$$
+- **Tasa Anual:** $\beta_1$ en unidades / año.
+- **Tasa por Década:** $10 \times \beta_1$ en unidades / década.
+- **Estadístico $t$ de Student:**
+  $$t = \frac{\beta_1}{SE(\beta_1)}, \quad df = n - 2$$
+
+### 3. Banda de Intervalo de Confianza al 95%
+Para cada punto temporal $t_0$, la incertidumbre de la recta media se calcula como:
+$$SE(\hat{y}(t_0)) = s_e \sqrt{\frac{1}{n} + \frac{(t_0 - \bar{t})^2}{\sum_{i=1}^n (t_i - \bar{t})^2}}$$
+$$\text{IC}_{95\%} = \hat{y}(t_0) \pm t_{0.975, n-2} \cdot SE(\hat{y}(t_0))$$
+
+### 4. Test No Paramétrico de Mann-Kendall
+Prueba de tendencia monótona independiente de supuestos de normalidad:
+$$S = \sum_{k=1}^{n-1} \sum_{j=k+1}^n \text{sgn}(x_j - x_k)$$
+$$Z = \begin{cases} \frac{S-1}{\sqrt{\text{Var}(S)}} & S > 0 \\ 0 & S = 0 \\ \frac{S+1}{\sqrt{\text{Var}(S)}} & S < 0 \end{cases}$$
+$$p = 2 \times [1 - \Phi(|Z|)]$$
+- **Veredicto:** Si $p < 0.05$ (o $p < 0.001$), se rechaza formalmente la hipótesis nula de ausencia de tendencia forzada.
+
+---
+
+## 🚀 Instalación y Puesta en Marcha
+
+### Prerrequisitos
+- Python 3.10 o superior instalado.
+- Conexión a Internet (opcional; el sistema incluye generador de respaldo automático).
+
+### 1. Clonar el Repositorio o Entrar al Directorio
+```bash
+cd kind-hawking
+```
+
+### 2. Crear y Activar un Entorno Virtual (Recomendado)
+```bash
+# Windows
+python -m venv venv
+venv\Scripts\activate
+
+# Linux / macOS
+python3 -m venv venv
+source venv/bin/activate
+```
+
+### 3. Instalar Dependencias
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Ejecutar la Aplicación Streamlit
+```bash
+streamlit run app.py
+```
+
+La interfaz se abrirá automáticamente en tu navegador web en:
+`http://localhost:8501`
+
+---
+
+## 🧪 Verificación Automática del Sistema
+
+Puedes verificar en cualquier momento la integridad de los motores matemáticos y de datos ejecutando:
+```bash
+python -c "import data_engine as de, stats_engine as se; df, _ = de.fetch_nasa_power_data('T2M', 19.43, -99.13, 2000, 2024); anom, _ = se.calculate_climatology_and_anomalies(df); ols = se.compute_linear_trend(anom, 'anomaly'); print('Rate/decade:', ols['slope_per_decade'], 'p-value:', ols['p_value_ols'])"
+```
+
+---
+
+## 🛡️ Atribución y Licencia
+
+- **Datos y Modelos:** NASA Langley Research Center POWER Project, GMAO MERRA-2, NASA/JAXA GPM Mission, NASA GSFC GLDAS y NASA MODIS Science Team.
+- **Licencia:** Open Source bajo MIT License para fines educativos, científicos y de divulgación.
