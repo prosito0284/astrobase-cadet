@@ -144,6 +144,8 @@ export interface ColonySaveData {
   empStunSeconds: number;        // 1s task freeze on solar flare
   populationExpanded: boolean;   // True if expanded from 4 to 6 on Day 15
   assignedToMine: string[];      // IDs of astronauts assigned to the ice mine
+  difficulty?: GameDifficulty;   // Difficulty locked to this base
+  missionCompleted?: boolean;    // True if mission was accomplished
 }
 
 export interface Achievement {

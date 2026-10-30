@@ -192,17 +192,30 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </div>
 
-          {/* Advance Turn Button */}
-          <button
-            onClick={() => {
-              soundFx.playToggleOn();
-              onAdvanceDay();
-            }}
-            className="flex items-center gap-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs px-2.5 sm:px-3 py-1.5 rounded-lg shadow-md shadow-emerald-900/40 transition-all transform hover:scale-[1.03] active:scale-[0.98] border border-emerald-400/40"
-          >
-            <FastForward className="w-3.5 h-3.5 fill-white" />
-            <span>{lang === 'es' ? 'Siguiente Día' : 'Next Day'}</span>
-          </button>
+          {/* Advance Turn Button or Completed Certificate Button */}
+          {currentDay >= totalDays ? (
+            <button
+              onClick={() => {
+                soundFx.playVictory();
+                onOpenReport();
+              }}
+              className="flex items-center gap-1 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-xs px-2.5 sm:px-3 py-1.5 rounded-lg shadow-md shadow-amber-900/40 transition-all transform hover:scale-[1.03] active:scale-[0.98] border border-amber-300"
+            >
+              <span>🏆</span>
+              <span>{lang === 'es' ? 'Ver Certificado' : 'View Certificate'}</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                soundFx.playToggleOn();
+                onAdvanceDay();
+              }}
+              className="flex items-center gap-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs px-2.5 sm:px-3 py-1.5 rounded-lg shadow-md shadow-emerald-900/40 transition-all transform hover:scale-[1.03] active:scale-[0.98] border border-emerald-400/40"
+            >
+              <FastForward className="w-3.5 h-3.5 fill-white" />
+              <span>{lang === 'es' ? 'Siguiente Día' : 'Next Day'}</span>
+            </button>
+          )}
         </div>
 
         {/* Feature Tools Buttons */}

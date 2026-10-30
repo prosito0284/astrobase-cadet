@@ -47,10 +47,12 @@ import { spaceVoice } from './utils/speech';
 import confetti from 'canvas-confetti';
 import { Sparkles, Thermometer, AlertTriangle, WifiOff, Zap } from 'lucide-react';
 
-const createInitialColonyData = (loc: BaseLocation): ColonySaveData => {
+const createInitialColonyData = (loc: BaseLocation, diff: GameDifficulty = 'normal'): ColonySaveData => {
   const scen = SCENARIOS.find(s => s.location === loc) || SCENARIOS[0];
   return {
     currentDay: 1,
+    difficulty: diff,
+    missionCompleted: false,
     resources: { ...scen.initialResources },
     modules: JSON.parse(JSON.stringify(INITIAL_MODULES)),
     crew: JSON.parse(JSON.stringify(INITIAL_CREW)),
@@ -78,21 +80,51 @@ const createInitialColonyData = (loc: BaseLocation): ColonySaveData => {
 
 export function App() {
   const [lang, setLang] = useState<'es' | 'en'>('es');
-  const [location, setLocation] = useState<BaseLocation>('moon');
-  const [difficulty, setDifficulty] = useState<GameDifficulty>('normal');
+  
+  // Persisted Location (Strictly independent between Moon and Mars)
+  const [location, setLocation] = useState<BaseLocation>(() => {
+    try {
+      const saved = localStorage.getItem('astrobase_location_v2');
+      if (saved === 'moon' || saved === 'mars') return saved;
+    } catch {}
+    return 'moon';
+  });
+
+  // Persisted Game Difficulty
+  const [difficulty, setDifficulty] = useState<GameDifficulty>(() => {
+    try {
+      const saved = localStorage.getItem('astrobase_difficulty_v2');
+      if (saved === 'facil' || saved === 'normal' || saved === 'dificil') return saved;
+    } catch {}
+    return 'normal';
+  });
+
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>('life_support');
 
   // INDEPENDENT PERSISTENT COLONY STATE (MOON & MARS MAINTAIN SEPARATE PROGRESS)
   const [colonies, setColonies] = useState<{ moon: ColonySaveData; mars: ColonySaveData }>(() => {
     try {
-      const saved = localStorage.getItem('astrobase_dual_save_v5');
+      const saved = localStorage.getItem('astrobase_dual_save_v6') || localStorage.getItem('astrobase_dual_save_v5');
       if (saved) {
         const parsed = JSON.parse(saved);
         const mergeColony = (c: any, loc: BaseLocation): ColonySaveData => {
-          const init = createInitialColonyData(loc);
+          const init = createInitialColonyData(loc, c?.difficulty || 'normal');
+          const maxAllowed = loc === 'moon' ? 28 : 30;
+          let safeDay = c?.currentDay ? Number(c.currentDay) : 1;
+          if (isNaN(safeDay) || safeDay < 1) safeDay = 1;
+          if (safeDay > maxAllowed) safeDay = maxAllowed;
+
+          // Anti-leak protection: if Mars was corrupted with Moon's max days from legacy version
+          if (loc === 'mars' && parsed?.moon?.currentDay >= 28 && c?.currentDay >= 28 && !c?.missionCompleted) {
+            safeDay = 1;
+          }
+
           return {
             ...init,
             ...c,
+            currentDay: safeDay,
+            difficulty: c?.difficulty || 'normal',
+            missionCompleted: c?.missionCompleted ?? false,
             resources: { ...init.resources, ...(c?.resources || {}) },
             batteryFaultCount: c?.batteryFaultCount ?? 0,
             batteryLockoutSeconds: c?.batteryLockoutSeconds ?? 0,
@@ -114,17 +146,19 @@ export function App() {
       // fallback
     }
     return {
-      moon: createInitialColonyData('moon'),
-      mars: createInitialColonyData('mars'),
+      moon: createInitialColonyData('moon', 'normal'),
+      mars: createInitialColonyData('mars', 'normal'),
     };
   });
 
-  // Current active colony state
+  // Current active colony state & Scenario
   const currentColony = colonies[location];
   const currentScenario = SCENARIOS.find(s => s.location === location) || SCENARIOS[0];
 
-  // Active crisis state
+  // Active crisis state (Strictly scoped to the active location)
   const [activeCrisis, setActiveCrisis] = useState<HistoricalCrisis | null>(null);
+  const activeCrisisForCurrentLocation = activeCrisis && activeCrisis.location === location ? activeCrisis : null;
+  const effectiveTotalDays = activeCrisisForCurrentLocation ? activeCrisisForCurrentLocation.targetDays : currentScenario.targetDays;
 
   // Modals & UI
   const [currentEvent, setCurrentEvent] = useState<MissionEvent | null>(null);
@@ -147,6 +181,14 @@ export function App() {
   const [isFlightLogOpen, setIsFlightLogOpen] = useState(false);
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Show Toast helper
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 4000);
+  };
 
   // Commander Profile State (Persisted)
   const [commanderProfile, setCommanderProfile] = useState<CommanderProfile>(() => {
@@ -257,73 +299,34 @@ export function App() {
     }
   };
 
-  // Save to localStorage whenever colonies state changes
+  // Save persistent state
   useEffect(() => {
     try {
-      localStorage.setItem('astrobase_dual_save_v5', JSON.stringify(colonies));
-    } catch {
-      // LocalStorage quota fallback
-    }
+      localStorage.setItem('astrobase_location_v2', location);
+    } catch {}
+  }, [location]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('astrobase_difficulty_v2', difficulty);
+    } catch {}
+  }, [difficulty]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('astrobase_dual_save_v6', JSON.stringify(colonies));
+    } catch {}
   }, [colonies]);
 
-  // Battery lockout ticker: decrements batteryLockoutSeconds and drains 4% energy per second during overload
-  useEffect(() => {
-    if (currentColony.batteryLockoutSeconds <= 0) return;
-    const interval = setInterval(() => {
-      updateCurrentColony(prev => {
-        if (prev.batteryLockoutSeconds <= 0) return prev;
-        const nextLock = Math.max(0, prev.batteryLockoutSeconds - 1);
-        const drain = prev.resources.maxEnergy * 0.04;
-        const nextEnergy = Math.max(0, prev.resources.energy - drain);
-        return {
-          ...prev,
-          batteryLockoutSeconds: nextLock,
-          resources: {
-            ...prev.resources,
-            energy: nextEnergy,
-          },
-        };
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [currentColony.batteryLockoutSeconds]);
-
-  // EMP stun ticker: 1-second task freeze
-  useEffect(() => {
-    if (currentColony.empStunSeconds <= 0) return;
-    const timer = setTimeout(() => {
-      updateCurrentColony(prev => ({
-        ...prev,
-        empStunSeconds: 0,
-      }));
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, [currentColony.empStunSeconds]);
-
-  // Initial greeting
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      spaceVoice.speak(
-        `¡Saludos, Comandante ${commanderProfile.name}! Capcom NOVA en línea, desarrollado por el equipo Troncos Intergalácticos. Todos los sistemas de telemetría de la NASA están listos para la misión.`
-      );
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Show Toast helper
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => {
-      setToastMessage(null);
-    }, 4000);
-  };
-
-  // Helper to mutate current active colony
+  // Helper to mutate current active colony safely
   const updateCurrentColony = (updater: (prev: ColonySaveData) => ColonySaveData) => {
-    setColonies(all => ({
-      ...all,
-      [location]: updater(all[location]),
-    }));
+    setColonies(all => {
+      const prevForLoc = all[location] || createInitialColonyData(location, difficulty);
+      return {
+        ...all,
+        [location]: updater(prevForLoc),
+      };
+    });
   };
 
   // Toggle Voice
@@ -336,18 +339,53 @@ export function App() {
     }
   };
 
-  // Switch location handler WITHOUT LOSING DATA!
+  // Switch location handler WITHOUT LOSING DATA & STRICT INDEPENDENCE!
   const handleChangeLocation = (newLoc: BaseLocation) => {
     if (newLoc === location) return;
     setLocation(newLoc);
-    setActiveCrisis(null);
+    // Clear active historical crisis if it belongs to the other location
+    if (activeCrisis && activeCrisis.location !== newLoc) {
+      setActiveCrisis(null);
+    }
 
     const destColony = colonies[newLoc];
+    // Sync current active difficulty to the destination colony's difficulty
+    if (destColony?.difficulty) {
+      setDifficulty(destColony.difficulty);
+    }
+
+    const maxDays = newLoc === 'moon' ? 28 : 30;
     const announce = lang === 'es' 
-      ? `Cambiando a base en ${newLoc === 'moon' ? 'la Luna (Día ' + destColony.currentDay + ')' : 'Marte (Sol ' + destColony.currentDay + ')'}. Datos conservados.` 
+      ? `Cambiando a base en ${newLoc === 'moon' ? 'la Luna (Día ' + destColony.currentDay + '/' + maxDays + ')' : 'Marte (Sol ' + destColony.currentDay + '/' + maxDays + ')'}. Datos conservados.` 
       : `Switched to ${newLoc === 'moon' ? 'Moon' : 'Mars'}. Session preserved.`;
     showToast(announce);
     spaceVoice.speak(announce);
+  };
+
+  // Anti-Cheat Difficulty Switcher:
+  // Changing difficulty resets the active base to Day 1 with fresh stats for that difficulty.
+  // This completely eliminates the bug where players play on Easy to max days, switch to Hard, and win!
+  const handleChangeDifficulty = (newDiff: GameDifficulty) => {
+    if (newDiff === difficulty && currentColony.difficulty === newDiff) return;
+
+    setDifficulty(newDiff);
+    setColonies(all => ({
+      ...all,
+      [location]: createInitialColonyData(location, newDiff),
+    }));
+
+    const diffLabels: Record<GameDifficulty, string> = {
+      facil: 'FÁCIL (Sin Hambre/Sed & Con Eventos Aleatorios)',
+      normal: 'NORMAL (O₂ por persona & Desafío Estándar)',
+      dificil: 'DIFÍCIL (Supervivencia Extrema & Desafío Hardcore)',
+    };
+    showToast(`Dificultad cambiada a: ${diffLabels[newDiff]}. Misión reiniciada al Sol 1.`);
+    spaceVoice.speak(`Dificultad ajustada a ${newDiff}. Misión reiniciada al Sol 1.`);
+    addFlightLog(
+      'info',
+      `Dificultad cambiada a ${newDiff.toUpperCase()}. Misión reiniciada al Sol 1 en ${location === 'moon' ? 'la Luna' : 'Marte'}.`,
+      `Difficulty changed to ${newDiff.toUpperCase()}. Mission restarted at Sol 1 in ${location === 'moon' ? 'Moon' : 'Mars'}.`
+    );
   };
 
   // Toggle Module Power
@@ -519,16 +557,13 @@ export function App() {
 
   // Advance Day / Sol simulation loop with all requested mechanics
   const handleAdvanceDay = () => {
-    const maxDays = activeCrisis ? activeCrisis.targetDays : currentScenario.targetDays;
+    const maxDays = effectiveTotalDays;
 
-    if (currentColony.currentDay >= maxDays) {
+    // If mission already finished, open report and prevent repeated triggers
+    if (currentColony.currentDay >= maxDays || currentColony.missionCompleted) {
       soundFx.playVictory();
-      confetti({ particleCount: 150, spread: 80, origin: { y: 0.5 } });
-      if (difficulty === 'dificil') {
-        unlockAchievement('supreme_commander');
-      }
       setIsReportOpen(true);
-      spaceVoice.speak('¡Misión cumplida con éxito rotundo! Certificado de comandante emitido por la NASA.');
+      showToast(lang === 'es' ? '¡Misión ya completada! Revisa el certificado oficial de la NASA o reinicia la base.' : 'Mission already completed! Inspect report or restart base.');
       return;
     }
 
@@ -576,7 +611,48 @@ export function App() {
     let hasSolarFluctuation = false;
     let hasCommBlackout = currentColony.isCommBlackout;
 
-    if (difficulty === 'normal') {
+    if (difficulty === 'facil') {
+      // RANDOM EVENTS IN EASY MODE (Fun, dynamic, rewarding, non-lethal)
+      hasSolarFluctuation = Math.random() < 0.20;
+      if (hasSolarFluctuation) {
+        showToast('☀️ Fluctuación solar menor detectada. Rendimiento fotovoltaico con variación leve (-15%).');
+      }
+
+      // Battery wiring minigame (10% chance after Day 3)
+      if (!newBatteryFault && Math.random() < 0.10 && nextDay > 3) {
+        newBatteryFault = true;
+        soundFx.playAlert();
+        spaceVoice.speak('Calibración preventiva de baterías requerida. Conecta los terminales.');
+        showToast('⚡ ¡Calibración preventiva de baterías! Abre el panel de cableado para practicar sin riesgo.');
+        setIsWiringOpen(true);
+      }
+
+      // Antenna DSN Signal Drift minigame (12% chance after Day 4)
+      if (!hasCommBlackout && Math.random() < 0.12 && nextDay > 4) {
+        hasCommBlackout = true;
+        soundFx.playAlert();
+        spaceVoice.speak('Desfase menor con la Red de Espacio Profundo. Sintoniza la antena.');
+        showToast('📡 ¡Desfase en la Red DSN! Sintoniza la frecuencia para ganar +15 pts de Ciencia.');
+      }
+
+      // Random Geological/Regolith Discovery (25% chance)
+      if (Math.random() < 0.25) {
+        soundFx.playHarvest();
+        showToast('🔬 ¡Descubrimiento Científico! Sensores del rover hallaron minerales hidratados (+10 pts Ciencia).');
+        addFlightLog('info', 'Anomalía geológica superficial descubierta: +10 pts de Ciencia.', 'Surface geological anomaly detected: +10 Science pts.');
+      }
+
+      // Random Botanical Growth Spurt in Greenhouse (20% chance)
+      if (Math.random() < 0.20) {
+        showToast('🥬 ¡Brote Excepcional en Veggie OSDR! Cultivo de lechugas espaciales acelerado (+15 Alimentos).');
+        addFlightLog('info', 'Brote de nutrientes en invernadero Veggie: +15 raciones de comida fresca.', 'Nutrient surge in Veggie space lab: +15 fresh rations.');
+      }
+
+      // Harmless Micrometeorite horizon spectacle (15% chance)
+      if (Math.random() < 0.15) {
+        showToast('☄️ ¡Espectáculo astronómico! Lluvia de micrometeoritos visible en el horizonte.');
+      }
+    } else if (difficulty === 'normal') {
       if (!newBatteryFault && Math.random() < 0.15 && nextDay > 2) {
         newBatteryFault = true;
         soundFx.playAlert();
@@ -1028,6 +1104,32 @@ export function App() {
       showToast(advText);
     }
 
+    // Victory check when completing target days for the current mission
+    if (nextDay >= maxDays) {
+      soundFx.playVictory();
+      confetti({ particleCount: 160, spread: 85, origin: { y: 0.5 } });
+
+      // Anti-cheat verification: Supreme commander badge ONLY unlocked if the entire run was strictly played in Hard Mode
+      if (difficulty === 'dificil' && currentColony.difficulty === 'dificil') {
+        unlockAchievement('supreme_commander');
+      }
+
+      updateCurrentColony(prev => ({
+        ...prev,
+        currentDay: maxDays,
+        missionCompleted: true,
+      }));
+
+      setIsReportOpen(true);
+      spaceVoice.speak('¡Misión cumplida con éxito rotundo! Certificado de comandante emitido por la NASA.');
+      addFlightLog(
+        'success',
+        `¡MISIÓN COMPLETADA CON ÉXITO! Superados los ${maxDays} días en ${location === 'moon' ? 'la Luna' : 'Marte'} (${difficulty.toUpperCase()}).`,
+        `MISSION ACCOMPLISHED! Survived ${maxDays} days in ${location === 'moon' ? 'Moon' : 'Mars'} (${difficulty.toUpperCase()}).`
+      );
+      return;
+    }
+
     unlockAchievement('first_sol');
     if (newScience >= 50) {
       unlockAchievement('science_breakthrough');
@@ -1193,13 +1295,15 @@ export function App() {
     const diff = newDiff || difficulty;
     setDifficulty(diff);
     setIsGameOverOpen(false);
+    setIsReportOpen(false);
 
     setColonies(all => ({
       ...all,
-      [location]: createInitialColonyData(location),
+      [location]: createInitialColonyData(location, diff),
     }));
 
-    showToast(`Misión reiniciada en ${location === 'moon' ? 'la Luna' : 'Marte'} (Dificultad: ${diff.toUpperCase()}).`);
+    const maxDays = location === 'moon' ? 28 : 30;
+    showToast(`Misión reiniciada en ${location === 'moon' ? 'la Luna (Día 1/' + maxDays + ')' : 'Marte (Sol 1/' + maxDays + ')'} (Dificultad: ${diff.toUpperCase()}).`);
     spaceVoice.speak('Misión reiniciada. Telemetría lista en plataforma de lanzamiento.');
     addFlightLog('info', `Misión reiniciada en ${location === 'moon' ? 'la Luna' : 'Marte'} (${diff.toUpperCase()}).`, `Mission restarted at ${location === 'moon' ? 'Moon' : 'Mars'} (${diff.toUpperCase()}).`);
   };
@@ -1221,12 +1325,12 @@ export function App() {
       {/* Top Navbar */}
       <Navbar
         currentDay={currentColony.currentDay}
-        totalDays={activeCrisis ? activeCrisis.targetDays : currentScenario.targetDays}
+        totalDays={effectiveTotalDays}
         location={location}
         difficulty={difficulty}
         isMuted={isMuted}
         isVoiceEnabled={isVoiceEnabled}
-        activeCrisisTitle={activeCrisis ? activeCrisis.titleEs : null}
+        activeCrisisTitle={activeCrisisForCurrentLocation ? activeCrisisForCurrentLocation.titleEs : null}
         isBatteryFault={currentColony.batteryFault}
         wiringErrorActive={currentColony.wiringErrorActive}
         canExpandPopulation={difficulty === 'dificil' && currentColony.currentDay >= 15 && !currentColony.populationExpanded}
@@ -1251,16 +1355,7 @@ export function App() {
         onToggleMute={() => setIsMuted(soundFx.toggleMute())}
         onToggleVoice={handleToggleVoice}
         onChangeLocation={handleChangeLocation}
-        onChangeDifficulty={(d) => {
-          setDifficulty(d);
-          const diffLabels = {
-            facil: 'FÁCIL (Sin Hambre/Sed)',
-            normal: 'NORMAL (O₂ por persona & Letal)',
-            dificil: 'DIFÍCIL (Supervivencia Extrema & Desafío Hardcore)',
-          };
-          showToast(`Dificultad cambiada a: ${diffLabels[d]}`);
-          spaceVoice.speak(`Dificultad de simulación ajustada a ${d}.`);
-        }}
+        onChangeDifficulty={handleChangeDifficulty}
         lang={lang}
         onToggleLang={() => setLang(l => (l === 'es' ? 'en' : 'es'))}
       />
@@ -1382,7 +1477,7 @@ export function App() {
           location={location}
           modules={currentColony.modules}
           currentDay={currentColony.currentDay}
-          totalDays={activeCrisis ? activeCrisis.targetDays : currentScenario.targetDays}
+          totalDays={effectiveTotalDays}
           radiationActive={currentColony.radiationActive}
           dustStormActive={currentColony.dustStormActive}
           isLunarNight={currentColony.isLunarNight}
@@ -1447,13 +1542,14 @@ export function App() {
         onClose={() => setIsReportOpen(false)}
         location={location}
         currentDay={currentColony.currentDay}
-        totalDays={activeCrisis ? activeCrisis.targetDays : currentScenario.targetDays}
+        totalDays={effectiveTotalDays}
         difficulty={difficulty}
         resources={currentColony.resources}
         crew={currentColony.crew}
         lang={lang}
         commanderName={commanderProfile.name}
         commanderPatch={commanderProfile.patch}
+        onRestart={handleRestartMission}
       />
 
       <BotanicalLabModal
@@ -1480,13 +1576,20 @@ export function App() {
         onSelectCrisis={(crisis) => {
           setActiveCrisis(crisis);
           setLocation(crisis.location);
-          updateCurrentColony(p => ({
-            ...p,
-            currentDay: 1,
-            resources: { ...p.resources, ...crisis.initialOverrides },
-            radiationActive: crisis.specialCondition === 'extreme_radiation',
-            dustStormActive: crisis.specialCondition === 'solar_blackout',
-          }));
+          setColonies(all => {
+            const baseColony = all[crisis.location] || createInitialColonyData(crisis.location, difficulty);
+            return {
+              ...all,
+              [crisis.location]: {
+                ...baseColony,
+                currentDay: 1,
+                missionCompleted: false,
+                resources: { ...baseColony.resources, ...crisis.initialOverrides },
+                radiationActive: crisis.specialCondition === 'extreme_radiation',
+                dustStormActive: crisis.specialCondition === 'solar_blackout',
+              },
+            };
+          });
           const text = `Crisis histórica activada: ${crisis.titleEs}. Año ${crisis.year}.`;
           showToast(text);
           spaceVoice.speak(text);

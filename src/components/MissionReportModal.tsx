@@ -24,6 +24,7 @@ interface MissionReportModalProps {
   lang: 'es' | 'en';
   commanderName?: string;
   commanderPatch?: string;
+  onRestart?: (difficulty?: GameDifficulty) => void;
 }
 
 export const MissionReportModal: React.FC<MissionReportModalProps> = ({
@@ -38,6 +39,7 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
   lang,
   commanderName,
   commanderPatch,
+  onRestart,
 }) => {
   if (!isOpen) return null;
 
@@ -243,6 +245,22 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Action button: Restart mission cleanly */}
+        {onRestart && (
+          <div className="mt-2 flex justify-center print:hidden">
+            <button
+              onClick={() => {
+                soundFx.playClick();
+                onRestart();
+              }}
+              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs shadow-lg shadow-emerald-950/50 border border-emerald-400/40 transition-all transform hover:scale-[1.02]"
+            >
+              <span>🚀</span>
+              <span>{lang === 'es' ? 'Iniciar Nueva Misión / Reiniciar Base' : 'Start New Mission / Restart Base'}</span>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
