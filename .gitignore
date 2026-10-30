@@ -11,6 +11,8 @@ node_modules
 dist
 dist-ssr
 *.local
+archive_argon_earthtrend/
+.railway/
 
 # Editor directories and files
 .vscode/*
