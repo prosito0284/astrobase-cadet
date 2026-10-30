@@ -71,7 +71,7 @@ class SpaceSpeechEngine {
 
     try {
       window.speechSynthesis.cancel();
-      soundFx.playRadioBeep();
+      soundFx.playQuindarIntro();
 
       // Clean text of emojis and symbols that make speech synthesis stutter
       const cleanText = text
@@ -99,7 +99,7 @@ class SpaceSpeechEngine {
 
       utterance.onend = () => {
         this.isSpeaking = false;
-        soundFx.playRadioBeep();
+        soundFx.playQuindarOutro();
         if (onEndCallback) onEndCallback();
       };
 

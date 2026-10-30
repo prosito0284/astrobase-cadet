@@ -19,6 +19,9 @@ interface BaseViewProps {
   radiationActive: boolean;
   dustStormActive: boolean;
   isLunarNight: boolean;
+  wiringErrorActive?: boolean;
+  emergencyO2Active?: boolean;
+  assignedToMineCount?: number;
   onSelectModule: (moduleId: string) => void;
   selectedModuleId: string | null;
   lang: 'es' | 'en';
@@ -31,6 +34,9 @@ export const BaseView: React.FC<BaseViewProps> = ({
   radiationActive,
   dustStormActive,
   isLunarNight,
+  wiringErrorActive = false,
+  emergencyO2Active = false,
+  assignedToMineCount = 0,
   onSelectModule,
   selectedModuleId,
   lang,
@@ -118,6 +124,18 @@ export const BaseView: React.FC<BaseViewProps> = ({
           </div>
         )}
 
+        {/* Red Alert Ambient Emergency Tint */}
+        {(wiringErrorActive || emergencyO2Active) && (
+          <div className="absolute inset-0 bg-red-950/25 pointer-events-none animate-pulse z-15 mix-blend-color-burn" />
+        )}
+
+        {/* Martian Dust Particles Effect */}
+        {dustStormActive && (
+          <div className="absolute inset-0 pointer-events-none z-15 overflow-hidden">
+            <div className="absolute w-full h-full bg-[radial-gradient(#d97706_1.5px,transparent_1px)] [background-size:24px_24px] opacity-40 animate-pulse" />
+          </div>
+        )}
+
         {/* Mountain Ridge / Crater Rims */}
         <svg 
           className="absolute bottom-16 sm:bottom-20 inset-x-0 w-full h-24 sm:h-32 pointer-events-none opacity-40" 
@@ -158,10 +176,24 @@ export const BaseView: React.FC<BaseViewProps> = ({
             </span>
           </div>
 
-          {/* Little Animated Astronauts */}
-          <div className="absolute bottom-4 left-1/4 flex items-center gap-1 cursor-pointer">
-            <span className="text-xl sm:text-2xl transform hover:scale-125 transition-transform" title="Dra. Valentina">👩‍🚀</span>
-            <span className="text-xl sm:text-2xl transform hover:scale-125 transition-transform" title="Dr. Leo Chen">🧑‍🚀</span>
+          {/* Living Animated Astronauts on Surface with EVA Status */}
+          <div className="absolute bottom-4 left-1/4 sm:left-1/3 flex items-center gap-2 cursor-pointer z-10">
+            <div className="flex items-center gap-0.5 transform hover:scale-125 transition-transform animate-bounce" style={{ animationDuration: '3.2s' }}>
+              <span className="text-xl sm:text-2xl" title="Dra. Valentina (Comandante)">👩‍🚀</span>
+              <span className="text-[8px] font-black px-1 rounded bg-black/70 text-emerald-300 border border-emerald-500/40 hidden sm:inline">
+                EVA
+              </span>
+            </div>
+            <div className="flex items-center gap-0.5 transform hover:scale-125 transition-transform animate-bounce" style={{ animationDuration: '4.1s', animationDelay: '0.8s' }}>
+              <span className="text-xl sm:text-2xl" title="Dr. Leo Chen (Soporte Vital)">🧑‍🚀</span>
+            </div>
+            {assignedToMineCount > 0 && (
+              <div className="flex items-center gap-1 bg-blue-950/80 border border-blue-500/60 px-1.5 py-0.5 rounded-lg animate-pulse" title="Astronauta perforando hielo criogénico">
+                <span className="text-base">⛏️</span>
+                <span className="text-lg">🧑‍🚀</span>
+                <span className="text-[8px] font-black text-blue-300 uppercase">ISRU</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -232,6 +264,12 @@ export const BaseView: React.FC<BaseViewProps> = ({
                 : 'bg-slate-900/80 border-slate-700 text-slate-400'
             }`}>
               <div className="text-3xl sm:text-4xl">🏛️</div>
+              {wiringErrorActive && (
+                <div className="absolute -top-3 -right-2 flex items-center gap-1 bg-red-600 border border-white text-white text-[8px] font-black px-1.5 py-0.5 rounded-full animate-bounce shadow-lg shadow-red-650">
+                  <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                  <span>ALERTA</span>
+                </div>
+              )}
               <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 text-[9px] font-black bg-purple-600 text-white px-1.5 py-0.2 rounded-full uppercase tracking-wider">
                 {lang === 'es' ? 'Cúpula Regolito' : 'Regolith Dome'}
               </div>

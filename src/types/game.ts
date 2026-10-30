@@ -145,3 +145,30 @@ export interface ColonySaveData {
   populationExpanded: boolean;   // True if expanded from 4 to 6 on Day 15
   assignedToMine: string[];      // IDs of astronauts assigned to the ice mine
 }
+
+export interface Achievement {
+  id: string;
+  titleEs: string;
+  titleEn: string;
+  descriptionEs: string;
+  descriptionEn: string;
+  icon: string;
+  unlockedAtDay?: number;
+  unlocked: boolean;
+}
+
+export interface FlightLogEntry {
+  id: string;
+  day: number;
+  timestamp: string;
+  location: BaseLocation;
+  type: 'info' | 'warning' | 'alert' | 'success' | 'event';
+  messageEs: string;
+  messageEn: string;
+}
+
+export interface CommanderProfile {
+  name: string;
+  callsign: string;
+  patch: string;
+}

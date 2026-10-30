@@ -18,7 +18,11 @@ import {
   GraduationCap,
   Maximize,
   Minimize,
-  TreePine
+  TreePine,
+  Music,
+  Medal,
+  FileText,
+  User
 } from 'lucide-react';
 import { soundFx } from '../utils/audio';
 
@@ -41,6 +45,13 @@ interface NavbarProps {
   isBatteryFault: boolean;
   wiringErrorActive?: boolean;
   canExpandPopulation?: boolean;
+  commanderName?: string;
+  isMusicPlaying?: boolean;
+  unlockedAchievementsCount?: number;
+  onOpenCommanderProfile?: () => void;
+  onToggleMusic?: () => void;
+  onOpenAchievements?: () => void;
+  onOpenFlightLog?: () => void;
   onOpenWiring: () => void;
   onOpenIceMine: () => void;
   onOpenPopulationExpansion?: () => void;
@@ -63,6 +74,13 @@ export const Navbar: React.FC<NavbarProps> = ({
   isBatteryFault,
   wiringErrorActive,
   canExpandPopulation,
+  commanderName,
+  isMusicPlaying,
+  unlockedAchievementsCount,
+  onOpenCommanderProfile,
+  onToggleMusic,
+  onOpenAchievements,
+  onOpenFlightLog,
   onAdvanceDay,
   onOpenDossier,
   onOpenGuide,
@@ -299,6 +317,53 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span className="hidden xl:inline">Quiz</span>
           </button>
 
+          {/* Commander Profile Button */}
+          {onOpenCommanderProfile && (
+            <button
+              onClick={() => {
+                soundFx.playClick();
+                onOpenCommanderProfile();
+              }}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-400/60 text-cyan-200 text-xs font-black transition-all shadow-sm"
+              title="Perfil y Credenciales del Comandante"
+            >
+              <User className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="hidden sm:inline truncate max-w-[120px]">
+                {commanderName || (lang === 'es' ? 'Comandante' : 'Commander')}
+              </span>
+            </button>
+          )}
+
+          {/* NASA Achievements Showcase Button */}
+          {onOpenAchievements && (
+            <button
+              onClick={() => {
+                soundFx.playClick();
+                onOpenAchievements();
+              }}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-950/70 hover:bg-amber-900/80 border border-amber-500/50 text-amber-300 text-xs font-bold transition-all"
+              title="Vitrina de Medallas y Logros de la NASA"
+            >
+              <Medal className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden xl:inline">{unlockedAchievementsCount ?? 0}/10 {lang === 'es' ? 'Logros' : 'Badges'}</span>
+            </button>
+          )}
+
+          {/* Mission Flight Log Button */}
+          {onOpenFlightLog && (
+            <button
+              onClick={() => {
+                soundFx.playClick();
+                onOpenFlightLog();
+              }}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-bold transition-all"
+              title="Bitácora de Vuelo y Telemetría Histórica"
+            >
+              <FileText className="w-3.5 h-3.5 text-indigo-300" />
+              <span className="hidden lg:inline">{lang === 'es' ? 'Bitácora' : 'Log'}</span>
+            </button>
+          )}
+
           {/* NASA Dossier */}
           <button
             onClick={() => {
@@ -323,6 +388,21 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <Award className="w-3.5 h-3.5" />
           </button>
+
+          {/* Space Ambient Music Toggle Button */}
+          {onToggleMusic && (
+            <button
+              onClick={onToggleMusic}
+              className={`p-1.5 rounded-lg border transition-all ${
+                isMusicPlaying
+                  ? 'bg-indigo-950/90 border-indigo-400 text-indigo-200 shadow-sm shadow-indigo-500/50 animate-pulse'
+                  : 'bg-slate-800 border-slate-700 text-slate-500 hover:text-slate-300'
+              }`}
+              title={isMusicPlaying ? 'Música Espacial Activa (Clic para pausar)' : 'Activar Música Ambiental Espacial'}
+            >
+              <Music className="w-3.5 h-3.5" />
+            </button>
+          )}
 
           {/* Voice Narration Toggle Button */}
           <button

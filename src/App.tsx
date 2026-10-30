@@ -8,13 +8,17 @@ import {
   MissionEventOption, 
   Astronaut,
   CrewStatus,
-  ColonySaveData 
+  ColonySaveData,
+  Achievement,
+  FlightLogEntry,
+  CommanderProfile
 } from './types/game';
 import { SCENARIOS } from './data/scenarios';
 import { INITIAL_MODULES } from './data/modules';
 import { INITIAL_CREW, EXPANDED_CREW_MEMBERS } from './data/crew';
 import { MISSION_EVENTS } from './data/events';
 import { HISTORICAL_CRISES, HistoricalCrisis } from './data/historicalCrises';
+import { INITIAL_ACHIEVEMENTS } from './data/achievements';
 import { Navbar } from './components/Navbar';
 import { ResourceDashboard } from './components/ResourceDashboard';
 import { BaseView } from './components/BaseView';
@@ -35,7 +39,10 @@ import { OxygenEmergencyBanner } from './components/OxygenEmergencyBanner';
 import { WiringMiniGameModal } from './components/WiringMiniGameModal';
 import { IceMineModal } from './components/IceMineModal';
 import { PopulationExpansionModal } from './components/PopulationExpansionModal';
-import { soundFx } from './utils/audio';
+import { AchievementsModal } from './components/AchievementsModal';
+import { CommanderProfileModal } from './components/CommanderProfileModal';
+import { FlightLogModal } from './components/FlightLogModal';
+import { soundFx, spaceAmbient } from './utils/audio';
 import { spaceVoice } from './utils/speech';
 import confetti from 'canvas-confetti';
 import { Sparkles, Thermometer, AlertTriangle, WifiOff, Zap } from 'lucide-react';
@@ -135,7 +142,120 @@ export function App() {
   const [isWiringOpen, setIsWiringOpen] = useState(false);
   const [isIceMineOpen, setIsIceMineOpen] = useState(false);
   const [isPopulationExpansionOpen, setIsPopulationExpansionOpen] = useState(false);
+  const [isAchievementsOpen, setIsAchievementsOpen] = useState(false);
+  const [isCommanderProfileOpen, setIsCommanderProfileOpen] = useState(false);
+  const [isFlightLogOpen, setIsFlightLogOpen] = useState(false);
+  const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Commander Profile State (Persisted)
+  const [commanderProfile, setCommanderProfile] = useState<CommanderProfile>(() => {
+    try {
+      const saved = localStorage.getItem('astrobase_commander_v1');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {
+      name: 'Checo Valdés',
+      callsign: 'Tronco Alfa',
+      patch: '🌲 Troncos Intergalácticos (Oficial)',
+    };
+  });
+
+  // NASA Achievements State (Persisted)
+  const [achievements, setAchievements] = useState<Achievement[]>(() => {
+    try {
+      const saved = localStorage.getItem('astrobase_achievements_v1');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return INITIAL_ACHIEVEMENTS;
+  });
+
+  // Flight Log & Telemetry Timeline (Persisted)
+  const [flightLog, setFlightLog] = useState<FlightLogEntry[]>(() => {
+    try {
+      const saved = localStorage.getItem('astrobase_flightlog_v1');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [
+      {
+        id: 'init_moon',
+        day: 1,
+        timestamp: '00:00 UTC',
+        location: 'moon',
+        type: 'info',
+        messageEs: 'Base Artemis III presurizada en el Cráter Shackleton. Telecomunicaciones DSN en línea.',
+        messageEn: 'Artemis III base pressurized at Shackleton Crater. DSN comms online.',
+      },
+    ];
+  });
+
+  // Save persistent state
+  useEffect(() => {
+    try {
+      localStorage.setItem('astrobase_commander_v1', JSON.stringify(commanderProfile));
+    } catch {}
+  }, [commanderProfile]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('astrobase_achievements_v1', JSON.stringify(achievements));
+    } catch {}
+  }, [achievements]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('astrobase_flightlog_v1', JSON.stringify(flightLog));
+    } catch {}
+  }, [flightLog]);
+
+  // Helper to append a flight log entry
+  const addFlightLog = (type: FlightLogEntry['type'], msgEs: string, msgEn: string) => {
+    const now = new Date();
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} UTC`;
+    const entry: FlightLogEntry = {
+      id: `log_${Date.now()}_${Math.random()}`,
+      day: currentColony.currentDay,
+      timestamp: timeStr,
+      location,
+      type,
+      messageEs: msgEs,
+      messageEn: msgEn,
+    };
+    setFlightLog(prev => [entry, ...prev].slice(0, 60));
+  };
+
+  // Helper to unlock an achievement
+  const unlockAchievement = (id: string) => {
+    setAchievements(prev => {
+      const target = prev.find(a => a.id === id);
+      if (!target || target.unlocked) return prev;
+
+      soundFx.playAchievement();
+      confetti({ particleCount: 120, spread: 80, origin: { y: 0.4 } });
+      const msg = `🏅 ¡LOGRO DESBLOQUEADO! ${lang === 'es' ? target.titleEs : target.titleEn}`;
+      showToast(msg);
+      spaceVoice.speak(`Condecoración de la NASA obtenida: ${target.titleEs}`);
+
+      addFlightLog(
+        'success',
+        `Medalla NASA obtenida: ${target.titleEs}`,
+        `NASA Badge awarded: ${target.titleEn}`
+      );
+
+      return prev.map(a => a.id === id ? { ...a, unlocked: true, unlockedAtDay: currentColony.currentDay } : a);
+    });
+  };
+
+  // Toggle ambient music
+  const handleToggleMusic = () => {
+    const next = spaceAmbient.toggle();
+    setIsMusicPlaying(next);
+    if (next) {
+      showToast('🎵 Música espacial ambiental iniciada.');
+    } else {
+      showToast('Música ambiental pausada.');
+    }
+  };
 
   // Save to localStorage whenever colonies state changes
   useEffect(() => {
@@ -184,7 +304,7 @@ export function App() {
   useEffect(() => {
     const timer = setTimeout(() => {
       spaceVoice.speak(
-        '¡Saludos, Comandante! Capcom NOVA en línea, desarrollado por el equipo Troncos Intergalácticos. Todos los sistemas de telemetría de la NASA están listos para la misión.'
+        `¡Saludos, Comandante ${commanderProfile.name}! Capcom NOVA en línea, desarrollado por el equipo Troncos Intergalácticos. Todos los sistemas de telemetría de la NASA están listos para la misión.`
       );
     }, 1000);
     return () => clearTimeout(timer);
@@ -310,6 +430,8 @@ export function App() {
     const msg = '🎉 ¡Expansión exitosa! Cadete Santi Gomez y Dra. Elena Ruiz se han acoplado a la tripulación (6 astronautas).';
     showToast(msg);
     spaceVoice.speak('Personal de relevo acoplado con éxito. Tripulación expandida a seis miembros.');
+    unlockAchievement('crew_expansion');
+    addFlightLog('success', 'Transbordador acoplado: Tripulación expandida a 6 astronautas sacrificando 25% de recursos.', 'Shuttle docked: Crew expanded to 6 astronauts sacrificing 25% supplies.');
   };
 
   // Shock active crew if attempting repair during battery overload lockout
@@ -335,6 +457,7 @@ export function App() {
     const msg = '⚡ ¡DESCARGA ELÉCTRICA SEVERA! Los astronautas sufrieron 50% de daño y quedan incapacitados durante 1 día.';
     showToast(msg);
     spaceVoice.speak('¡Descarga de alta tensión! Personal médico requerido en bahía eléctrica.');
+    addFlightLog('alert', 'Descarga eléctrica de alta tensión en banco de baterías: técnicos heridos.', 'High-voltage electric shock in battery bay: technicians injured.');
   };
 
   // Ice Mine toggle assignment handler
@@ -357,6 +480,7 @@ export function App() {
         crew: prev.crew.map(c => c.id === astronautId ? { ...c, isAssignedToMine: false } : c),
       }));
       showToast('Astronauta regresado al hábitat.');
+      addFlightLog('info', 'Astronauta retirado de la mina de hielo criogénico.', 'Astronaut rotated out of cryogenic ice mine.');
     } else {
       // Trying to assign
       const maxAllowed = (difficulty === 'dificil' && !currentColony.populationExpanded) ? 1 : 2;
@@ -388,6 +512,8 @@ export function App() {
         crew: prev.crew.map(c => c.id === astronautId ? { ...c, isAssignedToMine: true } : c),
       }));
       showToast('Astronauta asignado a la mina de hielo criogénico.');
+      unlockAchievement('ice_miner');
+      addFlightLog('info', 'Mina de hielo criogénico ISRU activada con nuevo personal.', 'ISRU cryogenic ice mine activated with assigned personnel.');
     }
   };
 
@@ -398,6 +524,9 @@ export function App() {
     if (currentColony.currentDay >= maxDays) {
       soundFx.playVictory();
       confetti({ particleCount: 150, spread: 80, origin: { y: 0.5 } });
+      if (difficulty === 'dificil') {
+        unlockAchievement('supreme_commander');
+      }
       setIsReportOpen(true);
       spaceVoice.speak('¡Misión cumplida con éxito rotundo! Certificado de comandante emitido por la NASA.');
       return;
@@ -649,6 +778,11 @@ export function App() {
         : '💥 ¡COLISIÓN DE BASURA ESPACIAL! Todos los depósitos de recursos se han reducido a la mitad.';
       showToast(debrisText);
       spaceVoice.speak('¡Impacto orbital severo! Depósitos comprometidos. Recursos reducidos a la mitad.');
+      addFlightLog(
+        'alert',
+        debrisText,
+        debrisDamagesCrew ? 'Space debris impact: supplies halved and crew injured (-20 HP).' : 'Space debris impact: all supplies halved.'
+      );
     }
 
     newEnergy = Math.max(0, Math.min(currentColony.resources.maxEnergy, newEnergy));
@@ -893,6 +1027,16 @@ export function App() {
         : `Advanced to ${location === 'mars' ? 'Sol' : 'Lunar Day'} ${nextDay}.`;
       showToast(advText);
     }
+
+    unlockAchievement('first_sol');
+    if (newScience >= 50) {
+      unlockAchievement('science_breakthrough');
+    }
+    addFlightLog(
+      'info',
+      `Transición al ${location === 'mars' ? 'Sol' : 'Día Lunar'} ${nextDay} completada. Telemetría de soporte vital actualizada.`,
+      `Transition to ${location === 'mars' ? 'Sol' : 'Lunar Day'} ${nextDay} complete. Life support telemetry updated.`
+    );
   };
 
   // Handle Event Option chosen
@@ -961,6 +1105,8 @@ export function App() {
     const msg = `¡Cosecha fresca servida! +${actualFood} Comida Veggie, +${scienceGain} pts Ciencia OSDR.`;
     showToast(msg);
     spaceVoice.speak('Cosecha fresca servida en el comedor del hábitat. Moral y nutrición restauradas.');
+    unlockAchievement('veggie_harvest');
+    addFlightLog('success', `Cosecha fresca servida: +${actualFood} comida Veggie, +${scienceGain} pts Ciencia.`, `Fresh harvest served: +${actualFood} Veggie food, +${scienceGain} Science.`);
   };
 
   // Rover Sortie completed callback
@@ -982,6 +1128,8 @@ export function App() {
       : '¡Expedición robótica ISRU completada con éxito! Recursos integrados a la base.';
     showToast(msg);
     spaceVoice.speak('El rover ha regresado al muelle con las muestras recolectadas.');
+    unlockAchievement('rover_sortie');
+    addFlightLog('success', 'Expedición robótica ISRU completada con muestras del terreno.', 'ISRU robotic rover sortie completed with surface samples.');
   };
 
   // Quiz completed callback with +20 Science bonus & +20% Morale!
@@ -1005,6 +1153,8 @@ export function App() {
     const msg = `🎉 ¡Desafío Quiz Superado! +${scienceBonus} Puntos de Ciencia Bonus y +${moraleBonus}% de Ánimo para toda la tripulación.`;
     showToast(msg);
     spaceVoice.speak('Excelente trabajo en el desafío STEM. Bono de ciencia acreditado y moral de la tripulación aumentada al máximo.');
+    unlockAchievement('stem_genius');
+    addFlightLog('success', `Desafío STEM completado: +${scienceBonus} pts Ciencia NASA y +${moraleBonus}% Ánimo.`, `STEM challenge passed: +${scienceBonus} NASA Science and +${moraleBonus}% Morale.`);
   };
 
   // Emergency Oxygen Deployment with 2-second delay callback!
@@ -1019,6 +1169,7 @@ export function App() {
     }));
     showToast('¡Inyección de O₂ de emergencia presurizada! Soporte vital estabilizado (+35% O₂).');
     spaceVoice.speak('Presión de oxígeno normalizada en el hábitat.');
+    addFlightLog('warning', 'Presurización manual de emergencia activada (+35% O₂).', 'Manual emergency pressurization activated (+35% O₂).');
   };
 
   // Wiring repair success callback
@@ -1033,6 +1184,8 @@ export function App() {
     setIsWiringOpen(false);
     showToast('¡Cortocircuito y cableado reparados! Sistemas eléctricos e iluminación al 100%.');
     spaceVoice.speak('Cableado de batería e iluminación restaurados. Carga eléctrica normalizada.');
+    unlockAchievement('wire_master');
+    addFlightLog('success', 'Cableado de baterías e iluminación restaurado al 100%.', 'Battery wiring and illumination restored 100%.');
   };
 
   // Restart after Game Over or manually
@@ -1048,6 +1201,7 @@ export function App() {
 
     showToast(`Misión reiniciada en ${location === 'moon' ? 'la Luna' : 'Marte'} (Dificultad: ${diff.toUpperCase()}).`);
     spaceVoice.speak('Misión reiniciada. Telemetría lista en plataforma de lanzamiento.');
+    addFlightLog('info', `Misión reiniciada en ${location === 'moon' ? 'la Luna' : 'Marte'} (${diff.toUpperCase()}).`, `Mission restarted at ${location === 'moon' ? 'Moon' : 'Mars'} (${diff.toUpperCase()}).`);
   };
 
   // Restore comms from mini-game
@@ -1058,6 +1212,8 @@ export function App() {
     }));
     showToast('¡Enlace con Houston y la Red DSN restablecido con éxito!');
     spaceVoice.speak('Enlace de radio de espacio profundo restablecido.');
+    unlockAchievement('dsn_restored');
+    addFlightLog('success', 'Enlace de radio DSN restablecido con éxito.', 'DSN radio link successfully restored.');
   };
 
   return (
@@ -1074,6 +1230,13 @@ export function App() {
         isBatteryFault={currentColony.batteryFault}
         wiringErrorActive={currentColony.wiringErrorActive}
         canExpandPopulation={difficulty === 'dificil' && currentColony.currentDay >= 15 && !currentColony.populationExpanded}
+        commanderName={commanderProfile.name}
+        isMusicPlaying={isMusicPlaying}
+        unlockedAchievementsCount={achievements.filter(a => a.unlocked).length}
+        onOpenCommanderProfile={() => setIsCommanderProfileOpen(true)}
+        onToggleMusic={handleToggleMusic}
+        onOpenAchievements={() => setIsAchievementsOpen(true)}
+        onOpenFlightLog={() => setIsFlightLogOpen(true)}
         onOpenPopulationExpansion={() => setIsPopulationExpansionOpen(true)}
         onAdvanceDay={handleAdvanceDay}
         onOpenDossier={() => setIsDossierOpen(true)}
@@ -1223,6 +1386,9 @@ export function App() {
           radiationActive={currentColony.radiationActive}
           dustStormActive={currentColony.dustStormActive}
           isLunarNight={currentColony.isLunarNight}
+          wiringErrorActive={currentColony.wiringErrorActive}
+          emergencyO2Active={currentColony.emergencyO2Active}
+          assignedToMineCount={currentColony.assignedToMine.length}
           onSelectModule={(id) => setSelectedModuleId(id)}
           selectedModuleId={selectedModuleId}
           lang={lang}
@@ -1286,6 +1452,8 @@ export function App() {
         resources={currentColony.resources}
         crew={currentColony.crew}
         lang={lang}
+        commanderName={commanderProfile.name}
+        commanderPatch={commanderProfile.patch}
       />
 
       <BotanicalLabModal
@@ -1389,6 +1557,32 @@ export function App() {
         onClose={() => setIsPopulationExpansionOpen(false)}
         onConfirmExpansion={handleConfirmPopulationExpansion}
         currentResources={currentColony.resources}
+        lang={lang}
+      />
+
+      {/* NASA Badges & Achievements Showcase Modal */}
+      <AchievementsModal
+        isOpen={isAchievementsOpen}
+        onClose={() => setIsAchievementsOpen(false)}
+        achievements={achievements}
+        lang={lang}
+      />
+
+      {/* Commander Profile & Mission Patch Customization Modal */}
+      <CommanderProfileModal
+        isOpen={isCommanderProfileOpen}
+        onClose={() => setIsCommanderProfileOpen(false)}
+        profile={commanderProfile}
+        onSaveProfile={(p) => setCommanderProfile(p)}
+        lang={lang}
+      />
+
+      {/* Flight Log & NASA Telemetry Modal */}
+      <FlightLogModal
+        isOpen={isFlightLogOpen}
+        onClose={() => setIsFlightLogOpen(false)}
+        entries={flightLog}
+        currentLocation={location}
         lang={lang}
       />
 

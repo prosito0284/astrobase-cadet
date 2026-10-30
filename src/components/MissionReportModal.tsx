@@ -22,6 +22,8 @@ interface MissionReportModalProps {
   resources: ResourceState;
   crew: Astronaut[];
   lang: 'es' | 'en';
+  commanderName?: string;
+  commanderPatch?: string;
 }
 
 export const MissionReportModal: React.FC<MissionReportModalProps> = ({
@@ -34,6 +36,8 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
   resources,
   crew,
   lang,
+  commanderName,
+  commanderPatch,
 }) => {
   if (!isOpen) return null;
 
@@ -136,6 +140,22 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
           <p className="text-xs text-slate-400 mt-1 uppercase tracking-widest font-semibold print:text-slate-600">
             {lang === 'es' ? 'Simulador Desarrollado por el Equipo Troncos Intergalácticos (NASA STEM)' : 'Simulator Developed by Team Troncos Intergalácticos (NASA STEM)'}
           </p>
+
+          {commanderName && (
+            <div className="my-3 py-1.5 px-4 rounded-2xl bg-amber-500/10 border border-amber-400/40 inline-block">
+              <span className="text-[10px] text-slate-400 uppercase tracking-widest block font-bold">
+                {lang === 'es' ? 'OTORGADO CON HONORES A:' : 'AWARDED WITH HONORS TO:'}
+              </span>
+              <span className="text-lg sm:text-xl font-black text-amber-300 drop-shadow print:text-black">
+                {commanderName}
+              </span>
+              {commanderPatch && (
+                <span className="text-[10px] text-emerald-400 block font-semibold print:text-slate-700">
+                  Insignia Oficial: {commanderPatch}
+                </span>
+              )}
+            </div>
+          )}
 
           <p className="text-xs sm:text-sm text-slate-200 mt-4 max-w-lg mx-auto leading-relaxed print:text-slate-800">
             {lang === 'es'
