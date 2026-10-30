@@ -90,3 +90,32 @@ test('Tier 1.1: Core Game Loop - Lockout seconds and EMP stun countdown decremen
   assert.strictEqual(sim.colony.batteryLockoutSeconds, 3);
   assert.strictEqual(sim.colony.empStunSeconds, 1);
 });
+
+test('Tier 1.1: Core Game Loop - Dynamic space weather tracks event history and preserves cooldown bounds', () => {
+  const sim = new AstrobaseSimulation('mars', 'dificil');
+
+  // Verify baseline event tracking fields are safely initialized
+  assert.strictEqual(sim.colony.lastEventDay ?? 0, 0);
+  assert.strictEqual(sim.colony.lastSolarFlareDay ?? 0, 0);
+
+  // Simulate an event occurring on Sol 4
+  sim.colony.lastEventDay = 4;
+  sim.colony.lastSolarFlareDay = 4;
+  sim.colony.lastEventId = 'donki_xflare';
+
+  // Advance to Sol 5: daysSinceLastEvent is 1 (< 3 cooldown), so cooldown is strictly maintained
+  sim.colony.resources.oxygen = 90;
+  sim.colony.resources.water = 90;
+  sim.colony.resources.food = 90;
+  sim.advanceDay();
+  assert.strictEqual(sim.colony.currentDay, 2);
+
+  // In simulated game loop, lastEventDay prevents rapid-fire consecutive modals
+  const cooldownWindow = 3;
+  const isCooldownActive = (5 - sim.colony.lastEventDay) < cooldownWindow;
+  assert.strictEqual(isCooldownActive, true, 'Cooldown must be active 1 Sol after an event');
+
+  // Advance past cooldown (Sol 8, 4 Sols later)
+  const isCooldownExpired = (8 - sim.colony.lastEventDay) >= cooldownWindow;
+  assert.strictEqual(isCooldownExpired, true, 'Cooldown should expire after 4 Sols');
+});

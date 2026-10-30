@@ -47,6 +47,15 @@ import { Sparkles, Thermometer, AlertTriangle, WifiOff, Zap } from 'lucide-react
 
 const MAX_SCIENCE_POINTS = 500;
 
+export const safeNum = (v: any, fallback: number, min: number, max: number): number => {
+  if (v === undefined || v === null) return fallback;
+  const n = Number(v);
+  if (isNaN(n)) return fallback;
+  if (n === -Infinity || n < min) return min;
+  if (n === Infinity || n > max) return max;
+  return Math.max(min, Math.min(max, n));
+};
+
 // oxlint-disable-next-line react/only-export-components
 export const clampResources = (
   res: Partial<ResourceState> | undefined,
@@ -57,15 +66,6 @@ export const clampResources = (
   const maxE = Number(res?.maxEnergy ?? baseMax?.maxEnergy ?? 100);
   const maxF = Number(res?.maxFood ?? baseMax?.maxFood ?? 100);
   const maxSci = Number(res?.maxSciencePoints ?? baseMax?.maxSciencePoints ?? MAX_SCIENCE_POINTS);
-
-  const safeNum = (v: any, fallback: number, min: number, max: number): number => {
-    if (v === undefined || v === null) return fallback;
-    const n = Number(v);
-    if (isNaN(n)) return fallback;
-    if (n === -Infinity || n < min) return min;
-    if (n === Infinity || n > max) return max;
-    return Math.max(min, Math.min(max, n));
-  };
 
   return {
     oxygen: safeNum(res?.oxygen, baseMax?.oxygen ?? 0, 0, maxO2),
@@ -117,6 +117,9 @@ const createInitialColonyData = (loc: BaseLocation, diff: GameDifficulty = 'norm
     empStunSeconds: 0,
     populationExpanded: false,
     assignedToMine: [],
+    lastEventDay: 0,
+    lastSolarFlareDay: 0,
+    lastEventId: undefined,
   };
 };
 
@@ -203,6 +206,9 @@ export function App() {
             empStunSeconds: Math.max(0, Math.min(5, Number(c?.empStunSeconds) || 0)),
             populationExpanded: Boolean(c?.populationExpanded),
             assignedToMine: sanitizedAssignedToMine as string[],
+            lastEventDay: safeNum(c?.lastEventDay, 0, 0, 100),
+            lastSolarFlareDay: safeNum(c?.lastSolarFlareDay, 0, 0, 100),
+            lastEventId: typeof c?.lastEventId === 'string' ? c.lastEventId : undefined,
           };
         };
         return {
@@ -242,6 +248,12 @@ export function App() {
   const [isGameOverOpen, setIsGameOverOpen] = useState(false);
   const [gameOverCause, setGameOverCause] = useState<string>('');
   const [isWiringOpen, setIsWiringOpen] = useState(false);
+  const [wiringSessionId, setWiringSessionId] = useState(0);
+
+  const openWiringModal = () => {
+    setWiringSessionId(prev => prev + 1);
+    setIsWiringOpen(true);
+  };
   const [isIceMineOpen, setIsIceMineOpen] = useState(false);
   const [isPopulationExpansionOpen, setIsPopulationExpansionOpen] = useState(false);
   const [isAchievementsOpen, setIsAchievementsOpen] = useState(false);
@@ -859,7 +871,7 @@ export function App() {
       soundFx.playAlert();
       spaceVoice.speak('¡Alerta de cableado! Caída repentina de iluminación y fuga de oxígeno en el hábitat.');
       showToast('💡 ¡FALLO DE CABLEADO! Iluminación caída y fuga de O2. Se requieren 2 astronautas para reparar.');
-      setIsWiringOpen(true);
+      openWiringModal();
     }
 
     // 4. BATTERY FAULT & COMM BLACKOUT PROBABILITIES
@@ -880,7 +892,7 @@ export function App() {
         soundFx.playAlert();
         spaceVoice.speak('Calibración preventiva de baterías requerida. Conecta los terminales.');
         showToast('⚡ ¡Calibración preventiva de baterías! Abre el panel de cableado para practicar sin riesgo.');
-        setIsWiringOpen(true);
+        openWiringModal();
       }
 
       if (!hasCommBlackout && Math.random() < 0.12 && nextDay > 4) {
@@ -909,7 +921,7 @@ export function App() {
         newBatteryFault = true;
         soundFx.playAlert();
         spaceVoice.speak('¡Alerta en bancos de energía! Cortocircuito detectado en el cableado de baterías.');
-        setIsWiringOpen(true);
+        openWiringModal();
       }
 
       hasSolarFluctuation = Math.random() < 0.25;
@@ -932,7 +944,7 @@ export function App() {
           spaceVoice.speak('¡Alerta eléctrica crítica! Cortocircuito en baterías. Se requieren dos astronautas para reparar.');
           showToast('⚡ ¡FALLO DE BATERÍA! Requiere 2 astronautas para reparar.');
         }
-        setIsWiringOpen(true);
+        openWiringModal();
       }
 
       hasSolarFluctuation = Math.random() < 0.35;
@@ -1316,8 +1328,73 @@ export function App() {
       spaceVoice.speak(`Alerta médica fatal. El astronauta ${latestDeathName} ha fallecido.`);
     }
 
-    // Trigger Mission Events (Solar flare on Day 3 with Hard mode penalties)
-    if (nextDay === 3) {
+    // 6. DYNAMIC MISSION EVENT & SPACE WEATHER SYSTEM (DONKI, MEDA, OSDR, ARTEMIS)
+    // Avoids deterministic repetition on Day 3; randomizes solar storms and crises across the mission with realistic cooldowns.
+    let triggeredEventId: string | null = null;
+    const daysSinceLastEvent = nextDay - (currentColony.lastEventDay || 0);
+    const daysSinceLastSolarFlare = nextDay - (currentColony.lastSolarFlareDay || 0);
+
+    // Eligible pool evaluation (only if not running a dedicated historical crisis scenario)
+    if (!activeCrisis && nextDay > 1 && daysSinceLastEvent >= 3) {
+      // Base trigger probability per Sol
+      const baseChance = difficulty === 'facil' ? 0.22 : difficulty === 'normal' ? 0.30 : 0.40;
+      // High urgency if long period has elapsed without any space event
+      const triggerRoll = Math.random();
+      const shouldTrigger = triggerRoll < baseChance || daysSinceLastEvent >= 6;
+
+      if (shouldTrigger) {
+        // Build weighted candidates
+        interface EventCandidate {
+          id: string;
+          weight: number;
+        }
+        const candidates: EventCandidate[] = [];
+
+        // 1. DONKI Solar Flare (Class X & CME):
+        // NASA Space Weather: flares happen stochastically in active sunspot regions
+        // Can occur from Day 2-3 onwards if at least 5 Sols since last solar flare
+        if (daysSinceLastSolarFlare >= 5) {
+          // If no flare has occurred yet and Sol >= 3, increase weight so player experiences the event
+          const flareWeight = (!currentColony.lastSolarFlareDay && nextDay >= 3) ? 35 : 20;
+          candidates.push({ id: 'donki_xflare', weight: flareWeight });
+        }
+
+        // 2. Martian Dust Storm (MEDA Atmospheric Station):
+        if (location === 'mars') {
+          candidates.push({ id: 'mars_dust_storm_meda', weight: 25 });
+        }
+
+        // 3. Artemis Lunar Night Approaching:
+        if (location === 'moon' && nextDay >= 6 && nextDay <= 16) {
+          candidates.push({ id: 'lunar_night_approaching', weight: 30 });
+        }
+
+        // 4. OSDR Veggie Chamber Nutrient Imbalance:
+        candidates.push({ id: 'osdr_veggie_crisis', weight: 20 });
+
+        // 5. Deep Space Comms Latency & ECLSS Pump Anomaly:
+        candidates.push({ id: 'comm_delay_emergency', weight: location === 'mars' ? 25 : 15 });
+
+        // Filter out the immediate previous event to guarantee variety
+        const filtered = candidates.filter(c => c.id !== currentColony.lastEventId);
+        const finalPool = filtered.length > 0 ? filtered : candidates;
+
+        if (finalPool.length > 0) {
+          const totalWeight = finalPool.reduce((acc, c) => acc + c.weight, 0);
+          let rand = Math.random() * totalWeight;
+          for (const cand of finalPool) {
+            if (rand < cand.weight) {
+              triggeredEventId = cand.id;
+              break;
+            }
+            rand -= cand.weight;
+          }
+          if (!triggeredEventId) triggeredEventId = finalPool[0].id;
+        }
+      }
+    }
+
+    if (triggeredEventId === 'donki_xflare') {
       updateCurrentColony(p => {
         let bunkerUpdatedModules = p.modules;
         if (difficulty === 'dificil') {
@@ -1328,32 +1405,106 @@ export function App() {
             return m;
           });
         }
+
+        let updatedCrew = p.crew;
+        if (difficulty === 'dificil') {
+          const bunker = p.modules.find(m => m.id === 'storm_bunker');
+          const bunkerLvl = bunker?.level || 0;
+          const crewDmg = bunkerLvl >= 2 ? 5 : 12;
+          updatedCrew = p.crew.map(c => {
+            if (c.status === 'deceased') return c;
+            const newH = Math.max(1, c.health - crewDmg);
+            return {
+              ...c,
+              health: newH,
+              status: newH < 25 ? 'critical' : 'alive',
+            };
+          });
+        }
+
         return {
           ...p,
           radiationActive: true,
           modules: bunkerUpdatedModules,
+          crew: updatedCrew,
           plantsWipedGrowth: difficulty === 'dificil' ? true : p.plantsWipedGrowth,
           plantsNeedDoubleWaterOnce: difficulty === 'dificil' ? true : p.plantsNeedDoubleWaterOnce,
           empStunSeconds: difficulty === 'dificil' ? 1 : 0,
           isCommBlackout: difficulty === 'dificil' ? (Math.random() < 0.5 ? true : p.isCommBlackout) : p.isCommBlackout,
+          lastEventDay: nextDay,
+          lastSolarFlareDay: nextDay,
+          lastEventId: 'donki_xflare',
         };
       });
       soundFx.playAlert();
       const ev = MISSION_EVENTS.find(e => e.id === 'donki_xflare') || MISSION_EVENTS[0];
       setCurrentEvent(ev);
       spaceVoice.speak('¡Alerta de emergencia DONKI! Fulguración solar clase X detectada.');
-    } else if (nextDay === 5 && location === 'mars') {
+      addFlightLog(
+        'alert',
+        `☀️ ALERTA DONKI: Fulguración Solar Clase X y eyección coronal en ${location === 'mars' ? 'Sol' : 'Día'} ${nextDay}. Radiación ionizante elevada.`,
+        `☀️ DONKI ALERT: Class X Solar Flare & CME in ${location === 'mars' ? 'Sol' : 'Day'} ${nextDay}. Critical radiation surge.`
+      );
+    } else if (triggeredEventId === 'mars_dust_storm_meda') {
+      updateCurrentColony(p => ({
+        ...p,
+        lastEventDay: nextDay,
+        lastEventId: 'mars_dust_storm_meda',
+      }));
       soundFx.playAlert();
       const ev = MISSION_EVENTS.find(e => e.id === 'mars_dust_storm_meda') || MISSION_EVENTS[1];
       setCurrentEvent(ev);
-    } else if (nextDay === 7) {
+      spaceVoice.speak('¡Alerta de Perseverance MEDA! Tormenta de polvo severa en aproximación.');
+      addFlightLog(
+        'alert',
+        `🌪️ Tormenta de polvo marciana registrada por MEDA en Sol ${nextDay}.`,
+        `🌪️ Martian dust storm logged by MEDA on Sol ${nextDay}.`
+      );
+    } else if (triggeredEventId === 'osdr_veggie_crisis') {
+      updateCurrentColony(p => ({
+        ...p,
+        lastEventDay: nextDay,
+        lastEventId: 'osdr_veggie_crisis',
+      }));
       soundFx.playAlert();
       const ev = MISSION_EVENTS.find(e => e.id === 'osdr_veggie_crisis') || MISSION_EVENTS[2];
       setCurrentEvent(ev);
-    } else if (nextDay === 10 && location === 'moon') {
+      spaceVoice.speak('Alerta biológica OSDR. Desbalance de nutrientes en el invernadero Veggie.');
+      addFlightLog(
+        'warning',
+        `🥬 Anomalía biológica OSDR en cultivo hidropónico (${location === 'mars' ? 'Sol' : 'Día'} ${nextDay}).`,
+        `🥬 OSDR biological anomaly in hydroponic chamber (${location === 'mars' ? 'Sol' : 'Day'} ${nextDay}).`
+      );
+    } else if (triggeredEventId === 'lunar_night_approaching') {
+      updateCurrentColony(p => ({
+        ...p,
+        lastEventDay: nextDay,
+        lastEventId: 'lunar_night_approaching',
+      }));
       soundFx.playAlert();
       const ev = MISSION_EVENTS.find(e => e.id === 'lunar_night_approaching') || MISSION_EVENTS[3];
       setCurrentEvent(ev);
+      spaceVoice.speak('Alerta Artemis. Gran noche lunar aproximándose.');
+      addFlightLog(
+        'warning',
+        `🌑 Aproximación de la noche polar lunar registrada por sensor LRO Diviner (Día ${nextDay}).`,
+        `🌑 Approaching polar lunar night recorded by LRO Diviner sensor (Day ${nextDay}).`
+      );
+    } else if (triggeredEventId === 'comm_delay_emergency') {
+      updateCurrentColony(p => ({
+        ...p,
+        lastEventDay: nextDay,
+        lastEventId: 'comm_delay_emergency',
+      }));
+      soundFx.playAlert();
+      const ev = MISSION_EVENTS.find(e => e.id === 'comm_delay_emergency') || MISSION_EVENTS[4];
+      setCurrentEvent(ev);
+      spaceVoice.speak('Alerta en bomba de electrólisis y latencia en red de espacio profundo.');
+      addFlightLog(
+        'warning',
+        `📡 Desfase de telecomunicaciones DSN y anomalía en bomba de soporte vital (${location === 'mars' ? 'Sol' : 'Día'} ${nextDay}).`,
+        `📡 Deep space comms latency & life support pump alert (${location === 'mars' ? 'Sol' : 'Day'} ${nextDay}).`
+      );
     } else {
       const advText = lang === 'es'
         ? `Avanzaste al ${location === 'mars' ? 'Sol' : 'Día Lunar'} ${nextDay}. Ciclo completado.`
@@ -1781,7 +1932,7 @@ export function App() {
         onOpenRoverMission={() => setIsRoverMissionOpen(true)}
         onOpenHistoricalCrises={() => setIsHistoricalCrisesOpen(true)}
         onOpenNasaQuiz={() => setIsNasaQuizOpen(true)}
-        onOpenWiring={() => setIsWiringOpen(true)}
+        onOpenWiring={openWiringModal}
         onOpenIceMine={() => setIsIceMineOpen(true)}
         onToggleMute={() => setIsMuted(soundFx.toggleMute())}
         onToggleVoice={handleToggleVoice}
@@ -1844,7 +1995,7 @@ export function App() {
             {/* Battery Fault Indicator */}
             {currentColony.batteryFault && (
               <button
-                onClick={() => setIsWiringOpen(true)}
+                onClick={openWiringModal}
                 className="flex items-center gap-1 font-mono font-bold px-2 py-0.5 rounded-lg bg-amber-950 border border-amber-500 text-amber-300 animate-pulse cursor-pointer"
               >
                 <Zap className="w-3.5 h-3.5 text-amber-400" />
@@ -1892,7 +2043,7 @@ export function App() {
               <span className="text-xs">💡 ¡FALLO DE CABLEADO Y CAÍDA DE ILUMINACIÓN! Fuga activa de O₂ y daño médico al hábitat. Requiere 2 astronautas para reparar.</span>
             </div>
             <button 
-              onClick={() => setIsWiringOpen(true)}
+              onClick={openWiringModal}
               className="px-3 py-1 rounded-lg bg-yellow-500 hover:bg-yellow-400 text-black font-black text-xs whitespace-nowrap"
             >
               Reparar Cableado (2 Técnicos)
@@ -2072,23 +2223,29 @@ export function App() {
       />
 
       {/* Comm Blackout Mini-Game Modal */}
-      <CommMiniGameModal
-        isOpen={currentColony.isCommBlackout}
-        onRestoreComm={handleRestoreCommunications}
-        lang={lang}
-      />
+      {currentColony.isCommBlackout && (
+        <CommMiniGameModal
+          key={`comm_${location}_${currentColony.currentDay}`}
+          isOpen={currentColony.isCommBlackout}
+          onRestoreComm={handleRestoreCommunications}
+          lang={lang}
+        />
+      )}
 
       {/* Wiring Mini-Game Modal (Battery Short-Circuit & Sudden Light Drop) */}
-      <WiringMiniGameModal
-        isOpen={isWiringOpen}
-        onSuccess={handleWiringSuccess}
-        onClose={() => setIsWiringOpen(false)}
-        lang={lang}
-        difficulty={difficulty}
-        batteryLockoutSeconds={currentColony.batteryLockoutSeconds}
-        availableCrewCount={currentColony.crew.filter(c => c.status !== 'deceased' && !currentColony.assignedToMine.includes(c.id) && (c.isShockDisabledDays ?? 0) <= 0).length}
-        onShockCrew={handleShockCrew}
-      />
+      {isWiringOpen && (
+        <WiringMiniGameModal
+          key={`wiring_${location}_${wiringSessionId}`}
+          isOpen={isWiringOpen}
+          onSuccess={handleWiringSuccess}
+          onClose={() => setIsWiringOpen(false)}
+          lang={lang}
+          difficulty={difficulty}
+          batteryLockoutSeconds={currentColony.batteryLockoutSeconds}
+          availableCrewCount={currentColony.crew.filter(c => c.status !== 'deceased' && !currentColony.assignedToMine.includes(c.id) && (c.isShockDisabledDays ?? 0) <= 0).length}
+          onShockCrew={handleShockCrew}
+        />
+      )}
 
       {/* Cryogenic Ice Mine Assignment Modal */}
       <IceMineModal

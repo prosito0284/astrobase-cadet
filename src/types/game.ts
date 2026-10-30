@@ -151,6 +151,9 @@ export interface ColonySaveData {
   assignedToMine: string[];      // IDs of astronauts assigned to the ice mine
   difficulty?: GameDifficulty;   // Difficulty locked to this base
   missionCompleted?: boolean;    // True if mission was accomplished
+  lastEventDay?: number;         // Sol when the last major mission event occurred
+  lastSolarFlareDay?: number;    // Sol when the last solar flare occurred
+  lastEventId?: string;          // ID of the last triggered event (to prevent back-to-back duplicate modals)
 }
 
 export interface Achievement {

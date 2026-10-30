@@ -36,6 +36,28 @@ const WIRE_TYPES: WireNode[] = [
   { id: 'green', color: '#22c55e', labelEs: 'Verde (Control BMS)', labelEn: 'Green (BMS Logic)' },
 ];
 
+/**
+ * Generates a true derangement scramble of the terminals so that:
+ * 1. Terminals are randomly shuffled (Fisher-Yates).
+ * 2. No terminal is placed directly across from its matching left wire (derangement).
+ */
+export const generateScrambledTerminals = (): WireNode[] => {
+  const wires = [...WIRE_TYPES];
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const shuffled = [...wires];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    const isDerangement = shuffled.every((term, idx) => term.id !== wires[idx].id);
+    if (isDerangement) {
+      return shuffled;
+    }
+  }
+  // Cyclic shift fallback guarantees full derangement
+  return [wires[1], wires[2], wires[3], wires[0]];
+};
+
 export const WiringMiniGameModal: React.FC<WiringMiniGameModalProps> = ({
   isOpen,
   onSuccess,
@@ -48,9 +70,7 @@ export const WiringMiniGameModal: React.FC<WiringMiniGameModalProps> = ({
 }) => {
   // Left nodes are in standard order, right terminals are scrambled
   const leftWires = WIRE_TYPES;
-  const [rightTerminals, setRightTerminals] = useState<WireNode[]>(() => {
-    return [...WIRE_TYPES].sort(() => 0.5 - Math.random());
-  });
+  const [rightTerminals, setRightTerminals] = useState<WireNode[]>(() => generateScrambledTerminals());
 
   const [selectedLeft, setSelectedLeft] = useState<string | null>(null);
   const [connections, setConnections] = useState<{ [leftId: string]: string }>({});
@@ -64,7 +84,7 @@ export const WiringMiniGameModal: React.FC<WiringMiniGameModalProps> = ({
       setConnections({});
       setSelectedLeft(null);
       setIsSolved(false);
-      setRightTerminals([...WIRE_TYPES].sort(() => 0.5 - Math.random()));
+      setRightTerminals(generateScrambledTerminals());
     }
     return () => {
       // V-WIRING-DEBOUNCE: Clear pending success timer on unmount / close
@@ -72,6 +92,9 @@ export const WiringMiniGameModal: React.FC<WiringMiniGameModalProps> = ({
         clearTimeout(successTimeoutRef.current);
         successTimeoutRef.current = null;
       }
+      setConnections({});
+      setSelectedLeft(null);
+      setIsSolved(false);
     };
   }, [isOpen]);
 
@@ -87,6 +110,9 @@ export const WiringMiniGameModal: React.FC<WiringMiniGameModalProps> = ({
       clearTimeout(successTimeoutRef.current);
       successTimeoutRef.current = null;
     }
+    setConnections({});
+    setSelectedLeft(null);
+    setIsSolved(false);
     soundFx.playClick();
     onClose?.();
   };
