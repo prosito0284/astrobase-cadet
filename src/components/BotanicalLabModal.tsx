@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Sprout, 
   X, 
@@ -6,10 +6,10 @@ import {
   Droplets, 
   Wind, 
   Sparkles, 
-  CheckCircle2, 
   Award,
   Zap,
-  Info
+  Info,
+  AlertTriangle
 } from 'lucide-react';
 import { soundFx } from '../utils/audio';
 import confetti from 'canvas-confetti';
@@ -17,10 +17,15 @@ import confetti from 'canvas-confetti';
 interface BotanicalLabModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onHarvest: (foodGain: number, scienceGain: number, moraleGain: number) => void;
+  onHarvest: (foodGain: number, scienceGain: number, moraleGain: number, waterCost?: number) => void;
   currentWater: number;
   currentEnergy: number;
   lang: 'es' | 'en';
+  onDeductWater?: (amount: number) => boolean | void;
+  hasHarvestedToday?: boolean;
+  plantsNeedDoubleWaterOnce?: boolean;
+  plantsWipedGrowth?: boolean;
+  currentDay?: number;
 }
 
 interface CropType {
@@ -36,6 +41,12 @@ interface CropType {
   icon: string;
   descriptionEs: string;
   descriptionEn: string;
+  baseGrowthRate: number;      // % growth per watering
+  baseFoodYield: number;       // Base food yield
+  baseScienceYield: number;    // Base science yield
+  baseMoraleYield: number;     // Base morale yield
+  yieldSpecialtyEs: string;
+  yieldSpecialtyEn: string;
 }
 
 const CROPS: CropType[] = [
@@ -52,6 +63,12 @@ const CROPS: CropType[] = [
     icon: '🥬',
     descriptionEs: 'Cultivo estrella del estudio OSD-379 de la NASA. Hojas crujientes y picantes que estimulan las papilas gustativas de los astronautas (que pierden sensibilidad por congestión en microgravedad).',
     descriptionEn: 'Flagship crop from NASA OSDR study OSD-379. Peppery crunch that stimulates astronaut taste buds diminished by microgravity head congestion.',
+    baseGrowthRate: 25,
+    baseFoodYield: 25,
+    baseScienceYield: 15,
+    baseMoraleYield: 12,
+    yieldSpecialtyEs: 'Equilibrio nutricional NASA OSDR: +25 Comida, +15 Ciencia, +12 Ánimo',
+    yieldSpecialtyEn: 'Balanced NASA OSDR profile: +25 Food, +15 Science, +12 Morale',
   },
   {
     id: 'outredgeous',
@@ -66,6 +83,12 @@ const CROPS: CropType[] = [
     icon: '🥗',
     descriptionEs: 'La primera hortaliza formalmente cosechada y comida por humanos en el espacio a bordo de la ISS. Su pigmentación roja antocianina protege a las hojas del exceso de radiación ultravioleta.',
     descriptionEn: 'The first fresh vegetable harvested and consumed on orbit. Red anthocyanin pigments naturally protect plant tissue against space radiation.',
+    baseGrowthRate: 20,
+    baseFoodYield: 28,
+    baseScienceYield: 12,
+    baseMoraleYield: 16,
+    yieldSpecialtyEs: 'Alto Ánimo y Vitamina C: +28 Comida, +12 Ciencia, +16 Ánimo',
+    yieldSpecialtyEn: 'High Morale & Vitamin C: +28 Food, +12 Science, +16 Morale',
   },
   {
     id: 'radish',
@@ -80,6 +103,12 @@ const CROPS: CropType[] = [
     icon: '🌱',
     descriptionEs: 'Crecimiento ultrarrápido bajo tierra en tubos hidropónicos porosos. Aporta calcio bioasimilable para contrarrestar la pérdida ósea del estudio de los gemelos (OSD-174).',
     descriptionEn: 'Ultra-fast underground bulb growth in porous tubes. Supplies bioavailable calcium to combat microgravity osteopenia (OSD-174).',
+    baseGrowthRate: 28,
+    baseFoodYield: 22,
+    baseScienceYield: 18,
+    baseMoraleYield: 10,
+    yieldSpecialtyEs: 'Crecimiento Rápido & Minerales: +22 Comida, +18 Ciencia, +10 Ánimo',
+    yieldSpecialtyEn: 'Rapid Growth & Minerals: +22 Food, +18 Science, +10 Morale',
   },
   {
     id: 'spirulina',
@@ -94,8 +123,67 @@ const CROPS: CropType[] = [
     icon: '🧪',
     descriptionEs: 'Cultivo microscópico líquido. Absorbe el doble de CO2 que cualquier planta terrestre y se reproduce cada 48 horas. Ideal para emergencias de soporte vital.',
     descriptionEn: 'Liquid microalgae culture. Absorbs twice as much CO2 per volume as leafy greens and doubles biomass every 48 hours for ECLSS loops.',
+    baseGrowthRate: 35,
+    baseFoodYield: 32,
+    baseScienceYield: 20,
+    baseMoraleYield: 8,
+    yieldSpecialtyEs: 'Biorreactor de Superproteína: +32 Comida, +20 Ciencia, +8 Ánimo',
+    yieldSpecialtyEn: 'Super-protein Bioreactor: +32 Food, +20 Science, +8 Morale',
   },
 ];
+
+const getStorageColonyFlags = (): {
+  hasHarvestedToday: boolean;
+  plantsNeedDoubleWaterOnce: boolean;
+  plantsWipedGrowth: boolean;
+} => {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const loc = localStorage.getItem('astrobase_location_v2') || 'moon';
+      const raw = localStorage.getItem('astrobase_dual_save_v6') || localStorage.getItem('astrobase_dual_save_v5');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const col = parsed?.[loc];
+        if (col) {
+          return {
+            hasHarvestedToday: Boolean(col.hasHarvestedToday),
+            plantsNeedDoubleWaterOnce: Boolean(col.plantsNeedDoubleWaterOnce),
+            plantsWipedGrowth: Boolean(col.plantsWipedGrowth),
+          };
+        }
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return {
+    hasHarvestedToday: false,
+    plantsNeedDoubleWaterOnce: false,
+    plantsWipedGrowth: false,
+  };
+};
+
+const updateStorageColonyFlags = (updates: {
+  hasHarvestedToday?: boolean;
+  plantsNeedDoubleWaterOnce?: boolean;
+  plantsWipedGrowth?: boolean;
+}) => {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const loc = localStorage.getItem('astrobase_location_v2') || 'moon';
+      const raw = localStorage.getItem('astrobase_dual_save_v6');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed?.[loc]) {
+          parsed[loc] = { ...parsed[loc], ...updates };
+          localStorage.setItem('astrobase_dual_save_v6', JSON.stringify(parsed));
+        }
+      }
+    }
+  } catch {
+    // ignore
+  }
+};
 
 export const BotanicalLabModal: React.FC<BotanicalLabModalProps> = ({
   isOpen,
@@ -104,12 +192,62 @@ export const BotanicalLabModal: React.FC<BotanicalLabModalProps> = ({
   currentWater,
   currentEnergy,
   lang,
+  onDeductWater,
+  hasHarvestedToday: propHasHarvestedToday,
+  plantsNeedDoubleWaterOnce: propPlantsNeedDoubleWaterOnce,
+  plantsWipedGrowth: propPlantsWipedGrowth,
+  currentDay,
 }) => {
   const [selectedCrop, setSelectedCrop] = useState<CropType>(CROPS[0]);
   const [redSpectrum, setRedSpectrum] = useState<number>(70); // % Red LED (660nm)
   const [blueSpectrum, setBlueSpectrum] = useState<number>(30); // % Blue LED (450nm)
-  const [growthProgress, setGrowthProgress] = useState<number>(65); // 0-100%
+  const [growthProgress, setGrowthProgress] = useState<number>(() => {
+    const wiped = propPlantsWipedGrowth !== undefined ? propPlantsWipedGrowth : getStorageColonyFlags().plantsWipedGrowth;
+    return wiped ? 0 : 65;
+  });
   const [isWatering, setIsWatering] = useState<boolean>(false);
+  const [isHarvesting, setIsHarvesting] = useState<boolean>(false);
+  const [hasHarvestedLocal, setHasHarvestedLocal] = useState<boolean>(false);
+  const [doubleWaterOverride, setDoubleWaterOverride] = useState<boolean | null>(null);
+  const [solarWipedAlertActive] = useState<boolean>(() => {
+    return propPlantsWipedGrowth !== undefined ? propPlantsWipedGrowth : getStorageColonyFlags().plantsWipedGrowth;
+  });
+
+  const isHarvestingRef = useRef<boolean>(false);
+  const waterTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const harvestTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Synchronize and reset local states on modal open or day advance
+  useEffect(() => {
+    if (isOpen) {
+      // oxlint-disable-next-line react/set-state-in-effect
+      setHasHarvestedLocal(false);
+      setIsWatering(false);
+      setIsHarvesting(false);
+      if (propHasHarvestedToday === false) {
+        updateStorageColonyFlags({ hasHarvestedToday: false });
+      }
+    }
+  }, [isOpen, propHasHarvestedToday, currentDay]);
+
+  // Synchronize storage if plants wiped growth was consumed on modal load
+  useEffect(() => {
+    if (solarWipedAlertActive) {
+      updateStorageColonyFlags({ plantsWipedGrowth: false });
+    }
+  }, [solarWipedAlertActive]);
+
+  // Cleanup pending timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (waterTimeoutRef.current) clearTimeout(waterTimeoutRef.current);
+      if (harvestTimeoutRef.current) clearTimeout(harvestTimeoutRef.current);
+    };
+  }, []);
+
+  const doubleWaterActive = doubleWaterOverride ?? (propPlantsNeedDoubleWaterOnce !== undefined ? propPlantsNeedDoubleWaterOnce : getStorageColonyFlags().plantsNeedDoubleWaterOnce);
+  const colonyHarvested = propHasHarvestedToday !== undefined ? propHasHarvestedToday : getStorageColonyFlags().hasHarvestedToday;
+  const hasHarvestedThisSol = hasHarvestedLocal || colonyHarvested;
 
   if (!isOpen) return null;
 
@@ -121,21 +259,69 @@ export const BotanicalLabModal: React.FC<BotanicalLabModalProps> = ({
   // Determine LED glow color
   const ledGlowColor = `rgb(${Math.round(redSpectrum * 2.5)}, 40, ${Math.round(blueSpectrum * 2.55)})`;
 
+  // Solar flare double water enforcement: 10L vs standard 5L
+  const waterCostRequired = doubleWaterActive ? 10 : 5;
+
   const handleWaterCrop = () => {
-    if (currentWater < 5) return;
+    if (isWatering || growthProgress >= 100) return;
+    if (currentWater < waterCostRequired) {
+      soundFx.playAlert();
+      return;
+    }
+
     soundFx.playHarvest();
     setIsWatering(true);
-    setTimeout(() => {
+
+    // Deduct water via parent callback if provided
+    onDeductWater?.(waterCostRequired);
+
+    waterTimeoutRef.current = setTimeout(() => {
       setIsWatering(false);
-      setGrowthProgress(prev => Math.min(100, prev + 25));
+      setGrowthProgress(prev => Math.min(100, prev + selectedCrop.baseGrowthRate));
+
+      if (doubleWaterActive) {
+        setDoubleWaterOverride(false);
+        updateStorageColonyFlags({ plantsNeedDoubleWaterOnce: false });
+      }
     }, 600);
   };
 
+  const isHarvestBlocked = growthProgress < 80 || hasHarvestedThisSol || isHarvesting;
+
   const handleHarvestClick = () => {
+    if (isHarvestingRef.current || isHarvesting) return;
+    if (growthProgress < 80) {
+      soundFx.playAlert();
+      return;
+    }
+    if (hasHarvestedThisSol) {
+      soundFx.playAlert();
+      return;
+    }
+
+    isHarvestingRef.current = true;
+    setIsHarvesting(true);
+
     soundFx.playVictory();
     confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
-    onHarvest(25, 15, 12);
+
+    // Differentiated crop yields scaled slightly by optimal spectrum tuning
+    const spectrumBonus = optimalRatioScore >= 95 ? 1.1 : optimalRatioScore >= 70 ? 1.0 : 0.95;
+    const finalFood = Math.round(selectedCrop.baseFoodYield * spectrumBonus);
+    const finalScience = Math.round(selectedCrop.baseScienceYield * spectrumBonus);
+    const finalMorale = Math.round(selectedCrop.baseMoraleYield * spectrumBonus);
+
+    // Pass food, science, morale and standard waterCost (5L)
+    onHarvest(finalFood, finalScience, finalMorale, 5);
+
+    setHasHarvestedLocal(true);
+    updateStorageColonyFlags({ hasHarvestedToday: true });
     setGrowthProgress(15);
+
+    harvestTimeoutRef.current = setTimeout(() => {
+      setIsHarvesting(false);
+      isHarvestingRef.current = false;
+    }, 600);
   };
 
   return (
@@ -172,6 +358,29 @@ export const BotanicalLabModal: React.FC<BotanicalLabModalProps> = ({
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Solar Flare Notifications */}
+        {solarWipedAlertActive && (
+          <div className="mt-2.5 p-2.5 rounded-xl bg-amber-950/70 border border-amber-500/50 flex items-center gap-2 text-xs text-amber-200">
+            <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+            <span>
+              {lang === 'es'
+                ? '☀️ ¡ALERTA DE FULGURACIÓN SOLAR DONKI! La radiación ionizante dañó los brotes. Crecimiento reiniciado al 0%.'
+                : '☀️ DONKI SOLAR FLARE ALERT! Ionizing radiation damaged sprouts. Growth reset to 0%.'}
+            </span>
+          </div>
+        )}
+
+        {doubleWaterActive && (
+          <div className="mt-2.5 p-2.5 rounded-xl bg-sky-950/70 border border-sky-500/50 flex items-center gap-2 text-xs text-sky-200">
+            <Droplets className="w-4 h-4 text-sky-400 flex-shrink-0" />
+            <span>
+              {lang === 'es'
+                ? '💧 Suelo deshidratado por radiación solar: Se requieren 10L de agua para reactivar los estomas (consecuencia de tormenta solar).'
+                : '💧 Radiation-desiccated substrate: 10L of water required to reactivate stomata (solar flare consequence).'}
+            </span>
+          </div>
+        )}
 
         {/* Crop Selection Bar */}
         <div className="my-3">
@@ -225,7 +434,7 @@ export const BotanicalLabModal: React.FC<BotanicalLabModalProps> = ({
             >
               <div className="flex items-center gap-1 text-[11px] font-mono font-bold" style={{ color: ledGlowColor }}>
                 <Zap className="w-3.5 h-3.5 animate-pulse" />
-                <span>LED Spectrum: {redSpectrum}% Red (660nm) / {blueSpectrum}% Blue (450nm)</span>
+                <span>LED Spectrum: {redSpectrum}% Red / {blueSpectrum}% Blue • Bus: {Math.round(currentEnergy)} kWh</span>
               </div>
             </div>
 
@@ -329,7 +538,7 @@ export const BotanicalLabModal: React.FC<BotanicalLabModalProps> = ({
               </div>
             </div>
 
-            {/* Environmental Benefits Card */}
+            {/* Environmental Benefits & Differentiated Yields Card */}
             <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-3.5 grid grid-cols-2 gap-2 text-xs">
               <div className="bg-slate-900/80 p-2 rounded-xl border border-slate-800">
                 <span className="text-[10px] text-slate-400 flex items-center gap-1">
@@ -352,8 +561,16 @@ export const BotanicalLabModal: React.FC<BotanicalLabModalProps> = ({
               </div>
 
               <div className="col-span-2 text-[11px] text-slate-300 bg-slate-900/40 p-2 rounded-xl border border-slate-800/80">
-                <span className="font-bold text-amber-300">{lang === 'es' ? 'Aporte Nutricional:' : 'Nutrition:'} </span>
-                {selectedCrop.nutritionValue}
+                <div className="font-bold text-amber-300">
+                  {lang === 'es' ? 'Rendimiento Esperado:' : 'Expected Yield:'}
+                  <span className="text-emerald-300 font-semibold ml-1">
+                    {lang === 'es' ? selectedCrop.yieldSpecialtyEs : selectedCrop.yieldSpecialtyEn}
+                  </span>
+                </div>
+                <div className="text-[10px] text-slate-400 mt-1">
+                  <span className="font-semibold text-slate-300">{lang === 'es' ? 'Nutrición: ' : 'Nutrition: '}</span>
+                  {selectedCrop.nutritionValue}
+                </div>
               </div>
             </div>
 
@@ -361,20 +578,32 @@ export const BotanicalLabModal: React.FC<BotanicalLabModalProps> = ({
             <div className="flex items-center gap-2 pt-1">
               <button
                 onClick={handleWaterCrop}
-                disabled={currentWater < 5 || isWatering || growthProgress >= 100}
+                disabled={currentWater < waterCostRequired || isWatering || growthProgress >= 100}
                 className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-blue-600/30 hover:bg-blue-600/40 border border-blue-500/50 text-blue-300 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
                 <Droplets className="w-4 h-4 text-blue-400" />
-                <span>{lang === 'es' ? 'Regar con Agua (-5L)' : 'Irrigate (-5L)'}</span>
+                <span>
+                  {isWatering 
+                    ? (lang === 'es' ? 'Regando...' : 'Irrigating...') 
+                    : (lang === 'es' ? `Regar con Agua (-${waterCostRequired}L)` : `Irrigate (-${waterCostRequired}L)`)}
+                </span>
               </button>
 
               <button
                 onClick={handleHarvestClick}
-                disabled={growthProgress < 80}
+                disabled={isHarvestBlocked}
                 className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-black shadow-lg shadow-emerald-950/40 border border-emerald-400/40 disabled:opacity-40 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02]"
               >
                 <Award className="w-4 h-4 text-emerald-200" />
-                <span>{lang === 'es' ? '¡Cosechar y Servir!' : 'Harvest & Serve!'}</span>
+                <span>
+                  {hasHarvestedThisSol
+                    ? (lang === 'es' ? 'Cosecha Realizada (1/1)' : 'Sol Harvest Done (1/1)')
+                    : isHarvesting
+                    ? (lang === 'es' ? 'Cosechando...' : 'Harvesting...')
+                    : growthProgress < 80
+                    ? (lang === 'es' ? `Maduración < 80% (${growthProgress}%)` : `Maturity < 80% (${growthProgress}%)`)
+                    : (lang === 'es' ? '¡Cosechar y Servir!' : 'Harvest & Serve!')}
+                </span>
               </button>
             </div>
           </div>

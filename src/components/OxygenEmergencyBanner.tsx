@@ -1,10 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   Wind, 
-  AlertTriangle, 
-  Zap, 
   Clock, 
-  CheckCircle2, 
   ShieldAlert 
 } from 'lucide-react';
 import { soundFx } from '../utils/audio';
@@ -13,36 +10,56 @@ interface OxygenEmergencyBannerProps {
   oxygenLevel: number;
   onEmergencyO2Injected: () => void;
   lang: 'es' | 'en';
+  emergencyCharges?: number;
 }
 
 export const OxygenEmergencyBanner: React.FC<OxygenEmergencyBannerProps> = ({
   oxygenLevel,
   onEmergencyO2Injected,
   lang,
+  emergencyCharges,
 }) => {
   const [isPressurizing, setIsPressurizing] = useState(false);
   const [pressurizeProgress, setPressurizeProgress] = useState(0);
+  const [localCharges, setLocalCharges] = useState(2);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Clean up interval on unmount
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, []);
 
   // Triggered when O2 is below 25%
   if (oxygenLevel >= 25) return null;
 
+  const effectiveCharges = emergencyCharges !== undefined ? emergencyCharges : localCharges;
+
   const handleStartEmergencyO2 = () => {
-    if (isPressurizing) return;
+    if (isPressurizing || effectiveCharges <= 0) return;
     soundFx.playAlert();
     setIsPressurizing(true);
     setPressurizeProgress(0);
 
     const startTime = Date.now();
-    const duration = 2000; // Exact 2 seconds required by the user!
+    const duration = 1000; // 1000ms pressurization completes safely within 3.0s asphyxiation window
 
-    const interval = setInterval(() => {
+    intervalRef.current = setInterval(() => {
       const elapsed = Date.now() - startTime;
       const pct = Math.min(100, Math.round((elapsed / duration) * 100));
       setPressurizeProgress(pct);
 
       if (elapsed >= duration) {
-        clearInterval(interval);
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
         setIsPressurizing(false);
+        setLocalCharges(c => Math.max(0, c - 1));
         soundFx.playHarvest();
         onEmergencyO2Injected();
       }
@@ -61,11 +78,14 @@ export const OxygenEmergencyBanner: React.FC<OxygenEmergencyBannerProps> = ({
             <span className="text-[10px] bg-red-600 text-white font-black px-1.5 py-0.2 rounded uppercase animate-ping">
               ASFIXIA INMINENTE
             </span>
+            <span className="text-[10px] bg-amber-500 text-slate-950 font-black px-1.5 py-0.2 rounded uppercase">
+              {lang === 'es' ? `CARGAS: ${effectiveCharges}/2` : `CHARGES: ${effectiveCharges}/2`}
+            </span>
           </h3>
           <p className="text-xs text-red-200 mt-0.5">
             {lang === 'es'
-              ? `Oxígeno al ${Math.round(oxygenLevel)}%. Activa manualmente los cartuchos de reserva (Retraso de presurización de 2 segundos).`
-              : `O2 at ${Math.round(oxygenLevel)}%. Manually deploy emergency reserve candles (2-second pressurization delay).`}
+              ? `Oxígeno al ${Math.round(oxygenLevel)}%. Activa manualmente los cartuchos de reserva (Retraso de presurización: 1s. Disponibles: ${effectiveCharges}/2).`
+              : `O2 at ${Math.round(oxygenLevel)}%. Manually deploy emergency reserve candles (1-second pressurization delay. Available: ${effectiveCharges}/2).`}
           </p>
         </div>
       </div>
@@ -86,18 +106,25 @@ export const OxygenEmergencyBanner: React.FC<OxygenEmergencyBannerProps> = ({
                 style={{ width: `${pressurizeProgress}%` }}
               />
             </div>
-            <span className="text-[9px] text-slate-400 mt-1">Retraso físico de válvulas de 2 segundos</span>
+            <span className="text-[9px] text-slate-400 mt-1">Retraso físico de válvulas de 1 segundo</span>
           </div>
         ) : (
           <button
             onClick={handleStartEmergencyO2}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 py-2.5 px-5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white text-xs font-black shadow-lg shadow-red-950 border border-red-400 transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+            disabled={effectiveCharges <= 0}
+            className={`w-full sm:w-auto flex items-center justify-center gap-2 py-2.5 px-5 rounded-xl text-white text-xs font-black shadow-lg shadow-red-950 border transition-all ${
+              effectiveCharges <= 0
+                ? 'bg-slate-800 border-slate-700 opacity-50 cursor-not-allowed'
+                : 'bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 border-red-400 transform hover:scale-[1.02] active:scale-[0.98]'
+            }`}
           >
             <ShieldAlert className="w-4 h-4 text-white" />
             <span>
-              {lang === 'es' 
-                ? 'ACTIVAR OXÍGENO DE RESERVA (2s)' 
-                : 'DEPLOY EMERGENCY O2 (2s)'}
+              {effectiveCharges <= 0
+                ? (lang === 'es' ? 'SIN CARTUCHOS (0/2)' : 'NO CANISTERS (0/2)')
+                : (lang === 'es' 
+                    ? `ACTIVAR OXÍGENO (1s · ${effectiveCharges}/2)` 
+                    : `DEPLOY EMERGENCY O2 (1s · ${effectiveCharges}/2)`)}
             </span>
           </button>
         )}

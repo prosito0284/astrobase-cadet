@@ -1,11 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   HelpCircle, 
   X, 
   CheckCircle2, 
   AlertCircle, 
-  Sparkles, 
-  Award, 
   ChevronRight,
   RefreshCw
 } from 'lucide-react';
@@ -15,9 +13,10 @@ import confetti from 'canvas-confetti';
 interface NasaQuizModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddSciencePoints: (pts: number) => void;
-  onQuizBonus: (scienceBonus: number, moraleBonus: number) => void;
+  onAddSciencePoints?: (pts: number) => void;
+  onQuizBonus: (scienceBonus: number, moraleBonus: number, score?: number) => void;
   lang: 'es' | 'en';
+  hasQuizCompletedToday?: boolean;
 }
 
 interface QuizQuestion {
@@ -137,19 +136,33 @@ const QUIZ_QUESTIONS: QuizQuestion[] = [
 export const NasaQuizModal: React.FC<NasaQuizModalProps> = ({
   isOpen,
   onClose,
-  onAddSciencePoints,
+  onAddSciencePoints: _onAddSciencePoints,
   onQuizBonus,
   lang,
+  hasQuizCompletedToday = false,
 }) => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [isAnswered, setIsAnswered] = useState(false);
   const [score, setScore] = useState(0);
   const [isCompleted, setIsCompleted] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [hasCompletedThisSession, setHasCompletedThisSession] = useState(false);
+  const navigationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (navigationTimeoutRef.current) {
+        clearTimeout(navigationTimeoutRef.current);
+        navigationTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   if (!isOpen) return null;
 
   const currentQ = QUIZ_QUESTIONS[currentQuestionIndex];
+  const isRetryDisabled = hasQuizCompletedToday || hasCompletedThisSession;
 
   const handleSelectOption = (idx: number) => {
     if (isAnswered) return;
@@ -165,24 +178,37 @@ export const NasaQuizModal: React.FC<NasaQuizModalProps> = ({
   };
 
   const handleNextQuestion = () => {
+    if (isNavigating) return;
+    setIsNavigating(true);
     soundFx.playClick();
     if (currentQuestionIndex < QUIZ_QUESTIONS.length - 1) {
       setCurrentQuestionIndex(p => p + 1);
       setSelectedAnswer(null);
       setIsAnswered(false);
+      setIsNavigating(false);
     } else {
       // Finished quiz!
       setIsCompleted(true);
-      soundFx.playVictory();
-      confetti({ particleCount: 120, spread: 80, origin: { y: 0.5 } });
-      const scienceEarned = score * 10;
-      onAddSciencePoints(scienceEarned);
-      // Give the requested +20 science bonus and +20% crew morale!
-      onQuizBonus(20, 20);
+      setHasCompletedThisSession(true);
+
+      // Require passing grade (>= 3/5) to award bonus
+      if (score >= 3) {
+        soundFx.playVictory();
+        confetti({ particleCount: 120, spread: 80, origin: { y: 0.5 } });
+        // Single unified reward callback: eliminates double reward stacking
+        onQuizBonus(20, 20, score);
+      } else {
+        soundFx.playAlert();
+      }
+
+      navigationTimeoutRef.current = setTimeout(() => {
+        setIsNavigating(false);
+      }, 500);
     }
   };
 
   const handleRestart = () => {
+    if (isRetryDisabled) return;
     setCurrentQuestionIndex(0);
     setSelectedAnswer(null);
     setIsAnswered(false);
@@ -287,7 +313,8 @@ export const NasaQuizModal: React.FC<NasaQuizModalProps> = ({
                 <div className="mt-3 flex justify-end">
                   <button
                     onClick={handleNextQuestion}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-black text-xs shadow-md transition-all"
+                    disabled={isNavigating}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black text-xs shadow-md transition-all"
                   >
                     <span>{currentQuestionIndex < QUIZ_QUESTIONS.length - 1 ? (lang === 'es' ? 'Siguiente Pregunta' : 'Next Question') : (lang === 'es' ? 'Ver Resultados' : 'View Results')}</span>
                     <ChevronRight className="w-4 h-4" />
@@ -311,25 +338,51 @@ export const NasaQuizModal: React.FC<NasaQuizModalProps> = ({
                 : `You scored ${score} out of ${QUIZ_QUESTIONS.length} questions correctly. Outstanding mastery of NASA open science!`}
             </p>
 
-            <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800 max-w-sm mx-auto space-y-1">
-              <span className="text-xs text-slate-400 block font-semibold">
-                {lang === 'es' ? 'Puntos y Recompensas Ganadas:' : 'Rewards Earned:'}
-              </span>
-              <span className="text-2xl font-black text-cyan-400 block">
-                +{score * 10 + 20} pts Ciencia
-              </span>
-              <span className="text-xs font-black text-emerald-400 bg-emerald-950/60 px-2.5 py-1 rounded-full border border-emerald-600/50 inline-block mt-1">
-                🎉 +20% Ánimo & Moral para toda la tripulación
-              </span>
-            </div>
+            {score >= 3 ? (
+              <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 max-w-sm mx-auto space-y-1">
+                <span className="text-xs text-slate-400 block font-semibold">
+                  {lang === 'es' ? 'Bono STEM de la NASA Obtenido:' : 'NASA STEM Bonus Awarded:'}
+                </span>
+                <span className="text-2xl font-black text-cyan-400 block">
+                  +20 pts Ciencia NASA
+                </span>
+                <span className="text-xs font-black text-emerald-400 bg-emerald-950/60 px-2.5 py-1 rounded-full border border-emerald-600/50 inline-block mt-1">
+                  🎉 +20% Ánimo & Moral para toda la tripulación
+                </span>
+              </div>
+            ) : (
+              <div className="p-3.5 rounded-2xl bg-rose-950/30 border border-rose-800/60 max-w-sm mx-auto space-y-1 text-center">
+                <span className="text-xs text-rose-300 block font-semibold">
+                  {lang === 'es' ? 'Puntuación Insuficiente (< 3/5 aciertos)' : 'Score Below Passing Grade (< 3/5 correct)'}
+                </span>
+                <span className="text-base font-black text-rose-400 block">
+                  0 pts Ciencia
+                </span>
+                <span className="text-[11px] text-slate-400 block">
+                  {lang === 'es'
+                    ? 'Se requiere un mínimo de 3/5 para reclamar el bono de ciencia y moral.'
+                    : 'A minimum of 3/5 correct answers is required to claim the bonus.'}
+                </span>
+              </div>
+            )}
 
             <div className="flex items-center justify-center gap-3 pt-2">
               <button
                 onClick={handleRestart}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all"
+                disabled={isRetryDisabled}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                  isRetryDisabled
+                    ? 'bg-slate-800/40 border border-slate-700/40 text-slate-500 opacity-60 cursor-not-allowed'
+                    : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
+                }`}
+                title={isRetryDisabled ? (lang === 'es' ? 'Quiz ya completado en este Sol (1 intento por Sol)' : 'Quiz already completed this Sol (1 per Sol)') : undefined}
               >
                 <RefreshCw className="w-3.5 h-3.5" />
-                <span>{lang === 'es' ? 'Reintentar Quiz' : 'Retry Quiz'}</span>
+                <span>
+                  {isRetryDisabled
+                    ? (lang === 'es' ? 'Completado este Sol' : 'Completed This Sol')
+                    : (lang === 'es' ? 'Reintentar Quiz' : 'Retry Quiz')}
+                </span>
               </button>
 
               <button

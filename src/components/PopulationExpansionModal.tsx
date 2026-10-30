@@ -1,13 +1,9 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
-  Users, 
   X, 
   UserPlus, 
   AlertTriangle, 
-  CheckCircle2, 
-  Sparkles,
-  Heart,
-  Droplets
+  ShieldAlert
 } from 'lucide-react';
 import { soundFx } from '../utils/audio';
 import confetti from 'canvas-confetti';
@@ -23,6 +19,8 @@ interface PopulationExpansionModalProps {
     food: number;
   };
   lang: 'es' | 'en';
+  difficulty?: 'facil' | 'normal' | 'dificil';
+  currentDay?: number;
 }
 
 export const PopulationExpansionModal: React.FC<PopulationExpansionModalProps> = ({
@@ -31,8 +29,33 @@ export const PopulationExpansionModal: React.FC<PopulationExpansionModalProps> =
   onConfirmExpansion,
   currentResources,
   lang,
+  difficulty,
+  currentDay,
 }) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (submitTimeoutRef.current) {
+        clearTimeout(submitTimeoutRef.current);
+        submitTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
   if (!isOpen) return null;
+
+  const MIN_SUPPLIES = 20;
+  const hasMinOxygen = currentResources.oxygen >= MIN_SUPPLIES;
+  const hasMinWater = currentResources.water >= MIN_SUPPLIES;
+  const hasMinEnergy = currentResources.energy >= MIN_SUPPLIES;
+  const hasMinFood = currentResources.food >= MIN_SUPPLIES;
+  const hasSupplies = hasMinOxygen && hasMinWater && hasMinEnergy && hasMinFood;
+
+  const isDifficultyAllowed = difficulty === undefined || difficulty === 'dificil';
+  const isDayAllowed = currentDay === undefined || currentDay >= 15;
+  const canConfirm = isDifficultyAllowed && isDayAllowed && hasSupplies;
 
   const costO2 = Math.round(currentResources.oxygen * 0.25);
   const costWater = Math.round(currentResources.water * 0.25);
@@ -40,10 +63,15 @@ export const PopulationExpansionModal: React.FC<PopulationExpansionModalProps> =
   const costFood = Math.round(currentResources.food * 0.25);
 
   const handleAccept = () => {
+    if (isSubmitting || !canConfirm) return;
+    setIsSubmitting(true);
     soundFx.playVictory();
     confetti({ particleCount: 150, spread: 80, origin: { y: 0.5 } });
     onConfirmExpansion();
     onClose();
+    submitTimeoutRef.current = setTimeout(() => {
+      setIsSubmitting(false);
+    }, 500);
   };
 
   return (
@@ -81,8 +109,35 @@ export const PopulationExpansionModal: React.FC<PopulationExpansionModalProps> =
           </button>
         </div>
 
+        {/* Precondition Warnings (if requirements not met) */}
+        {!canConfirm && (
+          <div className="my-3 p-3 rounded-2xl bg-rose-950/70 border border-rose-600 text-left text-xs text-rose-200 space-y-1 animate-pulse">
+            <div className="flex items-center gap-1.5 font-black text-rose-300">
+              <ShieldAlert className="w-4 h-4 flex-shrink-0" />
+              <span>{lang === 'es' ? 'PRECONDICIONES DE SEGURIDAD NO CUMPLIDAS:' : 'SAFETY PRECONDITIONS NOT MET:'}</span>
+            </div>
+            {!isDifficultyAllowed && (
+              <p className="text-[11px]">
+                • {lang === 'es' ? 'La expansión solo está autorizada en Modo Difícil.' : 'Expansion is only authorized in Hard Mode.'}
+              </p>
+            )}
+            {!isDayAllowed && (
+              <p className="text-[11px]">
+                • {lang === 'es' ? `El transbordador se acopla a partir del Día 15 (Día actual: ${currentDay}).` : `Shuttle docks from Day 15 onwards (Current Day: ${currentDay}).`}
+              </p>
+            )}
+            {!hasSupplies && (
+              <p className="text-[11px]">
+                • {lang === 'es' 
+                    ? `Suministros mínimos requeridos: 20 en cada recurso (O₂, H₂O, Batería, Comida) para no expandir gratis con tanques vacíos.` 
+                    : `Minimum base supplies required: 20 in each resource (O2, H2O, Power, Food) to prevent zero-cost expansion with empty tanks.`}
+              </p>
+            )}
+          </div>
+        )}
+
         {/* New Astronauts Preview */}
-        <div className="my-4 grid grid-cols-2 gap-3 text-left">
+        <div className="my-3 grid grid-cols-2 gap-3 text-left">
           <div className="p-3 rounded-2xl bg-slate-950/80 border border-slate-800 flex items-center gap-2.5">
             <span className="text-3xl">🧑‍🚀</span>
             <div>
@@ -110,10 +165,18 @@ export const PopulationExpansionModal: React.FC<PopulationExpansionModalProps> =
           </div>
 
           <div className="grid grid-cols-4 gap-1.5 text-center text-[11px] font-mono font-bold">
-            <span className="p-1 rounded bg-black/50 text-sky-300">-{costO2}% O₂</span>
-            <span className="p-1 rounded bg-black/50 text-blue-300">-{costWater}L H₂O</span>
-            <span className="p-1 rounded bg-black/50 text-amber-300">-{costEnergy}% Batería</span>
-            <span className="p-1 rounded bg-black/50 text-emerald-300">-{costFood} Comida</span>
+            <span className={`p-1 rounded ${hasMinOxygen ? 'bg-black/50 text-sky-300' : 'bg-red-950 text-red-300 border border-red-700'}`}>
+              -{costO2}% O₂
+            </span>
+            <span className={`p-1 rounded ${hasMinWater ? 'bg-black/50 text-blue-300' : 'bg-red-950 text-red-300 border border-red-700'}`}>
+              -{costWater}L H₂O
+            </span>
+            <span className={`p-1 rounded ${hasMinEnergy ? 'bg-black/50 text-amber-300' : 'bg-red-950 text-red-300 border border-red-700'}`}>
+              -{costEnergy}% Batería
+            </span>
+            <span className={`p-1 rounded ${hasMinFood ? 'bg-black/50 text-emerald-300' : 'bg-red-950 text-red-300 border border-red-700'}`}>
+              -{costFood} Comida
+            </span>
           </div>
 
           <div className="text-[11px] text-slate-300 pt-1 border-t border-amber-900/60 leading-normal">
@@ -132,9 +195,18 @@ export const PopulationExpansionModal: React.FC<PopulationExpansionModalProps> =
 
           <button
             onClick={handleAccept}
-            className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs shadow-lg shadow-emerald-950/50 border border-emerald-400/40 transition-all transform hover:scale-[1.02]"
+            disabled={!canConfirm || isSubmitting}
+            className={`flex-1 py-2.5 rounded-xl font-black text-xs shadow-lg border transition-all ${
+              !canConfirm || isSubmitting
+                ? 'bg-slate-800 border-slate-700 text-slate-500 opacity-50 cursor-not-allowed'
+                : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-emerald-950/50 border-emerald-400/40 transform hover:scale-[1.02] active:scale-[0.98]'
+            }`}
           >
-            {lang === 'es' ? '¡Aceptar y Aumentar a 6!' : 'Accept & Expand to 6!'}
+            {isSubmitting
+              ? (lang === 'es' ? 'Acoplando...' : 'Docking...')
+              : !canConfirm
+                ? (lang === 'es' ? 'Requisitos no cumplidos' : 'Preconditions Not Met')
+                : (lang === 'es' ? '¡Aceptar y Aumentar a 6!' : 'Accept & Expand to 6!')}
           </button>
         </div>
       </div>

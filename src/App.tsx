@@ -1,12 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   BaseLocation, 
   GameDifficulty, 
   ResourceState, 
-  BaseModule, 
   MissionEvent, 
   MissionEventOption, 
-  Astronaut,
   CrewStatus,
   ColonySaveData,
   Achievement,
@@ -17,7 +15,7 @@ import { SCENARIOS } from './data/scenarios';
 import { INITIAL_MODULES } from './data/modules';
 import { INITIAL_CREW, EXPANDED_CREW_MEMBERS } from './data/crew';
 import { MISSION_EVENTS } from './data/events';
-import { HISTORICAL_CRISES, HistoricalCrisis } from './data/historicalCrises';
+import { HistoricalCrisis } from './data/historicalCrises';
 import { INITIAL_ACHIEVEMENTS } from './data/achievements';
 import { Navbar } from './components/Navbar';
 import { ResourceDashboard } from './components/ResourceDashboard';
@@ -47,13 +45,53 @@ import { spaceVoice } from './utils/speech';
 import confetti from 'canvas-confetti';
 import { Sparkles, Thermometer, AlertTriangle, WifiOff, Zap } from 'lucide-react';
 
+const MAX_SCIENCE_POINTS = 500;
+
+// oxlint-disable-next-line react/only-export-components
+export const clampResources = (
+  res: Partial<ResourceState> | undefined,
+  baseMax?: Partial<ResourceState>
+): ResourceState => {
+  const maxO2 = Number(res?.maxOxygen ?? baseMax?.maxOxygen ?? 100);
+  const maxH2O = Number(res?.maxWater ?? baseMax?.maxWater ?? 100);
+  const maxE = Number(res?.maxEnergy ?? baseMax?.maxEnergy ?? 100);
+  const maxF = Number(res?.maxFood ?? baseMax?.maxFood ?? 100);
+  const maxSci = Number(res?.maxSciencePoints ?? baseMax?.maxSciencePoints ?? MAX_SCIENCE_POINTS);
+
+  const safeNum = (v: any, fallback: number, min: number, max: number): number => {
+    if (v === undefined || v === null) return fallback;
+    const n = Number(v);
+    if (isNaN(n)) return fallback;
+    if (n === -Infinity || n < min) return min;
+    if (n === Infinity || n > max) return max;
+    return Math.max(min, Math.min(max, n));
+  };
+
+  return {
+    oxygen: safeNum(res?.oxygen, baseMax?.oxygen ?? 0, 0, maxO2),
+    maxOxygen: maxO2 > 0 ? maxO2 : 100,
+    water: safeNum(res?.water, baseMax?.water ?? 0, 0, maxH2O),
+    maxWater: maxH2O > 0 ? maxH2O : 100,
+    energy: safeNum(res?.energy, baseMax?.energy ?? 0, 0, maxE),
+    maxEnergy: maxE > 0 ? maxE : 100,
+    energyProduction: safeNum(res?.energyProduction, baseMax?.energyProduction ?? 30, 0, 9999),
+    energyConsumption: safeNum(res?.energyConsumption, baseMax?.energyConsumption ?? 25, 0, 9999),
+    food: safeNum(res?.food, baseMax?.food ?? 0, 0, maxF),
+    maxFood: maxF > 0 ? maxF : 100,
+    radiationExposure: safeNum(res?.radiationExposure, baseMax?.radiationExposure ?? 0, 0, 9999),
+    shieldIntegrity: safeNum(res?.shieldIntegrity, baseMax?.shieldIntegrity ?? 80, 0, 100),
+    sciencePoints: safeNum(res?.sciencePoints, baseMax?.sciencePoints ?? 0, 0, maxSci),
+    maxSciencePoints: maxSci,
+  };
+};
+
 const createInitialColonyData = (loc: BaseLocation, diff: GameDifficulty = 'normal'): ColonySaveData => {
   const scen = SCENARIOS.find(s => s.location === loc) || SCENARIOS[0];
   return {
     currentDay: 1,
     difficulty: diff,
     missionCompleted: false,
-    resources: { ...scen.initialResources },
+    resources: clampResources(scen.initialResources),
     modules: JSON.parse(JSON.stringify(INITIAL_MODULES)),
     crew: JSON.parse(JSON.stringify(INITIAL_CREW)),
     radiationActive: false,
@@ -64,6 +102,10 @@ const createInitialColonyData = (loc: BaseLocation, diff: GameDifficulty = 'norm
     isCommBlackout: false,
     solarFluctuation: false,
     emergencyO2Active: false,
+    emergencyO2Charges: 2,
+    roverSortiesToday: 0,
+    hasHarvestedToday: false,
+    hasQuizCompletedToday: false,
     batteryFault: false,
     batteryFaultCount: 0,
     batteryLockoutSeconds: 0,
@@ -119,22 +161,48 @@ export function App() {
             safeDay = 1;
           }
 
+          const sanitizedResources = clampResources(c?.resources, init.resources);
+
+          const sanitizedCrew = Array.isArray(c?.crew) && c.crew.length > 0
+            ? c.crew.map((member: any) => {
+                const health = Math.max(0, Math.min(100, Number(member?.health) || 0));
+                const morale = Math.max(0, Math.min(100, Number(member?.morale) || 0));
+                const status = (health <= 0 ? 'deceased' : health < 25 ? 'critical' : 'alive') as CrewStatus;
+                return {
+                  ...member,
+                  health,
+                  morale,
+                  status: member?.status === 'deceased' ? 'deceased' : status,
+                };
+              })
+            : init.crew;
+
+          const livingCrewIds = new Set(sanitizedCrew.filter((m: any) => m.status !== 'deceased').map((m: any) => m.id));
+          const sanitizedAssignedToMine = Array.isArray(c?.assignedToMine)
+            ? Array.from(new Set(c.assignedToMine.filter((id: any) => typeof id === 'string' && livingCrewIds.has(id))))
+            : [];
+
           return {
             ...init,
             ...c,
             currentDay: safeDay,
             difficulty: c?.difficulty || 'normal',
-            missionCompleted: c?.missionCompleted ?? false,
-            resources: { ...init.resources, ...(c?.resources || {}) },
-            batteryFaultCount: c?.batteryFaultCount ?? 0,
-            batteryLockoutSeconds: c?.batteryLockoutSeconds ?? 0,
-            wiringErrorActive: c?.wiringErrorActive ?? false,
-            sandstormEnergyHaltDays: c?.sandstormEnergyHaltDays ?? 0,
-            plantsNeedDoubleWaterOnce: c?.plantsNeedDoubleWaterOnce ?? false,
-            plantsWipedGrowth: c?.plantsWipedGrowth ?? false,
-            empStunSeconds: c?.empStunSeconds ?? 0,
-            populationExpanded: c?.populationExpanded ?? false,
-            assignedToMine: c?.assignedToMine || [],
+            missionCompleted: Boolean(c?.missionCompleted),
+            resources: sanitizedResources,
+            crew: sanitizedCrew,
+            emergencyO2Charges: Math.max(0, Math.min(2, c?.emergencyO2Charges !== undefined ? Number(c.emergencyO2Charges) : 2)),
+            roverSortiesToday: Math.max(0, Math.min(2, Number(c?.roverSortiesToday) || 0)),
+            hasHarvestedToday: Boolean(c?.hasHarvestedToday),
+            hasQuizCompletedToday: Boolean(c?.hasQuizCompletedToday),
+            batteryFaultCount: Math.max(0, Math.min(10, Number(c?.batteryFaultCount) || 0)),
+            batteryLockoutSeconds: Math.max(0, Math.min(10, Number(c?.batteryLockoutSeconds) || 0)),
+            wiringErrorActive: Boolean(c?.wiringErrorActive),
+            sandstormEnergyHaltDays: Math.max(0, Math.min(5, Number(c?.sandstormEnergyHaltDays) || 0)),
+            plantsNeedDoubleWaterOnce: Boolean(c?.plantsNeedDoubleWaterOnce),
+            plantsWipedGrowth: Boolean(c?.plantsWipedGrowth),
+            empStunSeconds: Math.max(0, Math.min(5, Number(c?.empStunSeconds) || 0)),
+            populationExpanded: Boolean(c?.populationExpanded),
+            assignedToMine: sanitizedAssignedToMine as string[],
           };
         };
         return {
@@ -181,6 +249,17 @@ export function App() {
   const [isFlightLogOpen, setIsFlightLogOpen] = useState(false);
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Debouncing & Re-entrancy guards
+  const isUpgradingRef = useRef(false);
+  const isAssigningMinerRef = useRef(false);
+  const isAdvancingRef = useRef(false);
+  const zeroOxygenTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isHarvestingRef = useRef(false);
+  const isSortieSubmittingRef = useRef(false);
+  const isWiringSubmittingRef = useRef(false);
+  const isCommRestoringRef = useRef(false);
+  const isQuizBonusSubmittingRef = useRef(false);
 
   // Show Toast helper
   const showToast = (msg: string) => {
@@ -266,27 +345,89 @@ export function App() {
     setFlightLog(prev => [entry, ...prev].slice(0, 60));
   };
 
-  // Helper to unlock an achievement
-  const unlockAchievement = (id: string) => {
-    setAchievements(prev => {
-      const target = prev.find(a => a.id === id);
-      if (!target || target.unlocked) return prev;
+  const unlockedAchievementIdsRef = useRef<Set<string>>(
+    new Set(INITIAL_ACHIEVEMENTS.filter(a => a.unlocked).map(a => a.id))
+  );
 
-      soundFx.playAchievement();
-      confetti({ particleCount: 120, spread: 80, origin: { y: 0.4 } });
-      const msg = `🏅 ¡LOGRO DESBLOQUEADO! ${lang === 'es' ? target.titleEs : target.titleEn}`;
-      showToast(msg);
-      spaceVoice.speak(`Condecoración de la NASA obtenida: ${target.titleEs}`);
-
-      addFlightLog(
-        'success',
-        `Medalla NASA obtenida: ${target.titleEs}`,
-        `NASA Badge awarded: ${target.titleEn}`
-      );
-
-      return prev.map(a => a.id === id ? { ...a, unlocked: true, unlockedAtDay: currentColony.currentDay } : a);
+  useEffect(() => {
+    achievements.forEach(a => {
+      if (a.unlocked) unlockedAchievementIdsRef.current.add(a.id);
     });
+  }, [achievements]);
+
+  // Helper to unlock an achievement (side-effects extracted outside updater closure)
+  const unlockAchievement = (id: string) => {
+    if (unlockedAchievementIdsRef.current.has(id)) return;
+    const target = achievements.find(a => a.id === id);
+    if (!target || target.unlocked) return;
+
+    unlockedAchievementIdsRef.current.add(id);
+
+    soundFx.playAchievement();
+    confetti({ particleCount: 120, spread: 80, origin: { y: 0.4 } });
+    const msg = `🏅 ¡LOGRO DESBLOQUEADO! ${lang === 'es' ? target.titleEs : target.titleEn}`;
+    showToast(msg);
+    spaceVoice.speak(`Condecoración de la NASA obtenida: ${target.titleEs}`);
+
+    addFlightLog(
+      'success',
+      `Medalla NASA obtenida: ${target.titleEs}`,
+      `NASA Badge awarded: ${target.titleEn}`
+    );
+
+    setAchievements(prev =>
+      prev.map(a => a.id === id ? { ...a, unlocked: true, unlockedAtDay: currentColony.currentDay } : a)
+    );
   };
+
+  // Active Sol/second tick loop for battery lockout and solar EMP stun countdown
+  useEffect(() => {
+    const hasLockout = colonies.moon.batteryLockoutSeconds > 0 || colonies.mars.batteryLockoutSeconds > 0;
+    const hasEmp = colonies.moon.empStunSeconds > 0 || colonies.mars.empStunSeconds > 0;
+
+    if (!hasLockout && !hasEmp) return;
+
+    const timer = setInterval(() => {
+      setColonies(all => {
+        let changed = false;
+        const nextColonies = { ...all };
+
+        (['moon', 'mars'] as BaseLocation[]).forEach(loc => {
+          const c = all[loc];
+          if (c.batteryLockoutSeconds > 0 || c.empStunSeconds > 0) {
+            changed = true;
+            const nextLockout = Math.max(0, c.batteryLockoutSeconds - 1);
+            const nextEmp = Math.max(0, c.empStunSeconds - 1);
+
+            // Fuga de -4% energía/segundo durante el bloqueo crítico de batería
+            let nextEnergy = c.resources.energy;
+            if (c.batteryLockoutSeconds > 0) {
+              nextEnergy = Math.max(0, nextEnergy - 4);
+            }
+
+            nextColonies[loc] = {
+              ...c,
+              batteryLockoutSeconds: nextLockout,
+              empStunSeconds: nextEmp,
+              resources: {
+                ...c.resources,
+                energy: nextEnergy,
+              },
+            };
+          }
+        });
+
+        return changed ? nextColonies : all;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [
+    colonies.moon.batteryLockoutSeconds,
+    colonies.mars.batteryLockoutSeconds,
+    colonies.moon.empStunSeconds,
+    colonies.mars.empStunSeconds
+  ]);
 
   // Toggle ambient music
   const handleToggleMusic = () => {
@@ -318,13 +459,17 @@ export function App() {
     } catch {}
   }, [colonies]);
 
-  // Helper to mutate current active colony safely
+  // Helper to mutate current active colony safely with strict resource clamping
   const updateCurrentColony = (updater: (prev: ColonySaveData) => ColonySaveData) => {
     setColonies(all => {
       const prevForLoc = all[location] || createInitialColonyData(location, difficulty);
+      const nextColony = updater(prevForLoc);
       return {
         ...all,
-        [location]: updater(prevForLoc),
+        [location]: {
+          ...nextColony,
+          resources: clampResources(nextColony.resources, prevForLoc.resources),
+        },
       };
     });
   };
@@ -403,10 +548,17 @@ export function App() {
 
   // Upgrade Module Level (Hard Mode requires 20 science points for Storm Bunker!)
   const handleUpgradeModule = (id: string) => {
-    const mod = currentColony.modules.find(m => m.id === id);
-    if (!mod || mod.level >= mod.maxLevel) return;
+    if (isUpgradingRef.current) return;
 
-    const isBunker = mod.id === 'storm_bunker';
+    const currentMod = currentColony.modules.find(m => m.id === id);
+    if (!currentMod) return;
+
+    if (currentMod.level >= currentMod.maxLevel) {
+      showToast(lang === 'es' ? 'Este módulo ya ha alcanzado el nivel máximo de investigación.' : 'Module already at max level.');
+      return;
+    }
+
+    const isBunker = currentMod.id === 'storm_bunker';
     const requiredCost = (difficulty === 'dificil' && isBunker) ? 20 : 10;
 
     if (currentColony.resources.sciencePoints < requiredCost) {
@@ -418,37 +570,89 @@ export function App() {
       return;
     }
 
-    updateCurrentColony(prev => ({
-      ...prev,
-      resources: {
-        ...prev.resources,
-        sciencePoints: prev.resources.sciencePoints - requiredCost,
-      },
-      modules: prev.modules.map(m => {
-        if (m.id === id) {
-          return { ...m, level: m.level + 1 };
-        }
-        return m;
-      }),
-    }));
+    isUpgradingRef.current = true;
+    setTimeout(() => { isUpgradingRef.current = false; }, 300);
 
-    const upgradeMsg = lang === 'es' ? `¡Módulo ${mod.nameEs} mejorado al Nivel ${mod.level + 1}!` : `${mod.name} upgraded to Level ${mod.level + 1}!`;
-    showToast(upgradeMsg);
-    spaceVoice.speak(upgradeMsg);
+    let upgradedSuccessfully = false;
+    let upgradedModName = '';
+    let newLevel = 0;
+
+    updateCurrentColony(prev => {
+      const mod = prev.modules.find(m => m.id === id);
+      if (!mod || mod.level >= mod.maxLevel) return prev;
+      const bunker = mod.id === 'storm_bunker';
+      const cost = (prev.difficulty === 'dificil' && bunker) ? 20 : 10;
+      if (prev.resources.sciencePoints < cost) return prev;
+
+      upgradedSuccessfully = true;
+      upgradedModName = lang === 'es' ? mod.nameEs : mod.name;
+      newLevel = mod.level + 1;
+
+      return {
+        ...prev,
+        resources: {
+          ...prev.resources,
+          sciencePoints: Math.max(0, prev.resources.sciencePoints - cost),
+        },
+        modules: prev.modules.map(m => {
+          if (m.id === id) {
+            return { ...m, level: m.level + 1 };
+          }
+          return m;
+        }),
+      };
+    });
+
+    if (upgradedSuccessfully) {
+      soundFx.playAchievement();
+      const upgradeMsg = lang === 'es' ? `¡Módulo ${upgradedModName} mejorado al Nivel ${newLevel}!` : `${upgradedModName} upgraded to Level ${newLevel}!`;
+      showToast(upgradeMsg);
+      spaceVoice.speak(upgradeMsg);
+    }
   };
 
   // Day 15 Population Expansion Confirmation (4 -> 6 astronauts with -25% resources)
   const handleConfirmPopulationExpansion = () => {
+    if (difficulty !== 'dificil') {
+      showToast('La expansión de tripulación solo está autorizada en Modo Difícil.');
+      return;
+    }
+    if (currentColony.currentDay < 15) {
+      showToast('El transbordador de relevo solo se acopla a partir del Día 15.');
+      return;
+    }
+    if (currentColony.populationExpanded) {
+      showToast('La tripulación ya ha sido expandida.');
+      return;
+    }
+
+    const minRequired = 15;
+    const res = currentColony.resources;
+    if (res.oxygen < minRequired || res.water < minRequired || res.energy < minRequired || res.food < minRequired) {
+      soundFx.playAlert();
+      showToast('Recursos insuficientes en la base para soportar la expansión (mínimo 15 en cada suministro).');
+      return;
+    }
+
+    let expansionApplied = false;
     updateCurrentColony(prev => {
-      if (prev.populationExpanded) return prev;
+      if (prev.populationExpanded || prev.difficulty !== 'dificil' || prev.currentDay < 15) return prev;
+      if (prev.resources.oxygen < minRequired || prev.resources.water < minRequired ||
+          prev.resources.energy < minRequired || prev.resources.food < minRequired) {
+        return prev;
+      }
+
+      expansionApplied = true;
       const nextO2 = Math.max(0, Math.round(prev.resources.oxygen * 0.75));
       const nextH2O = Math.max(0, Math.round(prev.resources.water * 0.75));
       const nextEnergy = Math.max(0, Math.round(prev.resources.energy * 0.75));
       const nextFood = Math.max(0, Math.round(prev.resources.food * 0.75));
 
+      const existingIds = new Set(prev.crew.map(c => c.id));
+      const addedCrew = EXPANDED_CREW_MEMBERS.filter(c => !existingIds.has(c.id));
       const newCrewList = [
         ...prev.crew,
-        ...JSON.parse(JSON.stringify(EXPANDED_CREW_MEMBERS)),
+        ...JSON.parse(JSON.stringify(addedCrew)),
       ];
 
       return {
@@ -465,11 +669,15 @@ export function App() {
       };
     });
 
-    const msg = '🎉 ¡Expansión exitosa! Cadete Santi Gomez y Dra. Elena Ruiz se han acoplado a la tripulación (6 astronautas).';
-    showToast(msg);
-    spaceVoice.speak('Personal de relevo acoplado con éxito. Tripulación expandida a seis miembros.');
-    unlockAchievement('crew_expansion');
-    addFlightLog('success', 'Transbordador acoplado: Tripulación expandida a 6 astronautas sacrificando 25% de recursos.', 'Shuttle docked: Crew expanded to 6 astronauts sacrificing 25% supplies.');
+    if (expansionApplied) {
+      soundFx.playVictory();
+      confetti({ particleCount: 120, spread: 80, origin: { y: 0.5 } });
+      const msg = '🎉 ¡Expansión exitosa! Cadete Santi Gomez y Dra. Elena Ruiz se han acoplado a la tripulación (6 astronautas).';
+      showToast(msg);
+      spaceVoice.speak('Personal de relevo acoplado con éxito. Tripulación expandida a seis miembros.');
+      unlockAchievement('crew_expansion');
+      addFlightLog('success', 'Transbordador acoplado: Tripulación expandida a 6 astronautas sacrificando 25% de recursos.', 'Shuttle docked: Crew expanded to 6 astronauts sacrificing 25% supplies.');
+    }
   };
 
   // Shock active crew if attempting repair during battery overload lockout
@@ -507,56 +715,105 @@ export function App() {
       return;
     }
 
-    const livingCrew = currentColony.crew.filter(c => c.status !== 'deceased');
-    const isCurrentlyAssigned = currentColony.assignedToMine.includes(astronautId);
+    if (isAssigningMinerRef.current) return;
+    isAssigningMinerRef.current = true;
+    setTimeout(() => { isAssigningMinerRef.current = false; }, 200);
 
-    if (isCurrentlyAssigned) {
-      // Unassign
-      updateCurrentColony(prev => ({
-        ...prev,
-        assignedToMine: prev.assignedToMine.filter(id => id !== astronautId),
-        crew: prev.crew.map(c => c.id === astronautId ? { ...c, isAssignedToMine: false } : c),
-      }));
+    let actionTaken: 'unassigned' | 'assigned' | 'error_quota' | 'error_shock' | 'error_min_crew' | 'error_dead' | null = null;
+    let quotaLimit = 2;
+    let minCrewRequired = 1;
+
+    updateCurrentColony(prev => {
+      const livingCrew = prev.crew.filter(c => c.status !== 'deceased');
+      const livingIds = new Set(livingCrew.map(c => c.id));
+      const sanitizedAssigned = Array.from(new Set(prev.assignedToMine.filter(id => livingIds.has(id))));
+
+      const member = prev.crew.find(c => c.id === astronautId);
+      if (!member || member.status === 'deceased') {
+        actionTaken = 'error_dead';
+        return {
+          ...prev,
+          assignedToMine: sanitizedAssigned,
+          crew: prev.crew.map(c => !livingIds.has(c.id) ? { ...c, isAssignedToMine: false } : c),
+        };
+      }
+
+      const isCurrentlyAssigned = sanitizedAssigned.includes(astronautId);
+
+      if (isCurrentlyAssigned) {
+        actionTaken = 'unassigned';
+        const nextAssigned = sanitizedAssigned.filter(id => id !== astronautId);
+        return {
+          ...prev,
+          assignedToMine: nextAssigned,
+          crew: prev.crew.map(c => c.id === astronautId ? { ...c, isAssignedToMine: false } : c),
+        };
+      } else {
+        const maxAllowed = (prev.difficulty === 'dificil' && !prev.populationExpanded) ? 1 : 2;
+        quotaLimit = maxAllowed;
+        if (sanitizedAssigned.length >= maxAllowed) {
+          actionTaken = 'error_quota';
+          return {
+            ...prev,
+            assignedToMine: sanitizedAssigned,
+          };
+        }
+
+        if ((member.isShockDisabledDays ?? 0) > 0) {
+          actionTaken = 'error_shock';
+          return {
+            ...prev,
+            assignedToMine: sanitizedAssigned,
+          };
+        }
+
+        const minInBase = prev.difficulty === 'dificil' ? 1 : 2;
+        minCrewRequired = minInBase;
+        const remainingInBase = livingCrew.length - (sanitizedAssigned.length + 1);
+        if (remainingInBase < minInBase) {
+          actionTaken = 'error_min_crew';
+          return {
+            ...prev,
+            assignedToMine: sanitizedAssigned,
+          };
+        }
+
+        actionTaken = 'assigned';
+        const nextAssigned = Array.from(new Set([...sanitizedAssigned, astronautId]));
+        return {
+          ...prev,
+          assignedToMine: nextAssigned,
+          crew: prev.crew.map(c => c.id === astronautId ? { ...c, isAssignedToMine: true } : c),
+        };
+      }
+    });
+
+    if (actionTaken === 'unassigned') {
+      soundFx.playClick();
       showToast('Astronauta regresado al hábitat.');
       addFlightLog('info', 'Astronauta retirado de la mina de hielo criogénico.', 'Astronaut rotated out of cryogenic ice mine.');
-    } else {
-      // Trying to assign
-      const maxAllowed = (difficulty === 'dificil' && !currentColony.populationExpanded) ? 1 : 2;
-      if (currentColony.assignedToMine.length >= maxAllowed) {
-        showToast(`La mina ya tiene el cupo de ${maxAllowed} minero(s) asignado(s).`);
-        return;
-      }
-
-      // Check if astronaut is shock-disabled
-      const member = currentColony.crew.find(c => c.id === astronautId);
-      if ((member?.isShockDisabledDays ?? 0) > 0) {
-        soundFx.playAlert();
-        showToast('⚠️ Este astronauta está incapacitado por electrocución y no puede salir a minar.');
-        return;
-      }
-
-      // Rule: Base cannot be left with fewer than 1 person!
-      const remainingInBase = livingCrew.length - currentColony.assignedToMine.length;
-      if (remainingInBase <= 1) {
-        soundFx.playAlert();
-        showToast('¡Regla de Seguridad! No puedes dejar la base desatendida. Al menos 1 astronauta debe quedarse.');
-        spaceVoice.speak('Atención. La base requiere al menos un tripulante en el hábitat.');
-        return;
-      }
-
-      updateCurrentColony(prev => ({
-        ...prev,
-        assignedToMine: [...prev.assignedToMine, astronautId],
-        crew: prev.crew.map(c => c.id === astronautId ? { ...c, isAssignedToMine: true } : c),
-      }));
+    } else if (actionTaken === 'assigned') {
+      soundFx.playClick();
       showToast('Astronauta asignado a la mina de hielo criogénico.');
       unlockAchievement('ice_miner');
       addFlightLog('info', 'Mina de hielo criogénico ISRU activada con nuevo personal.', 'ISRU cryogenic ice mine activated with assigned personnel.');
+    } else if (actionTaken === 'error_quota') {
+      showToast(`La mina ya tiene el cupo de ${quotaLimit} minero(s) asignado(s).`);
+    } else if (actionTaken === 'error_shock') {
+      soundFx.playAlert();
+      showToast('⚠️ Este astronauta está incapacitado por electrocución y no puede salir a minar.');
+    } else if (actionTaken === 'error_min_crew') {
+      soundFx.playAlert();
+      showToast(`¡Regla de Seguridad! No puedes dejar la base desatendida. Al menos ${minCrewRequired} astronauta(s) deben quedarse en el hábitat.`);
+      spaceVoice.speak(`Atención. La base requiere al menos ${minCrewRequired} tripulante en el hábitat.`);
     }
   };
 
   // Advance Day / Sol simulation loop with all requested mechanics
   const handleAdvanceDay = () => {
+    if (isAdvancingRef.current) return;
+    isAdvancingRef.current = true;
+
     const maxDays = effectiveTotalDays;
 
     // If mission already finished, open report and prevent repeated triggers
@@ -564,6 +821,7 @@ export function App() {
       soundFx.playVictory();
       setIsReportOpen(true);
       showToast(lang === 'es' ? '¡Misión ya completada! Revisa el certificado oficial de la NASA o reinicia la base.' : 'Mission already completed! Inspect report or restart base.');
+      setTimeout(() => { isAdvancingRef.current = false; }, 400);
       return;
     }
 
@@ -612,13 +870,11 @@ export function App() {
     let hasCommBlackout = currentColony.isCommBlackout;
 
     if (difficulty === 'facil') {
-      // RANDOM EVENTS IN EASY MODE (Fun, dynamic, rewarding, non-lethal)
       hasSolarFluctuation = Math.random() < 0.20;
       if (hasSolarFluctuation) {
         showToast('☀️ Fluctuación solar menor detectada. Rendimiento fotovoltaico con variación leve (-15%).');
       }
 
-      // Battery wiring minigame (10% chance after Day 3)
       if (!newBatteryFault && Math.random() < 0.10 && nextDay > 3) {
         newBatteryFault = true;
         soundFx.playAlert();
@@ -627,7 +883,6 @@ export function App() {
         setIsWiringOpen(true);
       }
 
-      // Antenna DSN Signal Drift minigame (12% chance after Day 4)
       if (!hasCommBlackout && Math.random() < 0.12 && nextDay > 4) {
         hasCommBlackout = true;
         soundFx.playAlert();
@@ -635,20 +890,17 @@ export function App() {
         showToast('📡 ¡Desfase en la Red DSN! Sintoniza la frecuencia para ganar +15 pts de Ciencia.');
       }
 
-      // Random Geological/Regolith Discovery (25% chance)
       if (Math.random() < 0.25) {
         soundFx.playHarvest();
         showToast('🔬 ¡Descubrimiento Científico! Sensores del rover hallaron minerales hidratados (+10 pts Ciencia).');
         addFlightLog('info', 'Anomalía geológica superficial descubierta: +10 pts de Ciencia.', 'Surface geological anomaly detected: +10 Science pts.');
       }
 
-      // Random Botanical Growth Spurt in Greenhouse (20% chance)
       if (Math.random() < 0.20) {
         showToast('🥬 ¡Brote Excepcional en Veggie OSDR! Cultivo de lechugas espaciales acelerado (+15 Alimentos).');
         addFlightLog('info', 'Brote de nutrientes en invernadero Veggie: +15 raciones de comida fresca.', 'Nutrient surge in Veggie space lab: +15 fresh rations.');
       }
 
-      // Harmless Micrometeorite horizon spectacle (15% chance)
       if (Math.random() < 0.15) {
         showToast('☄️ ¡Espectáculo astronómico! Lluvia de micrometeoritos visible en el horizonte.');
       }
@@ -668,13 +920,12 @@ export function App() {
         spaceVoice.speak('¡Alerta! Pérdida de señal con la Red de Espacio Profundo. Se requiere sintonizar la antena.');
       }
     } else if (difficulty === 'dificil') {
-      // Hard mode: battery faults increase
       if (Math.random() < 0.28 && nextDay > 2) {
         newBatteryFault = true;
         newBatteryFaultCount += 1;
         soundFx.playAlert();
         if (newBatteryFaultCount >= 2) {
-          newBatteryLockoutSeconds = 5; // 5s critical lockout with -4%/sec drain!
+          newBatteryLockoutSeconds = 5;
           spaceVoice.speak('¡Sobrecarga doble en baterías! Banco bloqueado por 5 segundos con fuga eléctrica.');
           showToast('⚡ ¡2 FALLOS DE BATERÍA! Bloqueo crítico de 5s: fuga de -4% energía/segundo.');
         } else {
@@ -686,7 +937,6 @@ export function App() {
 
       hasSolarFluctuation = Math.random() < 0.35;
 
-      // Antenna fails more frequently and blocks ice mine and flare alerts
       if (!hasCommBlackout && Math.random() < 0.30 && nextDay > 2) {
         hasCommBlackout = true;
         soundFx.playAlert();
@@ -714,9 +964,6 @@ export function App() {
       crewWaterConsumption = livingCount * 3.5;
       crewFoodConsumption = livingCount * 2.5;
     } else {
-      // Hard mode:
-      // Water consumption +15% over normal
-      // Overall consumption scaled by 1.5 in Mars
       const regularCrewCount = livingCount - assignedMinersCount;
       crewO2Consumption = ((regularCrewCount * 3.0) + (assignedMinersCount * 3.0 * 1.015)) * marsMultiplier;
       crewWaterConsumption = (livingCount * 3.5 * 1.15) * marsMultiplier;
@@ -739,13 +986,10 @@ export function App() {
           deltaH2O += 22;
         }
       } else {
-        // Hard mode:
         if (!currentColony.populationExpanded && assignedMinersCount >= 1) {
-          // 1 miner, 70% less water
-          deltaH2O += Math.round(22 * 0.30); // ~7 L
+          deltaH2O += Math.round(22 * 0.30);
         } else if (currentColony.populationExpanded && assignedMinersCount >= 2) {
-          // 2 miners, 40% penalty
-          deltaH2O += Math.round(22 * 0.60); // ~13 L
+          deltaH2O += Math.round(22 * 0.60);
         }
       }
     }
@@ -755,12 +999,11 @@ export function App() {
     currentColony.modules.forEach(mod => {
       if (!mod.isActive) return;
 
-      // Energy systems
       if (mod.id === 'solar_farm') {
         let efficiency = 1.0;
         if (hasSolarFluctuation) efficiency *= 0.6;
         if (newBatteryFault) efficiency *= 0.1;
-        if (newSandstormHalt > 0) efficiency = 0; // Sandstorm shutoff
+        if (newSandstormHalt > 0) efficiency = 0;
 
         if (isNightNow) {
           totalProd += 0;
@@ -773,16 +1016,14 @@ export function App() {
         totalCons += mod.powerRequired * mod.level;
       }
 
-      // Thermal efficiency (5% extra penalty in Hard mode)
       const systemThermalEfficiency = isExtreme && mod.category !== 'power' 
         ? (difficulty === 'dificil' ? 0.70 : 0.75) 
         : 1.0;
 
-      // Plant cultivation / Greenhouse
       if (mod.id === 'greenhouse') {
         let waterMultiplier = 1.0;
         if (currentColony.plantsNeedDoubleWaterOnce) {
-          waterMultiplier = 2.0; // Needs 2x water once
+          waterMultiplier = 2.0;
           clearedDoubleWater = true;
         }
 
@@ -803,7 +1044,6 @@ export function App() {
       deltaScience += mod.scienceDelta * mod.level * systemThermalEfficiency;
     });
 
-    // O2 leak from sudden light drop wiring error
     if (newWiringError) {
       deltaO2 -= 8;
     }
@@ -821,9 +1061,11 @@ export function App() {
     let newShield = Math.min(100, Math.max(20, deltaShield));
     let newRad = currentColony.resources.radiationExposure + (currentColony.radiationActive ? 6 : 0.5);
 
-    // Hard mode Pros: +50% science multiplier
     const scienceBonusMultiplier = difficulty === 'dificil' ? 1.5 : 1.0;
-    let newScience = currentColony.resources.sciencePoints + Math.round(Math.max(1, deltaScience) * scienceBonusMultiplier);
+    let newScience = Math.min(
+      MAX_SCIENCE_POINTS,
+      currentColony.resources.sciencePoints + Math.round(Math.max(1, deltaScience) * scienceBonusMultiplier)
+    );
 
     // 7. SPACE DEBRIS CHECK
     let isSpaceDebrisImpact = false;
@@ -865,7 +1107,7 @@ export function App() {
     newWater = Math.max(0, Math.min(currentColony.resources.maxWater, newWater));
     newFood = Math.max(0, Math.min(currentColony.resources.maxFood, newFood));
 
-    // 8. OXYGEN 0 DEATH GRACE PERIOD (1-SECOND DELAY)
+    // 8. OXYGEN 0 DEATH GRACE PERIOD (3-SECOND HARMONIZED DELAY)
     let isZeroOxygenGraceTriggered = false;
     if (newOxygen <= 0) {
       newOxygen = 0;
@@ -920,7 +1162,6 @@ export function App() {
         if (newOxygen < 30) moraleDelta -= 10;
         if (isExtreme) moraleDelta -= 4;
       } else {
-        // Hard mode:
         if (newOxygen < 25) {
           healthDelta -= 20;
           primaryFatalCause = 'Hipoxia fulminante por descompresión de soporte vital';
@@ -938,7 +1179,6 @@ export function App() {
           primaryFatalCause = 'Dosis letal de radiación solar extrema (DONKI)';
         }
 
-        // Morale drops 25% faster in Hard mode
         if (newFood > 60 && newOxygen > 50) moraleDelta += 2;
         if (newFood < 25) moraleDelta -= Math.round(10 * 1.25);
         if (newOxygen < 35) moraleDelta -= Math.round(12 * 1.25);
@@ -973,11 +1213,15 @@ export function App() {
 
     const totalLivingRemaining = updatedCrew.filter(c => c.status !== 'deceased').length;
 
-    // Apply colony update
+    // Purge any dead miners from assignedToMine
+    const livingCrewIds = new Set(updatedCrew.filter(c => c.status !== 'deceased').map(c => c.id));
+    const sanitizedAssignedToMine = Array.from(new Set(currentColony.assignedToMine.filter(id => livingCrewIds.has(id))));
+
+    // Apply colony update with reset daily limits and resource clamping
     updateCurrentColony(prev => ({
       ...prev,
       currentDay: nextDay,
-      resources: {
+      resources: clampResources({
         ...prev.resources,
         energy: newEnergy,
         energyProduction: Math.round(totalProd),
@@ -988,7 +1232,11 @@ export function App() {
         shieldIntegrity: newShield,
         radiationExposure: parseFloat(newRad.toFixed(1)),
         sciencePoints: newScience,
-      },
+      }, prev.resources),
+      hasHarvestedToday: false,
+      roverSortiesToday: 0,
+      hasQuizCompletedToday: false,
+      assignedToMine: sanitizedAssignedToMine,
       crew: updatedCrew,
       isLunarNight: isNightNow,
       dustStormActive: isDustNow,
@@ -1011,13 +1259,18 @@ export function App() {
       spaceVoice.speak('¡Día quince de misión alcanzado! Protocolo de acoplamiento de dos nuevos especialistas disponible.');
     }
 
-    // 1-second grace period on 0% Oxygen asphyxiation
+    // 3-second harmonized grace period on 0% Oxygen asphyxiation (locks day advance)
     if (isZeroOxygenGraceTriggered) {
       soundFx.playAlert();
-      showToast('⚠️ ¡OXÍGENO AL 0%! 1 segundo de reserva en esclusas antes de asfixia fatal...');
-      spaceVoice.speak('¡Peligro letal! Oxígeno al cero por ciento. Asfixia de la tripulación en un segundo.');
+      showToast('⚠️ ¡OXÍGENO AL 0%! 3 segundos de reserva de emergencia antes de asfixia fatal...');
+      spaceVoice.speak('¡Peligro letal! Oxígeno al cero por ciento. Asfixia de la tripulación en tres segundos.');
 
-      setTimeout(() => {
+      if (zeroOxygenTimeoutRef.current) {
+        clearTimeout(zeroOxygenTimeoutRef.current);
+      }
+
+      // isAdvancingRef.current remains true during grace period
+      zeroOxygenTimeoutRef.current = setTimeout(() => {
         setColonies(all => {
           const current = all[location];
           if (current.resources.oxygen <= 0) {
@@ -1028,9 +1281,11 @@ export function App() {
               status: 'deceased' as CrewStatus,
               causeOfDeath: 'Muerte por asfixia en el vacío (0% O₂)',
             }));
-            setGameOverCause('¡MUERTE DE LA TRIPULACIÓN POR ASFIXIA AL AGOTARSE EL OXÍGENO EN EL HÁBITAT (0% O₂)!');
-            setIsGameOverOpen(true);
-            spaceVoice.speak('Asfixia confirmada. Todos los signos vitales han cesado. Misión terminada.');
+            setTimeout(() => {
+              setGameOverCause('¡MUERTE DE LA TRIPULACIÓN POR ASFIXIA AL AGOTARSE EL OXÍGENO EN EL HÁBITAT (0% O₂)!');
+              setIsGameOverOpen(true);
+              spaceVoice.speak('Asfixia confirmada. Todos los signos vitales han cesado. Misión terminada.');
+            }, 0);
             return {
               ...all,
               [location]: {
@@ -1041,7 +1296,9 @@ export function App() {
           }
           return all;
         });
-      }, 1000);
+        isAdvancingRef.current = false;
+        zeroOxygenTimeoutRef.current = null;
+      }, 3000);
       return;
     }
 
@@ -1051,6 +1308,7 @@ export function App() {
       setGameOverCause(latestDeathCause || 'Agotamiento de recursos vitales');
       setIsGameOverOpen(true);
       spaceVoice.speak('Alerta catastrófica. Muerte de toda la tripulación. Misión terminada.');
+      setTimeout(() => { isAdvancingRef.current = false; }, 400);
       return;
     } else if (anyDeathOccurred) {
       soundFx.playAlert();
@@ -1063,7 +1321,6 @@ export function App() {
       updateCurrentColony(p => {
         let bunkerUpdatedModules = p.modules;
         if (difficulty === 'dificil') {
-          // Solar flare decreases bunker by 1 if level >= 2
           bunkerUpdatedModules = p.modules.map(m => {
             if (m.id === 'storm_bunker' && m.level >= 2) {
               return { ...m, level: m.level - 1 };
@@ -1109,8 +1366,10 @@ export function App() {
       soundFx.playVictory();
       confetti({ particleCount: 160, spread: 85, origin: { y: 0.5 } });
 
-      // Anti-cheat verification: Supreme commander badge ONLY unlocked if the entire run was strictly played in Hard Mode
-      if (difficulty === 'dificil' && currentColony.difficulty === 'dificil') {
+      // Anti-cheat verification: Supreme commander badge ONLY unlocked if the entire campaign run
+      // was strictly played in Hard Mode across full scenario days (not short historical crises!)
+      const isFullCampaign = !activeCrisis && nextDay >= currentScenario.targetDays;
+      if (difficulty === 'dificil' && currentColony.difficulty === 'dificil' && isFullCampaign) {
         unlockAchievement('supreme_commander');
       }
 
@@ -1127,6 +1386,7 @@ export function App() {
         `¡MISIÓN COMPLETADA CON ÉXITO! Superados los ${maxDays} días en ${location === 'moon' ? 'la Luna' : 'Marte'} (${difficulty.toUpperCase()}).`,
         `MISSION ACCOMPLISHED! Survived ${maxDays} days in ${location === 'moon' ? 'Moon' : 'Mars'} (${difficulty.toUpperCase()}).`
       );
+      setTimeout(() => { isAdvancingRef.current = false; }, 400);
       return;
     }
 
@@ -1139,6 +1399,7 @@ export function App() {
       `Transición al ${location === 'mars' ? 'Sol' : 'Día Lunar'} ${nextDay} completada. Telemetría de soporte vital actualizada.`,
       `Transition to ${location === 'mars' ? 'Sol' : 'Lunar Day'} ${nextDay} complete. Life support telemetry updated.`
     );
+    setTimeout(() => { isAdvancingRef.current = false; }, 400);
   };
 
   // Handle Event Option chosen
@@ -1151,7 +1412,7 @@ export function App() {
       if (opt.resourceDeltas.food !== undefined) nextRes.food = Math.max(0, Math.min(100, nextRes.food + opt.resourceDeltas.food));
       if (opt.resourceDeltas.radiationExposure !== undefined) nextRes.radiationExposure += opt.resourceDeltas.radiationExposure;
       if (opt.resourceDeltas.shieldIntegrity !== undefined) nextRes.shieldIntegrity = Math.max(0, Math.min(100, nextRes.shieldIntegrity + opt.resourceDeltas.shieldIntegrity));
-      if (opt.resourceDeltas.sciencePoints !== undefined) nextRes.sciencePoints = Math.max(0, nextRes.sciencePoints + opt.resourceDeltas.sciencePoints);
+      if (opt.resourceDeltas.sciencePoints !== undefined) nextRes.sciencePoints = Math.max(0, Math.min(MAX_SCIENCE_POINTS, nextRes.sciencePoints + opt.resourceDeltas.sciencePoints));
 
       const nextCrew = prev.crew.map(c => {
         if (c.status === 'deceased') return c;
@@ -1168,7 +1429,7 @@ export function App() {
 
       return {
         ...prev,
-        resources: nextRes,
+        resources: clampResources(nextRes, prev.resources),
         crew: nextCrew,
         radiationActive: false,
       };
@@ -1182,112 +1443,260 @@ export function App() {
     spaceVoice.speak(doneMsg);
   };
 
-  // Botanical harvest callback
-  const handleBotanicalHarvest = (foodGain: number, scienceGain: number, moraleGain: number) => {
+  // Botanical harvest callback with daily limit and clamping (water consumed during irrigation)
+  const handleBotanicalHarvest = (foodGain: number, scienceGain: number, moraleGain: number, _waterCost: number = 0) => {
+    if (isHarvestingRef.current) return;
+
+    if (currentColony.hasHarvestedToday) {
+      soundFx.playAlert();
+      showToast('⚠️ Ya has realizado la cosecha de este Sol. Los cultivos necesitan tiempo para un nuevo ciclo.');
+      return;
+    }
+
+    isHarvestingRef.current = true;
+    setTimeout(() => { isHarvestingRef.current = false; }, 400);
+
     const multiplier = difficulty === 'facil' ? 1.5 : 1.0;
     const actualFood = Math.round(foodGain * multiplier);
+    const clampedScienceGain = Math.max(0, Math.min(50, scienceGain));
+    const clampedMoraleGain = Math.max(0, Math.min(25, moraleGain));
 
-    updateCurrentColony(prev => ({
-      ...prev,
-      resources: {
+    let harvested = false;
+    updateCurrentColony(prev => {
+      if (prev.hasHarvestedToday) return prev;
+
+      harvested = true;
+      const nextResources = clampResources({
         ...prev.resources,
-        food: Math.min(100, prev.resources.food + actualFood),
-        sciencePoints: prev.resources.sciencePoints + scienceGain,
-      },
-      crew: prev.crew.map(c => {
-        if (c.status === 'deceased') return c;
-        return {
-          ...c,
-          health: Math.min(100, c.health + 5),
-          morale: Math.min(100, c.morale + moraleGain),
-        };
-      }),
-    }));
+        food: prev.resources.food + actualFood,
+        sciencePoints: prev.resources.sciencePoints + clampedScienceGain,
+      }, prev.resources);
 
-    const msg = `¡Cosecha fresca servida! +${actualFood} Comida Veggie, +${scienceGain} pts Ciencia OSDR.`;
-    showToast(msg);
-    spaceVoice.speak('Cosecha fresca servida en el comedor del hábitat. Moral y nutrición restauradas.');
-    unlockAchievement('veggie_harvest');
-    addFlightLog('success', `Cosecha fresca servida: +${actualFood} comida Veggie, +${scienceGain} pts Ciencia.`, `Fresh harvest served: +${actualFood} Veggie food, +${scienceGain} Science.`);
+      return {
+        ...prev,
+        hasHarvestedToday: true,
+        resources: nextResources,
+        crew: prev.crew.map(c => {
+          if (c.status === 'deceased') return c;
+          return {
+            ...c,
+            health: Math.min(100, c.health + 5),
+            morale: Math.min(100, c.morale + clampedMoraleGain),
+          };
+        }),
+      };
+    });
+
+    if (harvested) {
+      soundFx.playVictory();
+      confetti({ particleCount: 100, spread: 60, origin: { y: 0.6 } });
+      const msg = `¡Cosecha fresca servida! +${actualFood} Comida Veggie, +${clampedScienceGain} pts Ciencia OSDR.`;
+      showToast(msg);
+      spaceVoice.speak('Cosecha fresca servida en el comedor del hábitat. Moral y nutrición restauradas.');
+      unlockAchievement('veggie_harvest');
+      addFlightLog('success', `Cosecha fresca servida: +${actualFood} comida Veggie, +${clampedScienceGain} pts Ciencia.`, `Fresh harvest served: +${actualFood} Veggie food, +${clampedScienceGain} Science.`);
+    }
   };
 
-  // Rover Sortie completed callback
-  const handleRoverSortieComplete = (reward: { water?: number; shield?: number; science?: number; energyBonus?: number }) => {
-    const penalty = difficulty === 'dificil' ? 0.6 : 1.0; // 40% less collected in Hard mode
+  // Rover Sortie completed callback with energy deduction, daily limit (max 2 per Sol), and clamping
+  const handleRoverSortieComplete = (reward: { batteryCost?: number; water?: number; shield?: number; science?: number; energyBonus?: number }) => {
+    if (isSortieSubmittingRef.current) return;
+
+    const sortiesToday = currentColony.roverSortiesToday ?? 0;
+    if (sortiesToday >= 2) {
+      soundFx.playAlert();
+      showToast('⚠️ Límite de expediciones alcanzado: El rover debe recargarse y calibrarse (máximo 2 por Sol).');
+      return;
+    }
+
+    const cost = Math.max(0, reward.batteryCost ?? 12);
+    if (currentColony.resources.energy < cost) {
+      soundFx.playAlert();
+      showToast(`⚡ Batería insuficiente para la expedición (se requieren ${cost} kWh de energía).`);
+      return;
+    }
+
+    isSortieSubmittingRef.current = true;
+    setTimeout(() => { isSortieSubmittingRef.current = false; }, 400);
+
+    const penalty = difficulty === 'dificil' ? 0.6 : 1.0;
     const scienceMultiplier = difficulty === 'dificil' ? 1.5 : 1.0;
-    updateCurrentColony(prev => ({
-      ...prev,
-      resources: {
+
+    let sortieSuccess = false;
+    updateCurrentColony(prev => {
+      const todayCount = prev.roverSortiesToday ?? 0;
+      if (todayCount >= 2) return prev;
+      if (prev.resources.energy < cost) return prev;
+
+      sortieSuccess = true;
+      const energyAfterCost = Math.max(0, prev.resources.energy - cost);
+      const nextEnergy = reward.energyBonus 
+        ? Math.min(prev.resources.maxEnergy, energyAfterCost + reward.energyBonus) 
+        : energyAfterCost;
+
+      const nextResources = clampResources({
         ...prev.resources,
-        water: reward.water ? Math.min(100, prev.resources.water + Math.round(reward.water * penalty)) : prev.resources.water,
-        shieldIntegrity: reward.shield ? Math.min(100, prev.resources.shieldIntegrity + Math.round(reward.shield * penalty)) : prev.resources.shieldIntegrity,
+        energy: nextEnergy,
+        water: reward.water ? prev.resources.water + Math.round(reward.water * penalty) : prev.resources.water,
+        shieldIntegrity: reward.shield ? prev.resources.shieldIntegrity + Math.round(reward.shield * penalty) : prev.resources.shieldIntegrity,
         sciencePoints: reward.science ? prev.resources.sciencePoints + Math.round(reward.science * scienceMultiplier) : prev.resources.sciencePoints,
-        energy: reward.energyBonus ? Math.min(100, prev.resources.energy + reward.energyBonus) : prev.resources.energy,
-      },
-    }));
-    const msg = difficulty === 'dificil'
-      ? '¡Expedición robótica ISRU completada! Recolección ajustada a terreno hostil (-40% volumen, +50% ciencia).'
-      : '¡Expedición robótica ISRU completada con éxito! Recursos integrados a la base.';
-    showToast(msg);
-    spaceVoice.speak('El rover ha regresado al muelle con las muestras recolectadas.');
-    unlockAchievement('rover_sortie');
-    addFlightLog('success', 'Expedición robótica ISRU completada con muestras del terreno.', 'ISRU robotic rover sortie completed with surface samples.');
+      }, prev.resources);
+
+      return {
+        ...prev,
+        roverSortiesToday: todayCount + 1,
+        resources: nextResources,
+      };
+    });
+
+    if (sortieSuccess) {
+      soundFx.playVictory();
+      confetti({ particleCount: 100, spread: 60, origin: { y: 0.6 } });
+      const currentSortieNum = sortiesToday + 1;
+      const msg = difficulty === 'dificil'
+        ? `¡Expedición ${currentSortieNum}/2 completada! -${cost} kWh energía. Recolección ajustada a terreno hostil (-40% volumen, +50% ciencia).`
+        : `¡Expedición ${currentSortieNum}/2 completada con éxito! -${cost} kWh energía. Recursos integrados a la base.`;
+      showToast(msg);
+      spaceVoice.speak('El rover ha regresado al muelle con las muestras recolectadas.');
+      unlockAchievement('rover_sortie');
+      addFlightLog('success', `Expedición robótica ISRU ${currentSortieNum}/2 completada (-${cost} kWh).`, `ISRU robotic rover sortie ${currentSortieNum}/2 completed (-${cost} kWh).`);
+    }
   };
 
-  // Quiz completed callback with +20 Science bonus & +20% Morale!
-  // "que al completar al quiz se den un bonus de 20 puntos de ciencia y que se suva el animo en un 20%"
-  const handleQuizBonus = (scienceBonus: number, moraleBonus: number) => {
-    updateCurrentColony(prev => ({
-      ...prev,
-      resources: {
+  // Quiz completed callback with +20 Science bonus & +20% Morale (enforcing score >= 3 and 1 bonus per Sol)
+  const handleQuizBonus = (scienceBonus: number, moraleBonus: number, score?: number) => {
+    if (isQuizBonusSubmittingRef.current) return;
+
+    if (score !== undefined && score < 3) {
+      soundFx.playAlert();
+      showToast('Puntuación insuficiente para reclamar el bono NASA STEM (se requiere mínimo 3/5 aciertos).');
+      return;
+    }
+
+    if (currentColony.hasQuizCompletedToday) {
+      soundFx.playAlert();
+      showToast('⚠️ Ya has reclamado el bono del Quiz de la NASA para este Sol.');
+      return;
+    }
+
+    isQuizBonusSubmittingRef.current = true;
+    setTimeout(() => { isQuizBonusSubmittingRef.current = false; }, 400);
+
+    const clampedScienceBonus = Math.max(0, Math.min(30, scienceBonus));
+    const clampedMoraleBonus = Math.max(0, Math.min(25, moraleBonus));
+
+    let bonusAwarded = false;
+    updateCurrentColony(prev => {
+      if (prev.hasQuizCompletedToday) return prev;
+      bonusAwarded = true;
+
+      const nextResources = clampResources({
         ...prev.resources,
-        sciencePoints: prev.resources.sciencePoints + scienceBonus,
-      },
-      crew: prev.crew.map(c => {
-        if (c.status === 'deceased') return c;
-        return {
-          ...c,
-          morale: Math.min(100, c.morale + moraleBonus),
-        };
-      }),
-    }));
-    soundFx.playVictory();
-    const msg = `🎉 ¡Desafío Quiz Superado! +${scienceBonus} Puntos de Ciencia Bonus y +${moraleBonus}% de Ánimo para toda la tripulación.`;
-    showToast(msg);
-    spaceVoice.speak('Excelente trabajo en el desafío STEM. Bono de ciencia acreditado y moral de la tripulación aumentada al máximo.');
-    unlockAchievement('stem_genius');
-    addFlightLog('success', `Desafío STEM completado: +${scienceBonus} pts Ciencia NASA y +${moraleBonus}% Ánimo.`, `STEM challenge passed: +${scienceBonus} NASA Science and +${moraleBonus}% Morale.`);
+        sciencePoints: prev.resources.sciencePoints + clampedScienceBonus,
+      }, prev.resources);
+
+      return {
+        ...prev,
+        hasQuizCompletedToday: true,
+        resources: nextResources,
+        crew: prev.crew.map(c => {
+          if (c.status === 'deceased') return c;
+          return {
+            ...c,
+            morale: Math.min(100, c.morale + clampedMoraleBonus),
+          };
+        }),
+      };
+    });
+
+    if (bonusAwarded) {
+      soundFx.playVictory();
+      confetti({ particleCount: 120, spread: 80, origin: { y: 0.5 } });
+      const msg = `🎉 ¡Desafío Quiz Superado! +${clampedScienceBonus} Puntos de Ciencia Bonus y +${clampedMoraleBonus}% de Ánimo para la tripulación.`;
+      showToast(msg);
+      spaceVoice.speak('Excelente trabajo en el desafío STEM. Bono de ciencia acreditado y moral de la tripulación aumentada.');
+      unlockAchievement('stem_genius');
+      addFlightLog('success', `Desafío STEM completado: +${clampedScienceBonus} pts Ciencia NASA y +${clampedMoraleBonus}% Ánimo.`, `STEM challenge passed: +${clampedScienceBonus} NASA Science and +${clampedMoraleBonus}% Morale.`);
+    }
   };
 
-  // Emergency Oxygen Deployment with 2-second delay callback!
+  // Emergency Oxygen Deployment with canister charge limits and harmonized grace timer cancellation
   const handleEmergencyO2Injected = () => {
-    updateCurrentColony(prev => ({
-      ...prev,
-      resources: {
-        ...prev.resources,
-        oxygen: Math.min(100, prev.resources.oxygen + 35),
-      },
-      emergencyO2Active: true,
-    }));
-    showToast('¡Inyección de O₂ de emergencia presurizada! Soporte vital estabilizado (+35% O₂).');
-    spaceVoice.speak('Presión de oxígeno normalizada en el hábitat.');
-    addFlightLog('warning', 'Presurización manual de emergencia activada (+35% O₂).', 'Manual emergency pressurization activated (+35% O₂).');
+    const currentCharges = currentColony.emergencyO2Charges ?? 2;
+    if (currentCharges <= 0) {
+      soundFx.playAlert();
+      showToast('⚠️ ¡Sin cartuchos de O₂! Se han agotado las 2 cargas de emergencia de la misión.');
+      spaceVoice.speak('Cartuchos de oxígeno de emergencia agotados.');
+      return;
+    }
+
+    // Cancel pending asphyxiation timeout if active!
+    if (zeroOxygenTimeoutRef.current) {
+      clearTimeout(zeroOxygenTimeoutRef.current);
+      zeroOxygenTimeoutRef.current = null;
+      isAdvancingRef.current = false;
+    }
+
+    let injected = false;
+    updateCurrentColony(prev => {
+      const charges = prev.emergencyO2Charges ?? 2;
+      if (charges <= 0) return prev;
+      injected = true;
+      const newO2 = Math.min(prev.resources.maxOxygen, prev.resources.oxygen + 35);
+      return {
+        ...prev,
+        resources: {
+          ...prev.resources,
+          oxygen: newO2,
+        },
+        emergencyO2Active: true,
+        emergencyO2Charges: charges - 1,
+      };
+    });
+
+    if (injected) {
+      soundFx.playHarvest();
+      const remainingCharges = currentCharges - 1;
+      showToast(`¡Inyección de O₂ de emergencia presurizada (+35% O₂)! Cartuchos restantes: ${remainingCharges}/2.`);
+      spaceVoice.speak('Presión de oxígeno normalizada en el hábitat.');
+      addFlightLog('warning', `Presurización manual de emergencia activada (+35% O₂). Cartuchos restantes: ${remainingCharges}/2.`, `Emergency O2 pressurization activated (+35% O2). Canisters remaining: ${remainingCharges}/2.`);
+    }
   };
 
-  // Wiring repair success callback
+  // Wiring repair success callback (requires active fault and is debounced)
   const handleWiringSuccess = () => {
-    updateCurrentColony(prev => ({
-      ...prev,
-      batteryFault: false,
-      batteryFaultCount: 0,
-      batteryLockoutSeconds: 0,
-      wiringErrorActive: false,
-    }));
-    setIsWiringOpen(false);
-    showToast('¡Cortocircuito y cableado reparados! Sistemas eléctricos e iluminación al 100%.');
-    spaceVoice.speak('Cableado de batería e iluminación restaurados. Carga eléctrica normalizada.');
-    unlockAchievement('wire_master');
-    addFlightLog('success', 'Cableado de baterías e iluminación restaurado al 100%.', 'Battery wiring and illumination restored 100%.');
+    if (isWiringSubmittingRef.current) return;
+    if (!currentColony.batteryFault && !currentColony.wiringErrorActive) {
+      setIsWiringOpen(false);
+      return;
+    }
+
+    isWiringSubmittingRef.current = true;
+    setTimeout(() => { isWiringSubmittingRef.current = false; }, 500);
+
+    let hadFault = false;
+    updateCurrentColony(prev => {
+      if (!prev.batteryFault && !prev.wiringErrorActive) return prev;
+      hadFault = true;
+      return {
+        ...prev,
+        batteryFault: false,
+        batteryFaultCount: 0,
+        batteryLockoutSeconds: 0,
+        wiringErrorActive: false,
+      };
+    });
+
+    if (hadFault) {
+      setIsWiringOpen(false);
+      soundFx.playVictory();
+      showToast('¡Cortocircuito y cableado reparados! Sistemas eléctricos e iluminación al 100%.');
+      spaceVoice.speak('Cableado de batería e iluminación restaurados. Carga eléctrica normalizada.');
+      unlockAchievement('wire_master');
+      addFlightLog('success', 'Cableado de baterías e iluminación restaurado al 100%.', 'Battery wiring and illumination restored 100%.');
+    } else {
+      setIsWiringOpen(false);
+    }
   };
 
   // Restart after Game Over or manually
@@ -1296,6 +1705,13 @@ export function App() {
     setDifficulty(diff);
     setIsGameOverOpen(false);
     setIsReportOpen(false);
+    setActiveCrisis(null); // Clear active crisis so it doesn't leak into new games!
+
+    if (zeroOxygenTimeoutRef.current) {
+      clearTimeout(zeroOxygenTimeoutRef.current);
+      zeroOxygenTimeoutRef.current = null;
+    }
+    isAdvancingRef.current = false;
 
     setColonies(all => ({
       ...all,
@@ -1308,16 +1724,31 @@ export function App() {
     addFlightLog('info', `Misión reiniciada en ${location === 'moon' ? 'la Luna' : 'Marte'} (${diff.toUpperCase()}).`, `Mission restarted at ${location === 'moon' ? 'Moon' : 'Mars'} (${diff.toUpperCase()}).`);
   };
 
-  // Restore comms from mini-game
+  // Restore comms from mini-game (requires active blackout and is debounced)
   const handleRestoreCommunications = () => {
-    updateCurrentColony(prev => ({
-      ...prev,
-      isCommBlackout: false,
-    }));
-    showToast('¡Enlace con Houston y la Red DSN restablecido con éxito!');
-    spaceVoice.speak('Enlace de radio de espacio profundo restablecido.');
-    unlockAchievement('dsn_restored');
-    addFlightLog('success', 'Enlace de radio DSN restablecido con éxito.', 'DSN radio link successfully restored.');
+    if (isCommRestoringRef.current) return;
+    if (!currentColony.isCommBlackout) return;
+
+    isCommRestoringRef.current = true;
+    setTimeout(() => { isCommRestoringRef.current = false; }, 500);
+
+    let wasBlackout = false;
+    updateCurrentColony(prev => {
+      if (!prev.isCommBlackout) return prev;
+      wasBlackout = true;
+      return {
+        ...prev,
+        isCommBlackout: false,
+      };
+    });
+
+    if (wasBlackout) {
+      soundFx.playVictory();
+      showToast('¡Enlace con Houston y la Red DSN restablecido con éxito!');
+      spaceVoice.speak('Enlace de radio de espacio profundo restablecido.');
+      unlockAchievement('dsn_restored');
+      addFlightLog('success', 'Enlace de radio DSN restablecido con éxito.', 'DSN radio link successfully restored.');
+    }
   };
 
   return (
@@ -1559,6 +1990,19 @@ export function App() {
         currentWater={currentColony.resources.water}
         currentEnergy={currentColony.resources.energy}
         lang={lang}
+        onDeductWater={(cost) => {
+          updateCurrentColony(prev => ({
+            ...prev,
+            resources: clampResources({
+              ...prev.resources,
+              water: Math.max(0, prev.resources.water - cost),
+            }, prev.resources),
+          }));
+        }}
+        hasHarvestedToday={currentColony.hasHarvestedToday}
+        plantsNeedDoubleWaterOnce={currentColony.plantsNeedDoubleWaterOnce}
+        plantsWipedGrowth={currentColony.plantsWipedGrowth}
+        currentDay={currentColony.currentDay}
       />
 
       <RoverMissionModal
@@ -1568,6 +2012,7 @@ export function App() {
         currentEnergy={currentColony.resources.energy}
         onCompleteSortie={handleRoverSortieComplete}
         lang={lang}
+        sortiesToday={currentColony.roverSortiesToday ?? 0}
       />
 
       <HistoricalCrisesModal
@@ -1602,9 +2047,13 @@ export function App() {
         isOpen={isNasaQuizOpen}
         onClose={() => setIsNasaQuizOpen(false)}
         onAddSciencePoints={(pts) => {
+          const clampedPts = Math.max(0, Math.min(50, pts));
           updateCurrentColony(prev => ({
             ...prev,
-            resources: { ...prev.resources, sciencePoints: prev.resources.sciencePoints + pts }
+            resources: {
+              ...prev.resources,
+              sciencePoints: Math.min(MAX_SCIENCE_POINTS, prev.resources.sciencePoints + clampedPts),
+            },
           }));
         }}
         onQuizBonus={handleQuizBonus}

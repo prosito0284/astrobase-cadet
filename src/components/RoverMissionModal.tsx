@@ -1,18 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { BaseLocation } from '../types/game';
 import { 
   Compass, 
   X, 
-  MapPin, 
   Send, 
   Battery, 
-  Droplets, 
-  ShieldCheck, 
-  Sparkles, 
-  AlertTriangle,
-  CheckCircle2,
   Zap,
-  Info
+  Shield,
+  Droplets,
+  Microscope,
+  Sun
 } from 'lucide-react';
 import { soundFx } from '../utils/audio';
 import confetti from 'canvas-confetti';
@@ -22,8 +19,10 @@ interface RoverMissionModalProps {
   onClose: () => void;
   location: BaseLocation;
   currentEnergy: number;
-  onCompleteSortie: (reward: { water?: number; shield?: number; science?: number; energyBonus?: number }) => void;
+  onCompleteSortie: (reward: { batteryCost: number; water?: number; shield?: number; science?: number; energyBonus?: number }) => void;
   lang: 'es' | 'en';
+  sortiesToday?: number;
+  maxSortiesPerDay?: number;
 }
 
 interface SortieTarget {
@@ -42,6 +41,41 @@ interface SortieTarget {
   icon: string;
 }
 
+const getStorageRoverSorties = (loc: BaseLocation): number => {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const raw = localStorage.getItem('astrobase_dual_save_v6') || localStorage.getItem('astrobase_dual_save_v5');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const col = parsed?.[loc];
+        if (col && typeof col.roverSortiesToday === 'number') {
+          return col.roverSortiesToday;
+        }
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return 0;
+};
+
+const incrementStorageRoverSorties = (loc: BaseLocation) => {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const raw = localStorage.getItem('astrobase_dual_save_v6');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed?.[loc]) {
+          parsed[loc].roverSortiesToday = (parsed[loc].roverSortiesToday ?? 0) + 1;
+          localStorage.setItem('astrobase_dual_save_v6', JSON.stringify(parsed));
+        }
+      }
+    }
+  } catch {
+    // ignore
+  }
+};
+
 export const RoverMissionModal: React.FC<RoverMissionModalProps> = ({
   isOpen,
   onClose,
@@ -49,9 +83,36 @@ export const RoverMissionModal: React.FC<RoverMissionModalProps> = ({
   currentEnergy,
   onCompleteSortie,
   lang,
+  sortiesToday: propSortiesToday,
+  maxSortiesPerDay = 2,
 }) => {
   const [selectedTargetId, setSelectedTargetId] = useState<string>('shackleton_ice');
   const [isDeploying, setIsDeploying] = useState<boolean>(false);
+  const [localSorties, setLocalSorties] = useState<number>(() => {
+    return propSortiesToday !== undefined 
+      ? propSortiesToday 
+      : getStorageRoverSorties(location);
+  });
+
+  const deployTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Synchronize local sorties and deployment state on open or prop change
+  useEffect(() => {
+    if (isOpen) {
+      // oxlint-disable-next-line react/set-state-in-effect
+      setLocalSorties(propSortiesToday !== undefined ? propSortiesToday : getStorageRoverSorties(location));
+      setIsDeploying(false);
+    }
+  }, [isOpen, propSortiesToday, location]);
+
+  // Cleanup pending deployment timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (deployTimeoutRef.current) {
+        clearTimeout(deployTimeoutRef.current);
+      }
+    };
+  }, []);
 
   if (!isOpen) return null;
 
@@ -94,10 +155,10 @@ export const RoverMissionModal: React.FC<RoverMissionModalProps> = ({
       distanceKm: 12.0,
       batteryCost: 12,
       riskLevel: 'Bajo',
-      descriptionEs: 'Cumbre elevada donde el Sol casi nunca se oculta. Instalar un repetidor solar fotovoltaico genera un excedente de energía para la colonia.',
-      descriptionEn: 'High-elevation ridge bathed in near-constant sunlight. Installing microwave power relays secures energy during the long polar night.',
+      descriptionEs: 'Cumbre elevada donde el Sol casi nunca se oculta. Instalar un repetidor solar fotovoltaico genera un balance equilibrado de energía.',
+      descriptionEn: 'High-elevation ridge bathed in near-constant sunlight. Installing microwave power relays sustains balanced energy for the base.',
       rewardType: 'energy',
-      rewardAmount: 15,
+      rewardAmount: 12, // Rebalanced: does not exceed batteryCost (12 <= 12)
       nasaRef: 'NASA Artemis Polar Illumination Maps',
       icon: '☀️',
     },
@@ -130,7 +191,7 @@ export const RoverMissionModal: React.FC<RoverMissionModalProps> = ({
       descriptionEs: 'Aprovechar remolinos de viento marciano (dust devils) para remover el polvo acumulado en los paneles solares y reactivar su generación eléctrica.',
       descriptionEn: 'Ride local dust devil wind corridors to clean surface arrays electrostatically, reclaiming lost photovoltaic generation.',
       rewardType: 'energy',
-      rewardAmount: 18,
+      rewardAmount: 12, // Rebalanced: does not exceed batteryCost (12 <= 12)
       nasaRef: 'NASA MEDA Wind & Dust Devil Survey',
       icon: '🌪️',
     },
@@ -154,28 +215,59 @@ export const RoverMissionModal: React.FC<RoverMissionModalProps> = ({
   const currentTargets = location === 'moon' ? moonTargets : marsTargets;
   const activeTarget = currentTargets.find(t => t.id === selectedTargetId) || currentTargets[0];
 
+  const activeSortieCount = propSortiesToday !== undefined ? propSortiesToday : localSorties;
+  const isDailyLimitReached = activeSortieCount >= maxSortiesPerDay;
+  const remainingSorties = Math.max(0, maxSortiesPerDay - activeSortieCount);
+
   const handleLaunchSortie = () => {
-    if (currentEnergy < activeTarget.batteryCost) return;
+    // Race condition and precondition guards
+    if (isDeploying) return;
+    if (isDailyLimitReached) {
+      soundFx.playAlert();
+      return;
+    }
+    if (currentEnergy < activeTarget.batteryCost) {
+      soundFx.playAlert();
+      return;
+    }
+
     soundFx.playHarvest();
     setIsDeploying(true);
 
-    setTimeout(() => {
+    deployTimeoutRef.current = setTimeout(() => {
       setIsDeploying(false);
       soundFx.playVictory();
       confetti({ particleCount: 100, spread: 60, origin: { y: 0.6 } });
 
-      if (activeTarget.rewardType === 'water') {
-        onCompleteSortie({ water: activeTarget.rewardAmount });
-      } else if (activeTarget.rewardType === 'shield') {
-        onCompleteSortie({ shield: activeTarget.rewardAmount });
-      } else if (activeTarget.rewardType === 'science') {
-        onCompleteSortie({ science: activeTarget.rewardAmount });
-      } else if (activeTarget.rewardType === 'energy') {
-        onCompleteSortie({ energyBonus: activeTarget.rewardAmount });
-      }
+      // Pass batteryCost along with the specific reward payload
+      const sortiePayload = {
+        batteryCost: activeTarget.batteryCost,
+        ...(activeTarget.rewardType === 'water' ? { water: activeTarget.rewardAmount } : {}),
+        ...(activeTarget.rewardType === 'shield' ? { shield: activeTarget.rewardAmount } : {}),
+        ...(activeTarget.rewardType === 'science' ? { science: activeTarget.rewardAmount } : {}),
+        ...(activeTarget.rewardType === 'energy' ? { energyBonus: activeTarget.rewardAmount } : {}),
+      };
 
+      onCompleteSortie(sortiePayload);
+      setLocalSorties(prev => prev + 1);
+      incrementStorageRoverSorties(location);
       onClose();
     }, 1200);
+  };
+
+  const getRewardIcon = (type: string) => {
+    switch (type) {
+      case 'water':
+        return <Droplets className="w-3.5 h-3.5 text-blue-400" />;
+      case 'shield':
+        return <Shield className="w-3.5 h-3.5 text-emerald-400" />;
+      case 'science':
+        return <Microscope className="w-3.5 h-3.5 text-cyan-400" />;
+      case 'energy':
+        return <Sun className="w-3.5 h-3.5 text-amber-400" />;
+      default:
+        return null;
+    }
   };
 
   return (
@@ -188,12 +280,14 @@ export const RoverMissionModal: React.FC<RoverMissionModalProps> = ({
               <Compass className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-black text-slate-100 flex items-center gap-2">
-                <span>{lang === 'es' ? 'Centro de Operaciones de Rovers de la NASA' : 'NASA Planetary Rover Sortie Command'}</span>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base sm:text-lg font-black text-slate-100">
+                  {lang === 'es' ? 'Centro de Operaciones de Rovers de la NASA' : 'NASA Planetary Rover Sortie Command'}
+                </h2>
                 <span className="text-[10px] bg-cyan-600 text-white px-2 py-0.5 rounded-full font-black uppercase tracking-wider">
                   {location === 'moon' ? 'ROVER VIPER' : 'ROVER PERSEVERANCE'}
                 </span>
-              </h2>
+              </div>
               <p className="text-xs text-slate-400">
                 {lang === 'es' 
                   ? 'Despacha expediciones robóticas a zonas científicas para minar hielo, explorar cuevas o descubrir fósiles.' 
@@ -202,25 +296,55 @@ export const RoverMissionModal: React.FC<RoverMissionModalProps> = ({
             </div>
           </div>
 
+          {/* Close button - strictly disabled during active flight to prevent race conditions */}
           <button
+            disabled={isDeploying}
             onClick={() => {
+              if (isDeploying) return;
               soundFx.playClick();
               onClose();
             }}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all"
+            className={`p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all ${
+              isDeploying ? 'opacity-40 cursor-not-allowed' : ''
+            }`}
+            title={isDeploying ? (lang === 'es' ? 'Expedición en curso' : 'Sortie in progress') : (lang === 'es' ? 'Cerrar' : 'Close')}
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Rover Sortie Destinations */}
+        {/* Daily Sorties & Telemetry Bar */}
+        <div className="mt-2.5 p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-2">
+            <Zap className="w-4 h-4 text-amber-400" />
+            <span className="text-slate-300 font-bold">
+              {lang === 'es' ? 'Cuota de Expediciones por Sol:' : 'Sorties Quota per Sol:'}
+            </span>
+            <span className={`px-2 py-0.5 rounded-full font-mono font-black text-[11px] ${
+              isDailyLimitReached 
+                ? 'bg-rose-950/80 text-rose-300 border border-rose-500/40' 
+                : 'bg-cyan-950/80 text-cyan-300 border border-cyan-500/40'
+            }`}>
+              {remainingSorties} / {maxSortiesPerDay} {lang === 'es' ? 'restantes' : 'remaining'}
+            </span>
+          </div>
+
+          <div className="text-[11px] text-slate-400 font-mono">
+            <span>{lang === 'es' ? 'Batería de la Base: ' : 'Base Bus Energy: '}</span>
+            <span className="text-amber-300 font-bold">{Math.round(currentEnergy)} kWh</span>
+          </div>
+        </div>
+
+        {/* Rover Sortie Destinations - locked during deployment */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 my-3">
           {currentTargets.map(target => {
             const isSelected = target.id === activeTarget.id;
             return (
               <button
                 key={target.id}
+                disabled={isDeploying}
                 onClick={() => {
+                  if (isDeploying) return;
                   soundFx.playClick();
                   setSelectedTargetId(target.id);
                 }}
@@ -228,7 +352,7 @@ export const RoverMissionModal: React.FC<RoverMissionModalProps> = ({
                   isSelected
                     ? 'bg-cyan-950/80 border-cyan-400 ring-2 ring-cyan-400/50 shadow-lg'
                     : 'bg-slate-950/60 border-slate-800 hover:border-slate-700 text-slate-400'
-                }`}
+                } ${isDeploying ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <div>
                   <div className="flex items-center justify-between mb-2">
@@ -247,9 +371,10 @@ export const RoverMissionModal: React.FC<RoverMissionModalProps> = ({
                 </div>
 
                 <div className="mt-3 pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] font-bold">
-                  <span className="text-amber-400">-{target.batteryCost} kWh Batería</span>
-                  <span className="text-emerald-400">
-                    +{target.rewardAmount} {target.rewardType.toUpperCase()}
+                  <span className="text-amber-400">-{target.batteryCost} kWh</span>
+                  <span className="text-emerald-400 flex items-center gap-1">
+                    {getRewardIcon(target.rewardType)}
+                    <span>+{target.rewardAmount} {target.rewardType.toUpperCase()}</span>
                   </span>
                 </div>
               </button>
@@ -284,19 +409,23 @@ export const RoverMissionModal: React.FC<RoverMissionModalProps> = ({
             <div className="text-xs text-slate-400 flex items-center gap-2">
               <Battery className="w-4 h-4 text-amber-400" />
               <span>
-                Costo de Batería: <b className="text-amber-300">{activeTarget.batteryCost} kWh</b> (Disponible: {Math.round(currentEnergy)} kWh)
+                {lang === 'es' ? 'Costo de Batería:' : 'Battery Cost:'}{' '}
+                <b className="text-amber-300">{activeTarget.batteryCost} kWh</b> (
+                {lang === 'es' ? 'Disponible:' : 'Available:'} {Math.round(currentEnergy)} kWh)
               </span>
             </div>
 
             <button
               onClick={handleLaunchSortie}
-              disabled={currentEnergy < activeTarget.batteryCost || isDeploying}
+              disabled={currentEnergy < activeTarget.batteryCost || isDeploying || isDailyLimitReached}
               className="flex items-center gap-2 py-2 px-5 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs font-black shadow-lg shadow-cyan-950/40 border border-cyan-400/40 disabled:opacity-40 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02]"
             >
               <Send className="w-3.5 h-3.5" />
               <span>
                 {isDeploying 
                   ? (lang === 'es' ? 'Desplegando Rover...' : 'Sortie in Progress...') 
+                  : isDailyLimitReached
+                  ? (lang === 'es' ? `Límite Diario Alcanzado (${maxSortiesPerDay}/${maxSortiesPerDay})` : `Daily Limit Reached (${maxSortiesPerDay}/${maxSortiesPerDay})`)
                   : (lang === 'es' ? '¡Despachar Expedición!' : 'Launch Sortie!')}
               </span>
             </button>

@@ -33,6 +33,7 @@ export interface ResourceState {
   radiationExposure: number; // Cumulative mSv
   shieldIntegrity: number;   // 0 - 100%
   sciencePoints: number;     // Scientific discoveries made
+  maxSciencePoints?: number; // Upper ceiling for science points (default: 500)
 }
 
 export interface BaseModule {
@@ -133,6 +134,10 @@ export interface ColonySaveData {
   isCommBlackout: boolean;
   solarFluctuation: boolean;
   emergencyO2Active: boolean;
+  emergencyO2Charges?: number;   // Consumable canister charges (max 2 per mission)
+  roverSortiesToday?: number;     // Number of sorties dispatched in current Sol (max 2)
+  hasHarvestedToday?: boolean;   // Whether crops were harvested during current Sol
+  hasQuizCompletedToday?: boolean; // Whether NASA quiz bonus was claimed during current Sol
   batteryFault: boolean;
   batteryFaultCount: number;
   batteryLockoutSeconds: number; // 5s critical battery overload lock

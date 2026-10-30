@@ -1,16 +1,12 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { BaseModule, GameDifficulty } from '../types/game';
 import { 
   Power, 
-  Wrench, 
   ArrowUpCircle, 
   Zap, 
   Wind, 
   Droplets, 
-  Sprout, 
-  ShieldCheck, 
-  Sparkles,
-  Info
+  Sparkles
 } from 'lucide-react';
 import { soundFx } from '../utils/audio';
 
@@ -31,11 +27,33 @@ export const ModuleControl: React.FC<ModuleControlProps> = ({
   onSelectModule,
   onToggleModule,
   onUpgradeModule,
-  onRepairModule,
+  onRepairModule: _onRepairModule,
   lang,
   difficulty = 'normal',
 }) => {
+  const [isUpgrading, setIsUpgrading] = useState(false);
+  const upgradeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (upgradeTimeoutRef.current) {
+        clearTimeout(upgradeTimeoutRef.current);
+        upgradeTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
   const activeModule = modules.find(m => m.id === selectedModuleId) || modules[0];
+
+  const handleUpgrade = (id: string) => {
+    if (isUpgrading || activeModule.level >= activeModule.maxLevel) return;
+    setIsUpgrading(true);
+    soundFx.playHarvest();
+    onUpgradeModule(id);
+    upgradeTimeoutRef.current = setTimeout(() => {
+      setIsUpgrading(false);
+    }, 400);
+  };
 
   return (
     <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3 sm:p-4 shadow-xl">
@@ -128,19 +146,18 @@ export const ModuleControl: React.FC<ModuleControlProps> = ({
               </button>
 
               <button
-                onClick={() => {
-                  soundFx.playHarvest();
-                  onUpgradeModule(activeModule.id);
-                }}
-                disabled={activeModule.level >= activeModule.maxLevel}
+                onClick={() => handleUpgrade(activeModule.id)}
+                disabled={activeModule.level >= activeModule.maxLevel || isUpgrading}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-600/20 hover:bg-cyan-600/30 border border-cyan-500/50 text-cyan-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                 title="Mejora la eficiencia y capacidad del módulo"
               >
-                <ArrowUpCircle className="w-3.5 h-3.5" />
+                <ArrowUpCircle className={`w-3.5 h-3.5 ${isUpgrading ? 'animate-spin' : ''}`} />
                 <span>
-                  {activeModule.id === 'storm_bunker' && difficulty === 'dificil'
-                    ? (lang === 'es' ? 'Mejorar (20 pts)' : 'Upgrade (20 pts)')
-                    : (lang === 'es' ? 'Mejorar (10 pts)' : 'Upgrade (10 pts)')}
+                  {isUpgrading
+                    ? (lang === 'es' ? 'Mejorando...' : 'Upgrading...')
+                    : activeModule.id === 'storm_bunker' && difficulty === 'dificil'
+                      ? (lang === 'es' ? 'Mejorar (20 pts)' : 'Upgrade (20 pts)')
+                      : (lang === 'es' ? 'Mejorar (10 pts)' : 'Upgrade (10 pts)')}
                 </span>
               </button>
             </div>

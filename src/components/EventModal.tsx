@@ -1,21 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { MissionEvent, MissionEventOption } from '../types/game';
-import { 
-  AlertTriangle, 
-  ShieldAlert, 
-  Flame, 
-  Sprout, 
-  Wind, 
-  Radio, 
-  Moon, 
-  Activity, 
-  CheckCircle2, 
-  Info,
-  TrendingDown,
-  TrendingUp,
-  Sparkles,
-  ExternalLink
-} from 'lucide-react';
+import { Info } from 'lucide-react';
 import { soundFx } from '../utils/audio';
 
 interface EventModalProps {
@@ -26,13 +11,24 @@ interface EventModalProps {
 
 export const EventModal: React.FC<EventModalProps> = ({ event, onSelectOption, lang }) => {
   const [selectedOptionIndex, setSelectedOptionIndex] = useState<number | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+  }, []);
 
   if (!event) return null;
 
   const handleChoose = (opt: MissionEventOption, idx: number) => {
+    if (selectedOptionIndex !== null) return;
     setSelectedOptionIndex(idx);
     soundFx.playClick();
-    setTimeout(() => {
+    timeoutRef.current = setTimeout(() => {
       onSelectOption(opt);
       setSelectedOptionIndex(null);
     }, 300);
@@ -117,7 +113,8 @@ export const EventModal: React.FC<EventModalProps> = ({ event, onSelectOption, l
               <button
                 key={idx}
                 onClick={() => handleChoose(opt, idx)}
-                className={`w-full text-left p-3.5 rounded-2xl border transition-all transform hover:scale-[1.01] active:scale-[0.99] focus:outline-none ${
+                disabled={selectedOptionIndex !== null}
+                className={`w-full text-left p-3.5 rounded-2xl border transition-all transform hover:scale-[1.01] active:scale-[0.99] focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none ${
                   isSelected
                     ? 'bg-cyan-900/60 border-cyan-400 ring-2 ring-cyan-400'
                     : 'bg-slate-950/80 hover:bg-slate-800/80 border-slate-700/80 hover:border-slate-500'

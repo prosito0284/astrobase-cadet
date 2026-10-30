@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { GameDifficulty } from '../types/game';
 import { 
   Zap, 
@@ -6,7 +6,6 @@ import {
   CheckCircle2, 
   AlertTriangle, 
   RotateCcw,
-  Sparkles,
   ShieldAlert
 } from 'lucide-react';
 import { soundFx } from '../utils/audio';
@@ -49,12 +48,32 @@ export const WiringMiniGameModal: React.FC<WiringMiniGameModalProps> = ({
 }) => {
   // Left nodes are in standard order, right terminals are scrambled
   const leftWires = WIRE_TYPES;
-  const [rightTerminals] = useState<WireNode[]>(() => {
+  const [rightTerminals, setRightTerminals] = useState<WireNode[]>(() => {
     return [...WIRE_TYPES].sort(() => 0.5 - Math.random());
   });
 
   const [selectedLeft, setSelectedLeft] = useState<string | null>(null);
   const [connections, setConnections] = useState<{ [leftId: string]: string }>({});
+  const [isSolved, setIsSolved] = useState<boolean>(false);
+  const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // V-WIRING-PERSIST: Reset state and re-shuffle right terminals when modal opens (useEffect when isOpen becomes true)
+  useEffect(() => {
+    if (isOpen) {
+      // oxlint-disable-next-line react/set-state-in-effect
+      setConnections({});
+      setSelectedLeft(null);
+      setIsSolved(false);
+      setRightTerminals([...WIRE_TYPES].sort(() => 0.5 - Math.random()));
+    }
+    return () => {
+      // V-WIRING-DEBOUNCE: Clear pending success timer on unmount / close
+      if (successTimeoutRef.current) {
+        clearTimeout(successTimeoutRef.current);
+        successTimeoutRef.current = null;
+      }
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -62,7 +81,18 @@ export const WiringMiniGameModal: React.FC<WiringMiniGameModalProps> = ({
   const hasEnoughCrew = !requiresTwoCrew || availableCrewCount >= 2;
   const isLockedOut = batteryLockoutSeconds > 0;
 
+  const handleClose = () => {
+    // V-WIRING-DEBOUNCE: Clear timer so onSuccess does not fire after closing
+    if (successTimeoutRef.current) {
+      clearTimeout(successTimeoutRef.current);
+      successTimeoutRef.current = null;
+    }
+    soundFx.playClick();
+    onClose?.();
+  };
+
   const handleSelectLeft = (id: string) => {
+    if (isSolved) return;
     if (isLockedOut) {
       soundFx.playAlert();
       onShockCrew?.();
@@ -77,6 +107,7 @@ export const WiringMiniGameModal: React.FC<WiringMiniGameModalProps> = ({
   };
 
   const handleSelectRight = (rightId: string) => {
+    if (isSolved) return;
     if (isLockedOut) {
       soundFx.playAlert();
       onShockCrew?.();
@@ -89,8 +120,15 @@ export const WiringMiniGameModal: React.FC<WiringMiniGameModalProps> = ({
     if (!selectedLeft) return;
     soundFx.playClick();
 
-    // Map left wire to this right terminal
-    const newConns = { ...connections, [selectedLeft]: rightId };
+    // V-WIRING-INJECTIVE: Enforce injective mapping — no multiple left wires to same right terminal
+    const newConns: { [leftId: string]: string } = {};
+    for (const [lId, rId] of Object.entries(connections)) {
+      if (rId !== rightId && lId !== selectedLeft) {
+        newConns[lId] = rId;
+      }
+    }
+    newConns[selectedLeft] = rightId;
+
     setConnections(newConns);
     setSelectedLeft(null);
 
@@ -99,9 +137,11 @@ export const WiringMiniGameModal: React.FC<WiringMiniGameModalProps> = ({
     const allCorrect = allConnected && Object.entries(newConns).every(([left, right]) => left === right);
 
     if (allCorrect) {
+      // V-WIRING-DEBOUNCE: Immediately lock wire clicks upon success detection
+      setIsSolved(true);
       soundFx.playVictory();
       confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-      setTimeout(() => {
+      successTimeoutRef.current = setTimeout(() => {
         onSuccess();
       }, 700);
     } else if (allConnected) {
@@ -110,6 +150,7 @@ export const WiringMiniGameModal: React.FC<WiringMiniGameModalProps> = ({
   };
 
   const handleReset = () => {
+    if (isSolved) return;
     soundFx.playClick();
     setConnections({});
     setSelectedLeft(null);
@@ -144,10 +185,7 @@ export const WiringMiniGameModal: React.FC<WiringMiniGameModalProps> = ({
 
           {onClose && (
             <button
-              onClick={() => {
-                soundFx.playClick();
-                onClose();
-              }}
+              onClick={handleClose}
               className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all"
             >
               <X className="w-5 h-5" />
@@ -194,6 +232,7 @@ export const WiringMiniGameModal: React.FC<WiringMiniGameModalProps> = ({
                 return (
                   <button
                     key={wire.id}
+                    disabled={isSolved}
                     onClick={() => handleSelectLeft(wire.id)}
                     className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-xs font-bold transition-all ${
                       isSelected
@@ -201,7 +240,7 @@ export const WiringMiniGameModal: React.FC<WiringMiniGameModalProps> = ({
                         : isConnected
                         ? 'opacity-80 border-slate-700'
                         : 'hover:scale-[1.02] border-slate-800'
-                    }`}
+                    } ${isSolved ? 'cursor-not-allowed opacity-60' : ''}`}
                     style={{ backgroundColor: `${wire.color}22`, borderColor: wire.color }}
                   >
                     <span className="flex items-center gap-2">
@@ -227,6 +266,7 @@ export const WiringMiniGameModal: React.FC<WiringMiniGameModalProps> = ({
                 return (
                   <button
                     key={term.id}
+                    disabled={isSolved}
                     onClick={() => handleSelectRight(term.id)}
                     className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-xs font-bold transition-all ${
                       connectedLeftId
@@ -236,7 +276,7 @@ export const WiringMiniGameModal: React.FC<WiringMiniGameModalProps> = ({
                         : selectedLeft
                         ? 'hover:scale-[1.02] border-slate-700'
                         : 'border-slate-800 opacity-90'
-                    }`}
+                    } ${isSolved ? 'cursor-not-allowed' : ''}`}
                     style={{ backgroundColor: `${term.color}22`, borderColor: term.color }}
                   >
                     <span className="text-[10px] font-mono" style={{ color: term.color }}>●</span>
@@ -255,7 +295,8 @@ export const WiringMiniGameModal: React.FC<WiringMiniGameModalProps> = ({
             <span>Haz clic en un cable de la izquierda y luego en su color de la derecha.</span>
             <button
               onClick={handleReset}
-              className="flex items-center gap-1 text-[10px] text-amber-400 hover:text-amber-300 font-bold"
+              disabled={isSolved}
+              className="flex items-center gap-1 text-[10px] text-amber-400 hover:text-amber-300 disabled:opacity-50 disabled:cursor-not-allowed font-bold"
             >
               <RotateCcw className="w-3 h-3" />
               <span>Reiniciar</span>

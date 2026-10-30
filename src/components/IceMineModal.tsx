@@ -1,12 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Astronaut, GameDifficulty } from '../types/game';
 import { 
   Droplets, 
   X, 
-  Users, 
   Wind, 
   AlertTriangle, 
-  CheckCircle2, 
   ShieldAlert,
   WifiOff
 } from 'lucide-react';
@@ -35,11 +33,30 @@ export const IceMineModal: React.FC<IceMineModalProps> = ({
   onToggleAssignAstronaut,
   lang,
 }) => {
+  // V-ICEMINE-RACE: Add click debouncing / disabled state during astronaut assignment toggling
+  const [isToggling, setIsToggling] = useState<boolean>(false);
+  const toggleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      // oxlint-disable-next-line react/set-state-in-effect
+      setIsToggling(false);
+    }
+    return () => {
+      if (toggleTimeoutRef.current) {
+        clearTimeout(toggleTimeoutRef.current);
+        toggleTimeoutRef.current = null;
+      }
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
+  // V-ICEMINE-SAFETY & GHOST: Filter out deceased crew from assignment options and counts
   const livingCrew = crew.filter(c => c.status !== 'deceased');
   const livingCount = livingCrew.length;
-  const assignedCount = assignedToMine.length;
+  const validAssignedToMine = assignedToMine.filter(id => livingCrew.some(c => c.id === id));
+  const assignedCount = validAssignedToMine.length;
   const remainingInBase = livingCount - assignedCount;
 
   // In Hard mode without population expansion: requires 1 miner!
@@ -59,6 +76,20 @@ export const IceMineModal: React.FC<IceMineModalProps> = ({
   }
 
   const isOperative = assignedCount === requiredMiners && !isCommBlackout;
+
+  const handleToggle = (id: string, isAssigned: boolean, canToggleOn: boolean) => {
+    if (isToggling) return;
+    if (isAssigned || canToggleOn) {
+      setIsToggling(true);
+      soundFx.playClick();
+      onToggleAssignAstronaut(id);
+      toggleTimeoutRef.current = setTimeout(() => {
+        setIsToggling(false);
+      }, 250);
+    } else if (remainingInBase <= 1 && !isAssigned) {
+      soundFx.playAlert();
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md animate-fadeIn">
@@ -150,7 +181,7 @@ export const IceMineModal: React.FC<IceMineModalProps> = ({
           </label>
 
           {livingCrew.map(c => {
-            const isAssigned = assignedToMine.includes(c.id);
+            const isAssigned = validAssignedToMine.includes(c.id);
             const canToggleOn = !isAssigned && assignedCount < requiredMiners && remainingInBase > 1;
 
             return (
@@ -180,27 +211,22 @@ export const IceMineModal: React.FC<IceMineModalProps> = ({
                 </div>
 
                 <button
-                  onClick={() => {
-                    if (isAssigned || canToggleOn) {
-                      soundFx.playClick();
-                      onToggleAssignAstronaut(c.id);
-                    } else if (remainingInBase <= 1 && !isAssigned) {
-                      soundFx.playAlert();
-                    }
-                  }}
-                  disabled={!isAssigned && !canToggleOn}
+                  onClick={() => handleToggle(c.id, isAssigned, canToggleOn)}
+                  disabled={isToggling || (!isAssigned && !canToggleOn)}
                   className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all ${
                     isAssigned
                       ? 'bg-red-600/30 hover:bg-red-600/40 text-red-300 border border-red-500/50'
                       : canToggleOn
                       ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-md'
                       : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
-                  }`}
+                  } ${isToggling ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   {isAssigned 
                     ? (lang === 'es' ? 'Regresar a Base' : 'Recall to Base') 
-                    : remainingInBase <= 1 && !isAssigned
+                    : remainingInBase <= 1
                     ? (lang === 'es' ? 'Requiere 1 en base' : 'Must keep 1 in base')
+                    : assignedCount >= requiredMiners
+                    ? (lang === 'es' ? 'Cupo lleno' : 'Slot Full')
                     : (lang === 'es' ? 'Asignar a Mina' : 'Assign to Mine')}
                 </button>
               </div>

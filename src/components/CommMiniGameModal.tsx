@@ -1,12 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Radio, 
-  X, 
   Wifi, 
   CheckCircle2, 
-  AlertTriangle, 
-  Sparkles,
-  Sliders
 } from 'lucide-react';
 import { soundFx } from '../utils/audio';
 import confetti from 'canvas-confetti';
@@ -22,13 +18,35 @@ export const CommMiniGameModal: React.FC<CommMiniGameModalProps> = ({
   onRestoreComm,
   lang,
 }) => {
-  // Target target frequency is 8.41 GHz (Deep space X-band)
+  // Target frequency is 8.41 GHz (Deep space X-band)
   const TARGET_FREQ = 8.41;
-  const [currentFreq, setCurrentFreq] = useState<number>(8.15);
-  const [azimuthAngle, setAzimuthAngle] = useState<number>(30); // 0 - 90 deg
   const TARGET_AZIMUTH = 45;
 
+  const [currentFreq, setCurrentFreq] = useState<number>(8.15);
+  const [azimuthAngle, setAzimuthAngle] = useState<number>(30); // 0 - 90 deg
+  const [isRestoring, setIsRestoring] = useState<boolean>(false);
+  const lastAudioTimeRef = useRef<number>(0);
+
+  // V-COMM-PERSIST: Re-randomize starting frequency & azimuthAngle on modal open
+  useEffect(() => {
+    if (isOpen) {
+      // oxlint-disable-next-line react/set-state-in-effect
+      setCurrentFreq(parseFloat((8.10 + Math.random() * 0.15).toFixed(2)));
+      setAzimuthAngle(Math.floor(15 + Math.random() * 21)); // 15 - 35 deg
+      setIsRestoring(false);
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
+
+  // V-COMM-AUDIO: Throttle click sound to prevent Web Audio buffer flooding
+  const playThrottledClick = () => {
+    const now = Date.now();
+    if (now - lastAudioTimeRef.current >= 60) {
+      soundFx.playClick();
+      lastAudioTimeRef.current = now;
+    }
+  };
 
   // Signal alignment calculation
   const freqDiff = Math.abs(currentFreq - TARGET_FREQ);
@@ -40,8 +58,10 @@ export const CommMiniGameModal: React.FC<CommMiniGameModalProps> = ({
 
   const isLocked = totalSignalLock >= 90;
 
+  // V-COMM-DEBOUNCE: Add re-entrancy lock to prevent duplicate calls
   const handleFixAntenna = () => {
-    if (!isLocked) return;
+    if (!isLocked || isRestoring) return;
+    setIsRestoring(true);
     soundFx.playVictory();
     confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
     onRestoreComm();
@@ -117,7 +137,7 @@ export const CommMiniGameModal: React.FC<CommMiniGameModalProps> = ({
               step="0.01"
               value={currentFreq}
               onChange={(e) => {
-                soundFx.playClick();
+                playThrottledClick();
                 setCurrentFreq(parseFloat(e.target.value));
               }}
               className="w-full accent-cyan-400 cursor-pointer"
@@ -136,8 +156,8 @@ export const CommMiniGameModal: React.FC<CommMiniGameModalProps> = ({
               max="90"
               value={azimuthAngle}
               onChange={(e) => {
-                soundFx.playClick();
-                setAzimuthAngle(parseInt(e.target.value));
+                playThrottledClick();
+                setAzimuthAngle(parseInt(e.target.value, 10));
               }}
               className="w-full accent-indigo-400 cursor-pointer"
             />
@@ -148,12 +168,14 @@ export const CommMiniGameModal: React.FC<CommMiniGameModalProps> = ({
         <div className="mt-3">
           <button
             onClick={handleFixAntenna}
-            disabled={!isLocked}
+            disabled={!isLocked || isRestoring}
             className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs shadow-lg shadow-emerald-950/50 border border-emerald-400/40 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
           >
             <CheckCircle2 className="w-4 h-4" />
             <span>
-              {isLocked 
+              {isRestoring
+                ? (lang === 'es' ? 'Restableciendo enlace...' : 'Restoring link...')
+                : isLocked 
                 ? (lang === 'es' ? '¡Restablecer Enlace con Houston Ahora!' : 'Lock Frequency & Restore DSN Link!') 
                 : (lang === 'es' ? 'Sintoniza hasta alcanzar más del 90% de señal' : 'Tune sliders until signal exceeds 90%')}
             </span>
