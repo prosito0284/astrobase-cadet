@@ -117,8 +117,8 @@ const createInitialColonyData = (loc: BaseLocation, diff: GameDifficulty = 'norm
     empStunSeconds: 0,
     populationExpanded: false,
     assignedToMine: [],
-    lastEventDay: 0,
-    lastSolarFlareDay: 0,
+    lastEventDay: 1,
+    lastSolarFlareDay: 1,
     lastEventId: undefined,
   };
 };
@@ -206,8 +206,8 @@ export function App() {
             empStunSeconds: Math.max(0, Math.min(5, Number(c?.empStunSeconds) || 0)),
             populationExpanded: Boolean(c?.populationExpanded),
             assignedToMine: sanitizedAssignedToMine as string[],
-            lastEventDay: safeNum(c?.lastEventDay, 0, 0, 100),
-            lastSolarFlareDay: safeNum(c?.lastSolarFlareDay, 0, 0, 100),
+            lastEventDay: safeNum(c?.lastEventDay, 1, 1, 100),
+            lastSolarFlareDay: safeNum(c?.lastSolarFlareDay, 1, 1, 100),
             lastEventId: typeof c?.lastEventId === 'string' ? c.lastEventId : undefined,
           };
         };
@@ -1331,14 +1331,17 @@ export function App() {
     // 6. DYNAMIC MISSION EVENT & SPACE WEATHER SYSTEM (DONKI, MEDA, OSDR, ARTEMIS)
     // Avoids deterministic repetition on Day 3; randomizes solar storms and crises across the mission with realistic cooldowns.
     let triggeredEventId: string | null = null;
-    const daysSinceLastEvent = nextDay - (currentColony.lastEventDay || 0);
-    const daysSinceLastSolarFlare = nextDay - (currentColony.lastSolarFlareDay || 0);
+    const lastEventDay = safeNum(currentColony.lastEventDay, 1, 1, 100);
+    const lastSolarFlareDay = safeNum(currentColony.lastSolarFlareDay, 1, 1, 100);
+    const daysSinceLastEvent = nextDay - lastEventDay;
+    const daysSinceLastSolarFlare = nextDay - lastSolarFlareDay;
 
     // Eligible pool evaluation (only if not running a dedicated historical crisis scenario)
+    // Days 1-3 are protected by launch grace period (daysSinceLastEvent < 3 when lastEventDay=1)
     if (!activeCrisis && nextDay > 1 && daysSinceLastEvent >= 3) {
       // Base trigger probability per Sol
-      const baseChance = difficulty === 'facil' ? 0.22 : difficulty === 'normal' ? 0.30 : 0.40;
-      // High urgency if long period has elapsed without any space event
+      const baseChance = difficulty === 'facil' ? 0.18 : difficulty === 'normal' ? 0.28 : 0.38;
+      // High urgency if long period has elapsed without any space event (>= 6 Sols since last event)
       const triggerRoll = Math.random();
       const shouldTrigger = triggerRoll < baseChance || daysSinceLastEvent >= 6;
 
@@ -1352,28 +1355,37 @@ export function App() {
 
         // 1. DONKI Solar Flare (Class X & CME):
         // NASA Space Weather: flares happen stochastically in active sunspot regions
-        // Can occur from Day 2-3 onwards if at least 5 Sols since last solar flare
-        if (daysSinceLastSolarFlare >= 5) {
-          // If no flare has occurred yet and Sol >= 3, increase weight so player experiences the event
-          const flareWeight = (!currentColony.lastSolarFlareDay && nextDay >= 3) ? 35 : 20;
+        // In Easy mode, lethal solar radiation flares are strictly disabled on early Sols (only allowed after Day 14)
+        // In Normal mode, flares can occur after Day 6 with at least 6 Sols cooldown
+        // In Hard mode, flares can occur after Day 4 with at least 5 Sols cooldown
+        // Sol 3 will NEVER trigger a solar flare across any difficulty level.
+        const minFlareDay = difficulty === 'facil' ? 14 : difficulty === 'normal' ? 6 : 4;
+        const flareCooldown = difficulty === 'facil' ? 8 : difficulty === 'normal' ? 6 : 5;
+
+        if (nextDay >= minFlareDay && daysSinceLastSolarFlare >= flareCooldown) {
+          const flareWeight = difficulty === 'facil' ? 10 : difficulty === 'normal' ? 25 : 35;
           candidates.push({ id: 'donki_xflare', weight: flareWeight });
         }
 
         // 2. Martian Dust Storm (MEDA Atmospheric Station):
-        if (location === 'mars') {
+        if (location === 'mars' && nextDay >= 5) {
           candidates.push({ id: 'mars_dust_storm_meda', weight: 25 });
         }
 
         // 3. Artemis Lunar Night Approaching:
-        if (location === 'moon' && nextDay >= 6 && nextDay <= 16) {
+        if (location === 'moon' && nextDay >= 7 && nextDay <= 16) {
           candidates.push({ id: 'lunar_night_approaching', weight: 30 });
         }
 
         // 4. OSDR Veggie Chamber Nutrient Imbalance:
-        candidates.push({ id: 'osdr_veggie_crisis', weight: 20 });
+        if (nextDay >= 4) {
+          candidates.push({ id: 'osdr_veggie_crisis', weight: 25 });
+        }
 
         // 5. Deep Space Comms Latency & ECLSS Pump Anomaly:
-        candidates.push({ id: 'comm_delay_emergency', weight: location === 'mars' ? 25 : 15 });
+        if (nextDay >= 4) {
+          candidates.push({ id: 'comm_delay_emergency', weight: location === 'mars' ? 25 : 15 });
+        }
 
         // Filter out the immediate previous event to guarantee variety
         const filtered = candidates.filter(c => c.id !== currentColony.lastEventId);
@@ -1389,7 +1401,9 @@ export function App() {
             }
             rand -= cand.weight;
           }
-          if (!triggeredEventId) triggeredEventId = finalPool[0].id;
+          if (!triggeredEventId) {
+            triggeredEventId = finalPool[Math.floor(Math.random() * finalPool.length)].id;
+          }
         }
       }
     }

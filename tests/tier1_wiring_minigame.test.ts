@@ -114,3 +114,26 @@ test('Tier 1.4: Wiring Minigame - Multi-fault lifecycle on Mars requires fresh s
   assert.strictEqual(secondSolve.success, true);
   assert.strictEqual(sim.colony.batteryFault, false);
 });
+
+test('Tier 1.4: Wiring Minigame - Strict color matching rejects mismatched connections (cannot connect arbitrary colors)', () => {
+  const sim = new AstrobaseSimulation('moon', 'normal');
+  sim.colony.batteryFault = true;
+
+  // Attempting to connect mismatched colors: red->blue, blue->red, yellow->green, green->yellow
+  const mismatchedConns = { red: 'blue', blue: 'red', yellow: 'green', green: 'yellow' };
+  const res = sim.solveWiringCircuit(mismatchedConns);
+  assert.strictEqual(res.success, false, 'Mismatched connections must be strictly rejected');
+  assert.strictEqual(sim.colony.batteryFault, true, 'Fault must remain active when colors are mismatched');
+
+  // Attempting partial mismatch: red->red, blue->blue, yellow->green, green->yellow
+  const partialMismatch = { red: 'red', blue: 'blue', yellow: 'green', green: 'yellow' };
+  const partialRes = sim.solveWiringCircuit(partialMismatch);
+  assert.strictEqual(partialRes.success, false, 'Partial mismatch must also be rejected');
+  assert.strictEqual(sim.colony.batteryFault, true);
+
+  // Strictly correct color-to-color connection succeeds
+  const correctConns = { red: 'red', blue: 'blue', yellow: 'yellow', green: 'green' };
+  const correctRes = sim.solveWiringCircuit(correctConns);
+  assert.strictEqual(correctRes.success, true, 'Matching colors must successfully resolve circuit');
+  assert.strictEqual(sim.colony.batteryFault, false);
+});

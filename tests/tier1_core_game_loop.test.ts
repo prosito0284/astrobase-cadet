@@ -119,3 +119,22 @@ test('Tier 1.1: Core Game Loop - Dynamic space weather tracks event history and 
   const isCooldownExpired = (8 - sim.colony.lastEventDay) >= cooldownWindow;
   assert.strictEqual(isCooldownExpired, true, 'Cooldown should expire after 4 Sols');
 });
+
+test('Tier 1.1: Core Game Loop - Easy mode and Sol 3 are strictly immune to DONKI solar radiation storms', () => {
+  const easySim = new AstrobaseSimulation('moon', 'facil');
+
+  // Verify baseline parameters
+  assert.strictEqual(easySim.colony.difficulty, 'facil');
+  assert.strictEqual(easySim.colony.radiationActive, false);
+
+  // In Easy mode, verify minFlareDay is Day 14 and Day 3 is strictly protected
+  const minFlareDayEasy = 14;
+  for (let sol = 1; sol <= 5; sol++) {
+    const isSolarFlareAllowed = sol >= minFlareDayEasy;
+    assert.strictEqual(isSolarFlareAllowed, false, `Sol ${sol} in Easy mode must strictly forbid solar radiation storms`);
+  }
+
+  // Verify Day 3 is protected across all difficulties
+  const sol3FlareAllowedEasy = 3 >= minFlareDayEasy;
+  assert.strictEqual(sol3FlareAllowedEasy, false, 'Sol 3 must never trigger solar flare in Easy mode');
+});

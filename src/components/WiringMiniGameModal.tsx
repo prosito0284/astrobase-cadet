@@ -75,6 +75,8 @@ export const WiringMiniGameModal: React.FC<WiringMiniGameModalProps> = ({
   const [selectedLeft, setSelectedLeft] = useState<string | null>(null);
   const [connections, setConnections] = useState<{ [leftId: string]: string }>({});
   const [isSolved, setIsSolved] = useState<boolean>(false);
+  const [mismatchError, setMismatchError] = useState<string | null>(null);
+  const [errorTerminalId, setErrorTerminalId] = useState<string | null>(null);
   const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // V-WIRING-PERSIST: Reset state and re-shuffle right terminals when modal opens (useEffect when isOpen becomes true)
@@ -84,6 +86,8 @@ export const WiringMiniGameModal: React.FC<WiringMiniGameModalProps> = ({
       setConnections({});
       setSelectedLeft(null);
       setIsSolved(false);
+      setMismatchError(null);
+      setErrorTerminalId(null);
       setRightTerminals(generateScrambledTerminals());
     }
     return () => {
@@ -95,6 +99,8 @@ export const WiringMiniGameModal: React.FC<WiringMiniGameModalProps> = ({
       setConnections({});
       setSelectedLeft(null);
       setIsSolved(false);
+      setMismatchError(null);
+      setErrorTerminalId(null);
     };
   }, [isOpen]);
 
@@ -113,6 +119,8 @@ export const WiringMiniGameModal: React.FC<WiringMiniGameModalProps> = ({
     setConnections({});
     setSelectedLeft(null);
     setIsSolved(false);
+    setMismatchError(null);
+    setErrorTerminalId(null);
     soundFx.playClick();
     onClose?.();
   };
@@ -129,6 +137,7 @@ export const WiringMiniGameModal: React.FC<WiringMiniGameModalProps> = ({
       return;
     }
     soundFx.playClick();
+    setMismatchError(null);
     setSelectedLeft(id);
   };
 
@@ -144,21 +153,37 @@ export const WiringMiniGameModal: React.FC<WiringMiniGameModalProps> = ({
       return;
     }
     if (!selectedLeft) return;
-    soundFx.playClick();
 
-    // V-WIRING-INJECTIVE: Enforce injective mapping — no multiple left wires to same right terminal
-    const newConns: { [leftId: string]: string } = {};
-    for (const [lId, rId] of Object.entries(connections)) {
-      if (rId !== rightId && lId !== selectedLeft) {
-        newConns[lId] = rId;
-      }
+    // Strict color matching: A wire can ONLY connect to its matching color terminal!
+    if (selectedLeft !== rightId) {
+      soundFx.playAlert();
+      const leftWire = leftWires.find(w => w.id === selectedLeft);
+      const rightTerm = rightTerminals.find(t => t.id === rightId);
+      const leftName = lang === 'es' ? leftWire?.labelEs.split(' ')[0] : leftWire?.labelEn.split(' ')[0];
+      const rightName = lang === 'es' ? rightTerm?.labelEs.split(' ')[0] : rightTerm?.labelEn.split(' ')[0];
+
+      setMismatchError(
+        lang === 'es'
+          ? `⚠️ ¡Error de polaridad! El cable ${leftName} no puede conectarse al terminal ${rightName}. Conecta cada cable con su color correspondiente.`
+          : `⚠️ Polarity error! ${leftName} wire cannot connect to ${rightName} terminal. Match identical colors.`
+      );
+      setErrorTerminalId(rightId);
+      setTimeout(() => {
+        setErrorTerminalId(null);
+      }, 900);
+      return;
     }
-    newConns[selectedLeft] = rightId;
 
+    // Matching color connection!
+    soundFx.playClick();
+    setMismatchError(null);
+    setErrorTerminalId(null);
+
+    const newConns = { ...connections, [selectedLeft]: rightId };
     setConnections(newConns);
     setSelectedLeft(null);
 
-    // Check if all 4 are connected and match!
+    // Check if all 4 matching wires are connected
     const allConnected = Object.keys(newConns).length === 4;
     const allCorrect = allConnected && Object.entries(newConns).every(([left, right]) => left === right);
 
@@ -170,8 +195,6 @@ export const WiringMiniGameModal: React.FC<WiringMiniGameModalProps> = ({
       successTimeoutRef.current = setTimeout(() => {
         onSuccess();
       }, 700);
-    } else if (allConnected) {
-      soundFx.playAlert();
     }
   };
 
@@ -180,6 +203,8 @@ export const WiringMiniGameModal: React.FC<WiringMiniGameModalProps> = ({
     soundFx.playClick();
     setConnections({});
     setSelectedLeft(null);
+    setMismatchError(null);
+    setErrorTerminalId(null);
   };
 
   const completedCount = Object.keys(connections).length;
@@ -241,6 +266,14 @@ export const WiringMiniGameModal: React.FC<WiringMiniGameModalProps> = ({
           </div>
         )}
 
+        {/* Polarity / Color Mismatch Error Alert */}
+        {mismatchError && (
+          <div className="mt-3 p-2.5 rounded-2xl bg-red-950/95 border-2 border-red-500 text-red-200 text-xs font-bold animate-shake flex items-center justify-center gap-2 shadow-lg shadow-red-950">
+            <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0 animate-pulse" />
+            <span>{mismatchError}</span>
+          </div>
+        )}
+
         {/* Electrical Box Board */}
         <div className="my-4 bg-slate-950 border border-slate-800 rounded-2xl p-4 sm:p-6 relative">
           <div className="text-[11px] font-mono text-slate-400 mb-3 flex items-center justify-between">
@@ -288,28 +321,32 @@ export const WiringMiniGameModal: React.FC<WiringMiniGameModalProps> = ({
             <div className="space-y-3.5 flex-1">
               {rightTerminals.map(term => {
                 const connectedLeftId = Object.keys(connections).find(k => connections[k] === term.id);
-                const isCorrectMatch = connectedLeftId === term.id;
+                const isConnected = !!connectedLeftId;
+                const isErrored = errorTerminalId === term.id;
                 return (
                   <button
                     key={term.id}
                     disabled={isSolved}
                     onClick={() => handleSelectRight(term.id)}
                     className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-xs font-bold transition-all ${
-                      connectedLeftId
-                        ? isCorrectMatch
-                          ? 'border-emerald-500 bg-emerald-950/60 shadow-md'
-                          : 'border-red-500 bg-red-950/60 animate-shake'
+                      isErrored
+                        ? 'border-red-500 bg-red-900/80 ring-2 ring-red-400 animate-shake scale-105'
+                        : isConnected
+                        ? 'border-emerald-500 bg-emerald-950/70 shadow-md ring-1 ring-emerald-400'
                         : selectedLeft
                         ? 'hover:scale-[1.02] border-slate-700'
                         : 'border-slate-800 opacity-90'
                     } ${isSolved ? 'cursor-not-allowed' : ''}`}
-                    style={{ backgroundColor: `${term.color}22`, borderColor: term.color }}
+                    style={{ backgroundColor: isErrored ? '#7f1d1d' : `${term.color}22`, borderColor: isErrored ? '#ef4444' : term.color }}
                   >
                     <span className="text-[10px] font-mono" style={{ color: term.color }}>●</span>
                     <span className="flex items-center gap-2">
                       <span className="text-slate-200">{lang === 'es' ? term.labelEs.split(' ')[0] : term.labelEn.split(' ')[0]}</span>
                       <span className="w-3.5 h-3.5 rounded-full shadow-sm" style={{ backgroundColor: term.color }} />
                     </span>
+                    {isConnected && (
+                      <span className="text-[10px] font-mono text-emerald-400 font-black">✓ OK</span>
+                    )}
                   </button>
                 );
               })}

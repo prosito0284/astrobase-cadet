@@ -7,6 +7,24 @@ const server = http.createServer((request, response) => {
   return handler(request, response, {
     public: 'dist',
     cleanUrls: true,
+    headers: [
+      {
+        source: '**/*.html',
+        headers: [
+          { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
+          { key: 'Pragma', value: 'no-cache' },
+          { key: 'Expires', value: '0' }
+        ]
+      },
+      {
+        source: 'index.html',
+        headers: [
+          { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
+          { key: 'Pragma', value: 'no-cache' },
+          { key: 'Expires', value: '0' }
+        ]
+      }
+    ],
     rewrites: [
       { source: '**', destination: '/index.html' }
     ]
