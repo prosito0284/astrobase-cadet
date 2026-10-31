@@ -149,7 +149,7 @@ export function App() {
   // INDEPENDENT PERSISTENT COLONY STATE (MOON & MARS MAINTAIN SEPARATE PROGRESS)
   const [colonies, setColonies] = useState<{ moon: ColonySaveData; mars: ColonySaveData }>(() => {
     try {
-      const saved = localStorage.getItem('astrobase_dual_save_v6') || localStorage.getItem('astrobase_dual_save_v5');
+      const saved = localStorage.getItem('astrobase_dual_save_v7') || localStorage.getItem('astrobase_dual_save_v6') || localStorage.getItem('astrobase_dual_save_v5');
       if (saved) {
         const parsed = JSON.parse(saved);
         const mergeColony = (c: any, loc: BaseLocation): ColonySaveData => {
@@ -467,7 +467,7 @@ export function App() {
 
   useEffect(() => {
     try {
-      localStorage.setItem('astrobase_dual_save_v6', JSON.stringify(colonies));
+      localStorage.setItem('astrobase_dual_save_v7', JSON.stringify(colonies));
     } catch {}
   }, [colonies]);
 
@@ -526,6 +526,9 @@ export function App() {
     if (newDiff === difficulty && currentColony.difficulty === newDiff) return;
 
     setDifficulty(newDiff);
+    setCurrentEvent(null);
+    setIsWiringOpen(false);
+    setActiveCrisis(null);
     setColonies(all => ({
       ...all,
       [location]: createInitialColonyData(location, newDiff),
@@ -1329,60 +1332,68 @@ export function App() {
     }
 
     // 6. DYNAMIC MISSION EVENT & SPACE WEATHER SYSTEM (DONKI, MEDA, OSDR, ARTEMIS)
-    // Avoids deterministic repetition on Day 3; randomizes solar storms and crises across the mission with realistic cooldowns.
+    // DONKI Solar Flare (Class X & CME) is a SUPER RARE RANDOM COSMIC HAZARD, decoupled from regular events.
+    // Sols 1 to 5 are strictly 100% IMMUNE to any solar flares across ALL difficulties (Day 3 NEVER triggers solar flare).
     let triggeredEventId: string | null = null;
     const lastEventDay = safeNum(currentColony.lastEventDay, 1, 1, 100);
     const lastSolarFlareDay = safeNum(currentColony.lastSolarFlareDay, 1, 1, 100);
     const daysSinceLastEvent = nextDay - lastEventDay;
     const daysSinceLastSolarFlare = nextDay - lastSolarFlareDay;
 
-    // Eligible pool evaluation (only if not running a dedicated historical crisis scenario)
-    // Days 1-3 are protected by launch grace period (daysSinceLastEvent < 3 when lastEventDay=1)
-    if (!activeCrisis && nextDay > 1 && daysSinceLastEvent >= 3) {
-      // Base trigger probability per Sol
-      const baseChance = difficulty === 'facil' ? 0.18 : difficulty === 'normal' ? 0.28 : 0.38;
-      // High urgency if long period has elapsed without any space event (>= 6 Sols since last event)
+    // A. INDEPENDENT SUPER-RARE DONKI SOLAR FLARE (Class X & CME)
+    // Real NASA Space Weather: extreme coronal mass ejections are very rare occurrences during a solar cycle.
+    // Early Sols (1-5) are 100% IMMUNE across ALL difficulties.
+    if (!activeCrisis && nextDay > 5) {
+      let isFlareEligible = false;
+      let flareChance = 0;
+
+      if (difficulty === 'facil' && nextDay > 15 && daysSinceLastSolarFlare >= 10) {
+        isFlareEligible = true;
+        flareChance = 0.008; // ~0.8% rare chance per Sol after Day 15
+      } else if (difficulty === 'normal' && nextDay > 8 && daysSinceLastSolarFlare >= 8) {
+        isFlareEligible = true;
+        flareChance = 0.025; // ~2.5% rare chance per Sol after Day 8
+      } else if (difficulty === 'dificil' && nextDay > 6 && daysSinceLastSolarFlare >= 7) {
+        isFlareEligible = true;
+        flareChance = 0.045; // ~4.5% rare chance per Sol after Day 6
+      }
+
+      if (isFlareEligible && Math.random() < flareChance) {
+        triggeredEventId = 'donki_xflare';
+      }
+    }
+
+    // B. REGULAR DYNAMIC MISSION EVENTS (OSDR, MEDA, ARTEMIS, COMMS)
+    // Only evaluated if no solar flare occurred and not running a dedicated historical crisis scenario.
+    // Days 1-3 are protected by launch grace period (nextDay > 3 and daysSinceLastEvent >= 4).
+    if (!triggeredEventId && !activeCrisis && nextDay > 3 && daysSinceLastEvent >= 4) {
+      const baseChance = difficulty === 'facil' ? 0.15 : difficulty === 'normal' ? 0.22 : 0.30;
       const triggerRoll = Math.random();
       const shouldTrigger = triggerRoll < baseChance || daysSinceLastEvent >= 6;
 
       if (shouldTrigger) {
-        // Build weighted candidates
         interface EventCandidate {
           id: string;
           weight: number;
         }
         const candidates: EventCandidate[] = [];
 
-        // 1. DONKI Solar Flare (Class X & CME):
-        // NASA Space Weather: flares happen stochastically in active sunspot regions
-        // In Easy mode, lethal solar radiation flares are strictly disabled on early Sols (only allowed after Day 14)
-        // In Normal mode, flares can occur after Day 6 with at least 6 Sols cooldown
-        // In Hard mode, flares can occur after Day 4 with at least 5 Sols cooldown
-        // Sol 3 will NEVER trigger a solar flare across any difficulty level.
-        const minFlareDay = difficulty === 'facil' ? 14 : difficulty === 'normal' ? 6 : 4;
-        const flareCooldown = difficulty === 'facil' ? 8 : difficulty === 'normal' ? 6 : 5;
-
-        if (nextDay >= minFlareDay && daysSinceLastSolarFlare >= flareCooldown) {
-          const flareWeight = difficulty === 'facil' ? 10 : difficulty === 'normal' ? 25 : 35;
-          candidates.push({ id: 'donki_xflare', weight: flareWeight });
-        }
-
-        // 2. Martian Dust Storm (MEDA Atmospheric Station):
+        // 1. Martian Dust Storm (MEDA Atmospheric Station):
         if (location === 'mars' && nextDay >= 5) {
           candidates.push({ id: 'mars_dust_storm_meda', weight: 25 });
         }
 
-        // 3. Artemis Lunar Night Approaching:
+        // 2. Artemis Lunar Night Approaching:
         if (location === 'moon' && nextDay >= 7 && nextDay <= 16) {
           candidates.push({ id: 'lunar_night_approaching', weight: 30 });
         }
 
-        // 4. OSDR Veggie Chamber Nutrient Imbalance:
+        // 3. OSDR Veggie Chamber Nutrient Imbalance:
         if (nextDay >= 4) {
           candidates.push({ id: 'osdr_veggie_crisis', weight: 25 });
         }
 
-        // 5. Deep Space Comms Latency & ECLSS Pump Anomaly:
+        // 4. Deep Space Comms Latency & ECLSS Pump Anomaly:
         if (nextDay >= 4) {
           candidates.push({ id: 'comm_delay_emergency', weight: location === 'mars' ? 25 : 15 });
         }
@@ -1868,6 +1879,8 @@ export function App() {
   const handleRestartMission = (newDiff?: GameDifficulty) => {
     const diff = newDiff || difficulty;
     setDifficulty(diff);
+    setCurrentEvent(null);
+    setIsWiringOpen(false);
     setIsGameOverOpen(false);
     setIsReportOpen(false);
     setActiveCrisis(null); // Clear active crisis so it doesn't leak into new games!

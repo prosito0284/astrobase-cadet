@@ -174,6 +174,18 @@ export const WiringMiniGameModal: React.FC<WiringMiniGameModalProps> = ({
       return;
     }
 
+    // Terminal occupancy check: Cannot connect if right terminal is already connected to another wire
+    const existingOccupant = Object.entries(connections).find(([l, r]) => r === rightId && l !== selectedLeft);
+    if (existingOccupant) {
+      soundFx.playAlert();
+      setMismatchError(
+        lang === 'es'
+          ? '⚠️ Este terminal ya está ocupado. Elige su color correspondiente libre o reinicia el circuito.'
+          : '⚠️ Terminal already occupied. Connect to an available matching terminal.'
+      );
+      return;
+    }
+
     // Matching color connection!
     soundFx.playClick();
     setMismatchError(null);
