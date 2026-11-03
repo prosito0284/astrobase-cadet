@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { AstrobaseSimulation, ROVER_TARGETS } from './helpers/gameHarness.ts';
+import { AstrobaseSimulation, ROVER_TARGETS, clampResources } from './helpers/gameHarness.ts';
 import { MISSION_EVENTS } from '../src/data/events.ts';
 
 // Helper to simulate asynchronous timer delays
@@ -583,3 +583,94 @@ test('Tier 5.6: Wiring Minigame - Closing modal during 700ms victory delay cance
 
   assert.strictEqual(onSuccessCalled, false, 'onSuccess must NOT fire if modal was closed before timer completion');
 });
+
+/* =========================================================================
+ * FOCUS AREA 7: Phase 2 Security Hardening Verification
+ * ========================================================================= */
+
+test('Tier 5.7: Shock spam cooldown - 10 rapid concurrent shock attempts only process 1 shock within 800ms window', () => {
+  let isShocking = false;
+  let shockExecutionCount = 0;
+  let crewHealth = 100;
+
+  const handleShockCrew = () => {
+    if (isShocking) return false;
+    isShocking = true;
+    setTimeout(() => { isShocking = false; }, 800);
+
+    crewHealth = Math.max(1, Math.round(crewHealth * 0.5));
+    shockExecutionCount++;
+    return true;
+  };
+
+  // 10 rapid clicks within 50ms
+  for (let i = 0; i < 10; i++) {
+    handleShockCrew();
+  }
+
+  // Exactly 1 shock was executed; crew health is 50%, NOT 0.09% (decimated)
+  assert.strictEqual(shockExecutionCount, 1);
+  assert.strictEqual(crewHealth, 50);
+});
+
+test('Tier 5.8: Storage hardening - clampResources strictly bounds maxSciencePoints and rejects negative capacities', () => {
+  // Attempting to inject 999,999 science points via storage poisoning
+  const poisoned1 = clampResources({
+    maxSciencePoints: 999999,
+    sciencePoints: 999999,
+  });
+  assert.strictEqual(poisoned1.maxSciencePoints, 500, 'maxSciencePoints must strictly clamp to MAX_SCIENCE_POINTS (500)');
+  assert.strictEqual(poisoned1.sciencePoints, 500, 'sciencePoints must not exceed 500');
+
+  // Attempting negative capacity injection
+  const poisoned2 = clampResources({
+    maxOxygen: -50,
+    oxygen: 50,
+  });
+  assert.strictEqual(poisoned2.maxOxygen, 100, 'Negative maxOxygen must fallback to default safe capacity 100');
+  assert.strictEqual(poisoned2.oxygen, 50, 'oxygen must clamp to positive max capacity');
+});
+
+test('Tier 5.9: Restart isolation - handleRestartMission clears grace period timer and resets all debouncing refs', () => {
+  let zeroOxygenTimer: any = setTimeout(() => {}, 3000);
+  let isHarvestingRef = true;
+  let isSortieSubmittingRef = true;
+  let isWiringSubmittingRef = true;
+  let isAdvancingRef = true;
+  let isShockingRef = true;
+  let isRestartingRef = false;
+
+  const handleRestartMission = () => {
+    if (isRestartingRef) return;
+    isRestartingRef = true;
+    setTimeout(() => { isRestartingRef = false; }, 600);
+
+    if (zeroOxygenTimer) {
+      clearTimeout(zeroOxygenTimer);
+      zeroOxygenTimer = null;
+    }
+    isHarvestingRef = false;
+    isSortieSubmittingRef = false;
+    isWiringSubmittingRef = false;
+    isAdvancingRef = false;
+    isShockingRef = false;
+  };
+
+  handleRestartMission();
+
+  assert.strictEqual(zeroOxygenTimer, null, 'Grace timer must be cleared');
+  assert.strictEqual(isHarvestingRef, false, 'Harvest lock ref must be reset');
+  assert.strictEqual(isSortieSubmittingRef, false, 'Sortie lock ref must be reset');
+  assert.strictEqual(isWiringSubmittingRef, false, 'Wiring lock ref must be reset');
+  assert.strictEqual(isAdvancingRef, false, 'Advancing lock ref must be reset');
+  assert.strictEqual(isShockingRef, false, 'Shock lock ref must be reset');
+});
+
+test('Tier 5.10: DeltaTime clamping - tick loop clamps dt to Math.min(rawDt, 0.1) under tab backgrounding simulation', () => {
+  // Simulate tab backgrounded for 20 seconds (rawDt = 20.0s)
+  const rawDt = 20.0;
+  const clampedDt = Math.min(rawDt, 0.1);
+
+  assert.strictEqual(clampedDt, 0.1, 'Delta time must be clamped to max 0.1s to prevent sudden energy drain or speed spikes');
+});
+

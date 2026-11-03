@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { FlightLogEntry, BaseLocation } from '../types/game';
 import { 
   FileText, 
@@ -32,6 +32,16 @@ export const FlightLogModal: React.FC<FlightLogModalProps> = ({
 }) => {
   const [copied, setCopied] = useState(false);
   const [filterLocation, setFilterLocation] = useState<'all' | BaseLocation>('all');
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+        copyTimeoutRef.current = null;
+      }
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -40,12 +50,16 @@ export const FlightLogModal: React.FC<FlightLogModalProps> = ({
   const handleCopy = () => {
     soundFx.playClick();
     const text = filtered.map(e => 
-      `[${e.location.toUpperCase()} - DÍA ${e.day} (${e.timestamp})] ${lang === 'es' ? e.messageEs : e.messageEn}`
+      `[${(e.location || 'moon').toUpperCase()} - DÍA ${e.day} (${e.timestamp})] ${lang === 'es' ? e.messageEs : e.messageEn}`
     ).join('\n');
 
     navigator.clipboard.writeText(text).then(() => {
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+      copyTimeoutRef.current = setTimeout(() => {
+        setCopied(false);
+        copyTimeoutRef.current = null;
+      }, 2000);
     }).catch(() => {});
   };
 

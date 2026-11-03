@@ -15,29 +15,47 @@ export const clampResources = (
   res: Partial<ResourceState> | undefined,
   baseMax?: Partial<ResourceState>
 ): ResourceState => {
-  const maxO2 = Number(res?.maxOxygen ?? baseMax?.maxOxygen ?? 100);
-  const maxH2O = Number(res?.maxWater ?? baseMax?.maxWater ?? 100);
-  const maxE = Number(res?.maxEnergy ?? baseMax?.maxEnergy ?? 100);
-  const maxF = Number(res?.maxFood ?? baseMax?.maxFood ?? 100);
-  const maxSci = Number(res?.maxSciencePoints ?? baseMax?.maxSciencePoints ?? MAX_SCIENCE_POINTS);
+  const getPositiveCap = (val: any, fallbackVal: any, defaultVal: number): number => {
+    const n = Number(val);
+    if (Number.isFinite(n) && n > 0) return n;
+    const fb = Number(fallbackVal);
+    if (Number.isFinite(fb) && fb > 0) return fb;
+    return defaultVal;
+  };
+
+  const maxO2 = getPositiveCap(res?.maxOxygen, baseMax?.maxOxygen, 100);
+  const maxH2O = getPositiveCap(res?.maxWater, baseMax?.maxWater, 100);
+  const maxE = getPositiveCap(res?.maxEnergy, baseMax?.maxEnergy, 100);
+  const maxF = getPositiveCap(res?.maxFood, baseMax?.maxFood, 100);
+
+  const rawMaxSci = Number.isFinite(Number(res?.maxSciencePoints))
+    ? Number(res?.maxSciencePoints)
+    : Number.isFinite(Number(baseMax?.maxSciencePoints))
+      ? Number(baseMax?.maxSciencePoints)
+      : MAX_SCIENCE_POINTS;
+  const maxSci = Math.max(1, Math.min(MAX_SCIENCE_POINTS, rawMaxSci));
 
   const safeNum = (v: any, fallback: number, min: number, max: number): number => {
+    const safeFallback = Number.isFinite(fallback) ? Math.max(min, Math.min(max, fallback)) : min;
+    if (v === undefined || v === null) return safeFallback;
     const n = Number(v);
-    if (isNaN(n) || !isFinite(n)) return fallback;
-    return Math.max(min, Math.min(max, n));
+    if (!Number.isFinite(n)) return safeFallback;
+    if (n < min) return min;
+    if (n > max) return max;
+    return n;
   };
 
   return {
     oxygen: safeNum(res?.oxygen, 80, 0, maxO2),
-    maxOxygen: maxO2 > 0 ? maxO2 : 100,
+    maxOxygen: maxO2,
     water: safeNum(res?.water, 75, 0, maxH2O),
-    maxWater: maxH2O > 0 ? maxH2O : 100,
+    maxWater: maxH2O,
     energy: safeNum(res?.energy, 85, 0, maxE),
-    maxEnergy: maxE > 0 ? maxE : 100,
+    maxEnergy: maxE,
     energyProduction: safeNum(res?.energyProduction, 30, 0, 9999),
     energyConsumption: safeNum(res?.energyConsumption, 25, 0, 9999),
     food: safeNum(res?.food, 80, 0, maxF),
-    maxFood: maxF > 0 ? maxF : 100,
+    maxFood: maxF,
     radiationExposure: safeNum(res?.radiationExposure, 0, 0, 9999),
     shieldIntegrity: safeNum(res?.shieldIntegrity, 80, 0, 100),
     sciencePoints: safeNum(res?.sciencePoints, 0, 0, maxSci),

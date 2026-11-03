@@ -33,6 +33,7 @@ export const ModuleControl: React.FC<ModuleControlProps> = ({
 }) => {
   const [isUpgrading, setIsUpgrading] = useState(false);
   const upgradeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastToggleTimeRef = useRef<number>(0);
 
   useEffect(() => {
     return () => {
@@ -128,6 +129,10 @@ export const ModuleControl: React.FC<ModuleControlProps> = ({
             <div className="flex items-center gap-2">
               <button
                 onClick={() => {
+                  const now = Date.now();
+                  if (now - lastToggleTimeRef.current < 250) return;
+                  lastToggleTimeRef.current = now;
+
                   if (activeModule.isActive) {
                     soundFx.playToggleOff();
                   } else {

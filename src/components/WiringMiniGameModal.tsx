@@ -78,6 +78,16 @@ export const WiringMiniGameModal: React.FC<WiringMiniGameModalProps> = ({
   const [mismatchError, setMismatchError] = useState<string | null>(null);
   const [errorTerminalId, setErrorTerminalId] = useState<string | null>(null);
   const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const errorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastShockTimeRef = useRef<number>(0);
+
+  const triggerShock = () => {
+    const now = Date.now();
+    if (now - lastShockTimeRef.current < 800) return;
+    lastShockTimeRef.current = now;
+    soundFx.playAlert();
+    onShockCrew?.();
+  };
 
   // V-WIRING-PERSIST: Reset state and re-shuffle right terminals when modal opens (useEffect when isOpen becomes true)
   useEffect(() => {
@@ -95,6 +105,10 @@ export const WiringMiniGameModal: React.FC<WiringMiniGameModalProps> = ({
       if (successTimeoutRef.current) {
         clearTimeout(successTimeoutRef.current);
         successTimeoutRef.current = null;
+      }
+      if (errorTimeoutRef.current) {
+        clearTimeout(errorTimeoutRef.current);
+        errorTimeoutRef.current = null;
       }
       setConnections({});
       setSelectedLeft(null);
@@ -116,6 +130,10 @@ export const WiringMiniGameModal: React.FC<WiringMiniGameModalProps> = ({
       clearTimeout(successTimeoutRef.current);
       successTimeoutRef.current = null;
     }
+    if (errorTimeoutRef.current) {
+      clearTimeout(errorTimeoutRef.current);
+      errorTimeoutRef.current = null;
+    }
     setConnections({});
     setSelectedLeft(null);
     setIsSolved(false);
@@ -128,8 +146,7 @@ export const WiringMiniGameModal: React.FC<WiringMiniGameModalProps> = ({
   const handleSelectLeft = (id: string) => {
     if (isSolved) return;
     if (isLockedOut) {
-      soundFx.playAlert();
-      onShockCrew?.();
+      triggerShock();
       return;
     }
     if (!hasEnoughCrew) {
@@ -144,8 +161,7 @@ export const WiringMiniGameModal: React.FC<WiringMiniGameModalProps> = ({
   const handleSelectRight = (rightId: string) => {
     if (isSolved) return;
     if (isLockedOut) {
-      soundFx.playAlert();
-      onShockCrew?.();
+      triggerShock();
       return;
     }
     if (!hasEnoughCrew) {
@@ -168,8 +184,10 @@ export const WiringMiniGameModal: React.FC<WiringMiniGameModalProps> = ({
           : `⚠️ Polarity error! ${leftName} wire cannot connect to ${rightName} terminal. Match identical colors.`
       );
       setErrorTerminalId(rightId);
-      setTimeout(() => {
+      if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
+      errorTimeoutRef.current = setTimeout(() => {
         setErrorTerminalId(null);
+        errorTimeoutRef.current = null;
       }, 900);
       return;
     }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { BaseLocation } from '../types/game';
 import { 
   Radio, 
@@ -38,6 +38,8 @@ export const CommCenter: React.FC<CommCenterProps> = ({
 }) => {
   const isMars = location === 'mars';
   const [isTransmitting, setIsTransmitting] = useState(false);
+  const commTimerRef = useRef<ReturnType<typeof setTimeout> | ReturnType<typeof setInterval> | null>(null);
+  const startTimeRef = useRef<number>(0);
   const [messages, setMessages] = useState<MessageItem[]>([
     {
       sender: 'Houston',
@@ -53,7 +55,52 @@ export const CommCenter: React.FC<CommCenterProps> = ({
 
   const [simulatedDelayProgress, setSimulatedDelayProgress] = useState<number | null>(null);
 
+  // Clear timers on unmount or location change
+  useEffect(() => {
+    return () => {
+      if (commTimerRef.current) {
+        clearInterval(commTimerRef.current);
+        clearTimeout(commTimerRef.current);
+        commTimerRef.current = null;
+      }
+      setIsTransmitting(false);
+      setSimulatedDelayProgress(null);
+    };
+  }, [location]);
+
+  // Handle visibility changes so Mars timer completes if backgrounded
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && isTransmitting && isMars) {
+        const elapsed = Date.now() - startTimeRef.current;
+        if (elapsed >= 5000) {
+          if (commTimerRef.current) {
+            clearInterval(commTimerRef.current);
+            commTimerRef.current = null;
+          }
+          setIsTransmitting(false);
+          setSimulatedDelayProgress(null);
+          soundFx.playRadioBeep();
+          const houstonResponse: MessageItem = {
+            sender: 'Houston',
+            textEs: 'Houston a Base Jezero: Recibimos su transmisión con 12 minutos de retraso. Ingenieros recomiendan priorizar calefacción del hábitat y mantener reservas de agua para electrólisis.',
+            textEn: 'Houston to Jezero: Copy report with 12 min radio lag. Engineering flight team advises preserving habitat heat and conserving water electrolysis.',
+            time: 'T+12m',
+            delayNotice: 'Retraso de señal: 12 min ida y vuelta (300.000 km/s)',
+          };
+          setMessages(p => [...p, houstonResponse]);
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [isTransmitting, isMars]);
+
   const handleRequestGuidance = () => {
+    if (isTransmitting) return;
+
     soundFx.playRadioBeep();
     setIsTransmitting(true);
 
@@ -68,31 +115,41 @@ export const CommCenter: React.FC<CommCenterProps> = ({
 
     // Communication delay simulation
     if (isMars) {
-      // Mars delay simulation: 5 seconds countdown representing 12 min
       setSimulatedDelayProgress(5);
-      const timer = setInterval(() => {
-        setSimulatedDelayProgress(prev => {
-          if (prev === null || prev <= 1) {
-            clearInterval(timer);
-            setIsTransmitting(false);
-            soundFx.playRadioBeep();
-            
-            const houstonResponse: MessageItem = {
-              sender: 'Houston',
-              textEs: 'Houston a Base Jezero: Recibimos su transmisión con 12 minutos de retraso. Ingenieros recomiendan priorizar calefacción del hábitat y mantener reservas de agua para electrólisis.',
-              textEn: 'Houston to Jezero: Copy report with 12 min radio lag. Engineering flight team advises preserving habitat heat and conserving water electrolysis.',
-              time: 'T+12m',
-              delayNotice: 'Retraso de señal: 12 min ida y vuelta (300.000 km/s)',
-            };
-            setMessages(p => [...p, houstonResponse]);
-            return null;
-          }
-          return prev - 1;
-        });
-      }, 1000);
+      startTimeRef.current = Date.now();
+      const totalDelay = 5000;
+
+      const finishTransmission = () => {
+        if (commTimerRef.current) {
+          clearInterval(commTimerRef.current);
+          commTimerRef.current = null;
+        }
+        setIsTransmitting(false);
+        setSimulatedDelayProgress(null);
+        soundFx.playRadioBeep();
+
+        const houstonResponse: MessageItem = {
+          sender: 'Houston',
+          textEs: 'Houston a Base Jezero: Recibimos su transmisión con 12 minutos de retraso. Ingenieros recomiendan priorizar calefacción del hábitat y mantener reservas de agua para electrólisis.',
+          textEn: 'Houston to Jezero: Copy report with 12 min radio lag. Engineering flight team advises preserving habitat heat and conserving water electrolysis.',
+          time: 'T+12m',
+          delayNotice: 'Retraso de señal: 12 min ida y vuelta (300.000 km/s)',
+        };
+        setMessages(p => [...p, houstonResponse]);
+      };
+
+      commTimerRef.current = setInterval(() => {
+        const elapsed = Date.now() - startTimeRef.current;
+        if (elapsed >= totalDelay) {
+          finishTransmission();
+        } else {
+          const remaining = Math.max(1, 5 - Math.floor(elapsed / 1000));
+          setSimulatedDelayProgress(remaining);
+        }
+      }, 250);
     } else {
       // Moon delay simulation: fast 1.3s
-      setTimeout(() => {
+      commTimerRef.current = setTimeout(() => {
         setIsTransmitting(false);
         soundFx.playRadioBeep();
         const houstonResponse: MessageItem = {
@@ -102,6 +159,7 @@ export const CommCenter: React.FC<CommCenterProps> = ({
           time: 'T+1.3s',
         };
         setMessages(p => [...p, houstonResponse]);
+        commTimerRef.current = null;
       }, 1300);
     }
   };

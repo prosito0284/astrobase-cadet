@@ -33,6 +33,7 @@ export const PopulationExpansionModal: React.FC<PopulationExpansionModalProps> =
   currentDay,
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
   const submitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -41,8 +42,9 @@ export const PopulationExpansionModal: React.FC<PopulationExpansionModalProps> =
         clearTimeout(submitTimeoutRef.current);
         submitTimeoutRef.current = null;
       }
+      isSubmittingRef.current = false;
     };
-  }, []);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -63,7 +65,8 @@ export const PopulationExpansionModal: React.FC<PopulationExpansionModalProps> =
   const costFood = Math.round(currentResources.food * 0.25);
 
   const handleAccept = () => {
-    if (isSubmitting || !canConfirm) return;
+    if (isSubmittingRef.current || isSubmitting || !canConfirm) return;
+    isSubmittingRef.current = true;
     setIsSubmitting(true);
     soundFx.playVictory();
     confetti({ particleCount: 150, spread: 80, origin: { y: 0.5 } });
@@ -71,6 +74,7 @@ export const PopulationExpansionModal: React.FC<PopulationExpansionModalProps> =
     onClose();
     submitTimeoutRef.current = setTimeout(() => {
       setIsSubmitting(false);
+      isSubmittingRef.current = false;
     }, 500);
   };
 

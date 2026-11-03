@@ -48,12 +48,13 @@ import { Sparkles, Thermometer, AlertTriangle, WifiOff, Zap } from 'lucide-react
 const MAX_SCIENCE_POINTS = 500;
 
 export const safeNum = (v: any, fallback: number, min: number, max: number): number => {
-  if (v === undefined || v === null) return fallback;
+  const safeFallback = Number.isFinite(fallback) ? Math.max(min, Math.min(max, fallback)) : min;
+  if (v === undefined || v === null) return safeFallback;
   const n = Number(v);
-  if (isNaN(n)) return fallback;
-  if (n === -Infinity || n < min) return min;
-  if (n === Infinity || n > max) return max;
-  return Math.max(min, Math.min(max, n));
+  if (!Number.isFinite(n)) return safeFallback;
+  if (n < min) return min;
+  if (n > max) return max;
+  return n;
 };
 
 // oxlint-disable-next-line react/only-export-components
@@ -61,23 +62,37 @@ export const clampResources = (
   res: Partial<ResourceState> | undefined,
   baseMax?: Partial<ResourceState>
 ): ResourceState => {
-  const maxO2 = Number(res?.maxOxygen ?? baseMax?.maxOxygen ?? 100);
-  const maxH2O = Number(res?.maxWater ?? baseMax?.maxWater ?? 100);
-  const maxE = Number(res?.maxEnergy ?? baseMax?.maxEnergy ?? 100);
-  const maxF = Number(res?.maxFood ?? baseMax?.maxFood ?? 100);
-  const maxSci = Number(res?.maxSciencePoints ?? baseMax?.maxSciencePoints ?? MAX_SCIENCE_POINTS);
+  const getPositiveCap = (val: any, fallbackVal: any, defaultVal: number): number => {
+    const n = Number(val);
+    if (Number.isFinite(n) && n > 0) return n;
+    const fb = Number(fallbackVal);
+    if (Number.isFinite(fb) && fb > 0) return fb;
+    return defaultVal;
+  };
+
+  const maxO2 = getPositiveCap(res?.maxOxygen, baseMax?.maxOxygen, 100);
+  const maxH2O = getPositiveCap(res?.maxWater, baseMax?.maxWater, 100);
+  const maxE = getPositiveCap(res?.maxEnergy, baseMax?.maxEnergy, 100);
+  const maxF = getPositiveCap(res?.maxFood, baseMax?.maxFood, 100);
+
+  const rawMaxSci = Number.isFinite(Number(res?.maxSciencePoints))
+    ? Number(res?.maxSciencePoints)
+    : Number.isFinite(Number(baseMax?.maxSciencePoints))
+      ? Number(baseMax?.maxSciencePoints)
+      : MAX_SCIENCE_POINTS;
+  const maxSci = Math.max(1, Math.min(MAX_SCIENCE_POINTS, rawMaxSci));
 
   return {
     oxygen: safeNum(res?.oxygen, baseMax?.oxygen ?? 0, 0, maxO2),
-    maxOxygen: maxO2 > 0 ? maxO2 : 100,
+    maxOxygen: maxO2,
     water: safeNum(res?.water, baseMax?.water ?? 0, 0, maxH2O),
-    maxWater: maxH2O > 0 ? maxH2O : 100,
+    maxWater: maxH2O,
     energy: safeNum(res?.energy, baseMax?.energy ?? 0, 0, maxE),
-    maxEnergy: maxE > 0 ? maxE : 100,
+    maxEnergy: maxE,
     energyProduction: safeNum(res?.energyProduction, baseMax?.energyProduction ?? 30, 0, 9999),
     energyConsumption: safeNum(res?.energyConsumption, baseMax?.energyConsumption ?? 25, 0, 9999),
     food: safeNum(res?.food, baseMax?.food ?? 0, 0, maxF),
-    maxFood: maxF > 0 ? maxF : 100,
+    maxFood: maxF,
     radiationExposure: safeNum(res?.radiationExposure, baseMax?.radiationExposure ?? 0, 0, 9999),
     shieldIntegrity: safeNum(res?.shieldIntegrity, baseMax?.shieldIntegrity ?? 80, 0, 100),
     sciencePoints: safeNum(res?.sciencePoints, baseMax?.sciencePoints ?? 0, 0, maxSci),
@@ -153,7 +168,8 @@ export function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         const mergeColony = (c: any, loc: BaseLocation): ColonySaveData => {
-          const init = createInitialColonyData(loc, c?.difficulty || 'normal');
+          const safeDiff: GameDifficulty = (c?.difficulty === 'facil' || c?.difficulty === 'normal' || c?.difficulty === 'dificil') ? c.difficulty : 'normal';
+          const init = createInitialColonyData(loc, safeDiff);
           const maxAllowed = loc === 'moon' ? 28 : 30;
           let safeDay = c?.currentDay ? Number(c.currentDay) : 1;
           if (isNaN(safeDay) || safeDay < 1) safeDay = 1;
@@ -165,6 +181,19 @@ export function App() {
           }
 
           const sanitizedResources = clampResources(c?.resources, init.resources);
+
+          const sanitizedModules = Array.isArray(c?.modules) && c.modules.length > 0
+            ? init.modules.map(initMod => {
+                const savedMod = c.modules.find((m: any) => m && m.id === initMod.id);
+                if (!savedMod) return initMod;
+                const safeLevel = Math.max(1, Math.min(initMod.maxLevel || 3, Number(savedMod.level) || 1));
+                return {
+                  ...initMod,
+                  level: safeLevel,
+                  isActive: typeof savedMod.isActive === 'boolean' ? savedMod.isActive : initMod.isActive,
+                };
+              })
+            : init.modules;
 
           const sanitizedCrew = Array.isArray(c?.crew) && c.crew.length > 0
             ? c.crew.map((member: any) => {
@@ -187,18 +216,28 @@ export function App() {
 
           return {
             ...init,
-            ...c,
             currentDay: safeDay,
-            difficulty: c?.difficulty || 'normal',
+            difficulty: safeDiff,
             missionCompleted: Boolean(c?.missionCompleted),
             resources: sanitizedResources,
+            modules: sanitizedModules,
             crew: sanitizedCrew,
+            radiationActive: Boolean(c?.radiationActive),
+            dustStormActive: Boolean(c?.dustStormActive),
+            isLunarNight: Boolean(c?.isLunarNight),
+            currentTemperatureCelsius: Number.isFinite(Number(c?.currentTemperatureCelsius)) ? Number(c.currentTemperatureCelsius) : init.currentTemperatureCelsius,
+            isTemperatureExtreme: Boolean(c?.isTemperatureExtreme),
+            isCommBlackout: Boolean(c?.isCommBlackout),
+            solarFluctuation: Boolean(c?.solarFluctuation),
+            emergencyO2Active: Boolean(c?.emergencyO2Active),
             emergencyO2Charges: Math.max(0, Math.min(2, c?.emergencyO2Charges !== undefined ? Number(c.emergencyO2Charges) : 2)),
             roverSortiesToday: Math.max(0, Math.min(2, Number(c?.roverSortiesToday) || 0)),
             hasHarvestedToday: Boolean(c?.hasHarvestedToday),
             hasQuizCompletedToday: Boolean(c?.hasQuizCompletedToday),
+            batteryFault: Boolean(c?.batteryFault),
             batteryFaultCount: Math.max(0, Math.min(10, Number(c?.batteryFaultCount) || 0)),
             batteryLockoutSeconds: Math.max(0, Math.min(10, Number(c?.batteryLockoutSeconds) || 0)),
+            batteryLockoutTurns: Math.max(0, Math.min(5, Number(c?.batteryLockoutTurns) || 0)),
             wiringErrorActive: Boolean(c?.wiringErrorActive),
             sandstormEnergyHaltDays: Math.max(0, Math.min(5, Number(c?.sandstormEnergyHaltDays) || 0)),
             plantsNeedDoubleWaterOnce: Boolean(c?.plantsNeedDoubleWaterOnce),
@@ -272,6 +311,10 @@ export function App() {
   const isWiringSubmittingRef = useRef(false);
   const isCommRestoringRef = useRef(false);
   const isQuizBonusSubmittingRef = useRef(false);
+  const isShockingRef = useRef(false);
+  const isRestartingRef = useRef(false);
+  const isSelectingEventOptionRef = useRef(false);
+  const isTogglingModuleRef = useRef<number>(0);
 
   // Show Toast helper
   const showToast = (msg: string) => {
@@ -283,33 +326,52 @@ export function App() {
 
   // Commander Profile State (Persisted)
   const [commanderProfile, setCommanderProfile] = useState<CommanderProfile>(() => {
-    try {
-      const saved = localStorage.getItem('astrobase_commander_v1');
-      if (saved) return JSON.parse(saved);
-    } catch {}
-    return {
+    const defaultProfile: CommanderProfile = {
       name: 'Checo Valdés',
       callsign: 'Tronco Alfa',
       patch: '🌲 Troncos Intergalácticos (Oficial)',
     };
+    try {
+      const saved = localStorage.getItem('astrobase_commander_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') {
+          return {
+            name: typeof parsed.name === 'string' && parsed.name.trim() ? parsed.name.trim() : defaultProfile.name,
+            callsign: typeof parsed.callsign === 'string' && parsed.callsign.trim() ? parsed.callsign.trim() : defaultProfile.callsign,
+            patch: typeof parsed.patch === 'string' && parsed.patch.trim() ? parsed.patch.trim() : defaultProfile.patch,
+          };
+        }
+      }
+    } catch {}
+    return defaultProfile;
   });
 
   // NASA Achievements State (Persisted)
   const [achievements, setAchievements] = useState<Achievement[]>(() => {
     try {
       const saved = localStorage.getItem('astrobase_achievements_v1');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return INITIAL_ACHIEVEMENTS.map(initialAch => {
+            const savedAch = parsed.find((a: any) => a && a.id === initialAch.id);
+            if (!savedAch) return initialAch;
+            return {
+              ...initialAch,
+              unlocked: Boolean(savedAch.unlocked),
+              unlockedAtDay: typeof savedAch.unlockedAtDay === 'number' && Number.isFinite(savedAch.unlockedAtDay) ? savedAch.unlockedAtDay : initialAch.unlockedAtDay,
+            };
+          });
+        }
+      }
     } catch {}
     return INITIAL_ACHIEVEMENTS;
   });
 
   // Flight Log & Telemetry Timeline (Persisted)
   const [flightLog, setFlightLog] = useState<FlightLogEntry[]>(() => {
-    try {
-      const saved = localStorage.getItem('astrobase_flightlog_v1');
-      if (saved) return JSON.parse(saved);
-    } catch {}
-    return [
+    const defaultLog: FlightLogEntry[] = [
       {
         id: 'init_moon',
         day: 1,
@@ -320,6 +382,30 @@ export function App() {
         messageEn: 'Artemis III base pressurized at Shackleton Crater. DSN comms online.',
       },
     ];
+    try {
+      const saved = localStorage.getItem('astrobase_flightlog_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const validTypes = new Set(['info', 'warning', 'alert', 'success', 'event']);
+          const sanitized = parsed
+            .filter((e: any) => e && typeof e === 'object' && typeof e.messageEs === 'string')
+            .map((e: any, idx: number) => ({
+              id: typeof e.id === 'string' ? e.id : `log_${idx}`,
+              day: typeof e.day === 'number' && Number.isFinite(e.day) ? e.day : 1,
+              timestamp: typeof e.timestamp === 'string' ? e.timestamp : '00:00 UTC',
+              location: (e.location === 'mars' ? 'mars' : 'moon') as BaseLocation,
+              type: (validTypes.has(e.type) ? e.type : 'info') as FlightLogEntry['type'],
+              messageEs: String(e.messageEs || ''),
+              messageEn: String(e.messageEn || ''),
+            }));
+          if (sanitized.length > 0) {
+            return sanitized.slice(0, 60);
+          }
+        }
+      }
+    } catch {}
+    return defaultLog;
   });
 
   // Save persistent state
@@ -393,13 +479,47 @@ export function App() {
   };
 
   // Active Sol/second tick loop for battery lockout and solar EMP stun countdown
+  const lastTickTimeRef = useRef<number>(0);
+  const accumulatedTickRef = useRef<number>(0);
+
+  useEffect(() => {
+    const handleVisibilityOrFocus = () => {
+      lastTickTimeRef.current = performance.now();
+    };
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+    window.addEventListener('focus', handleVisibilityOrFocus);
+    window.addEventListener('blur', handleVisibilityOrFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+      window.removeEventListener('focus', handleVisibilityOrFocus);
+      window.removeEventListener('blur', handleVisibilityOrFocus);
+    };
+  }, []);
+
   useEffect(() => {
     const hasLockout = colonies.moon.batteryLockoutSeconds > 0 || colonies.mars.batteryLockoutSeconds > 0;
     const hasEmp = colonies.moon.empStunSeconds > 0 || colonies.mars.empStunSeconds > 0;
 
-    if (!hasLockout && !hasEmp) return;
+    if (!hasLockout && !hasEmp) {
+      accumulatedTickRef.current = 0;
+      return;
+    }
+
+    lastTickTimeRef.current = performance.now();
 
     const timer = setInterval(() => {
+      const now = performance.now();
+      const rawDt = (now - lastTickTimeRef.current) / 1000;
+      lastTickTimeRef.current = now;
+      const dt = Math.min(rawDt, 0.1); // Clamp deltaTime to prevent speed jumps on tab switch or lag spikes
+
+      accumulatedTickRef.current += dt;
+      if (accumulatedTickRef.current < 1.0) return;
+
+      const elapsedSeconds = Math.floor(accumulatedTickRef.current);
+      accumulatedTickRef.current -= elapsedSeconds;
+
       setColonies(all => {
         let changed = false;
         const nextColonies = { ...all };
@@ -408,13 +528,13 @@ export function App() {
           const c = all[loc];
           if (c.batteryLockoutSeconds > 0 || c.empStunSeconds > 0) {
             changed = true;
-            const nextLockout = Math.max(0, c.batteryLockoutSeconds - 1);
-            const nextEmp = Math.max(0, c.empStunSeconds - 1);
+            const nextLockout = Math.max(0, c.batteryLockoutSeconds - elapsedSeconds);
+            const nextEmp = Math.max(0, c.empStunSeconds - elapsedSeconds);
 
             // Fuga de -4% energía/segundo durante el bloqueo crítico de batería
             let nextEnergy = c.resources.energy;
             if (c.batteryLockoutSeconds > 0) {
-              nextEnergy = Math.max(0, nextEnergy - 4);
+              nextEnergy = Math.max(0, nextEnergy - (4 * elapsedSeconds));
             }
 
             nextColonies[loc] = {
@@ -431,7 +551,7 @@ export function App() {
 
         return changed ? nextColonies : all;
       });
-    }, 1000);
+    }, 100);
 
     return () => clearInterval(timer);
   }, [
@@ -548,8 +668,12 @@ export function App() {
     );
   };
 
-  // Toggle Module Power
+  // Toggle Module Power (Throttled to prevent state flooding)
   const handleToggleModule = (id: string) => {
+    const now = Date.now();
+    if (now - isTogglingModuleRef.current < 200) return;
+    isTogglingModuleRef.current = now;
+
     updateCurrentColony(prev => ({
       ...prev,
       modules: prev.modules.map(mod => {
@@ -695,8 +819,14 @@ export function App() {
     }
   };
 
-  // Shock active crew if attempting repair during battery overload lockout
+  // Shock active crew if attempting repair during battery overload lockout (Debounced)
   const handleShockCrew = () => {
+    if (isShockingRef.current) return;
+    isShockingRef.current = true;
+    setTimeout(() => {
+      isShockingRef.current = false;
+    }, 800);
+
     soundFx.playAlert();
     updateCurrentColony(prev => {
       const livingCrew = prev.crew.filter(c => c.status !== 'deceased');
@@ -1286,9 +1416,11 @@ export function App() {
 
       // isAdvancingRef.current remains true during grace period
       zeroOxygenTimeoutRef.current = setTimeout(() => {
+        let isFatal = false;
         setColonies(all => {
           const current = all[location];
           if (current.resources.oxygen <= 0) {
+            isFatal = true;
             const deceasedAll = current.crew.map(c => ({
               ...c,
               health: 0,
@@ -1296,11 +1428,6 @@ export function App() {
               status: 'deceased' as CrewStatus,
               causeOfDeath: 'Muerte por asfixia en el vacío (0% O₂)',
             }));
-            setTimeout(() => {
-              setGameOverCause('¡MUERTE DE LA TRIPULACIÓN POR ASFIXIA AL AGOTARSE EL OXÍGENO EN EL HÁBITAT (0% O₂)!');
-              setIsGameOverOpen(true);
-              spaceVoice.speak('Asfixia confirmada. Todos los signos vitales han cesado. Misión terminada.');
-            }, 0);
             return {
               ...all,
               [location]: {
@@ -1311,6 +1438,13 @@ export function App() {
           }
           return all;
         });
+
+        if (isFatal) {
+          setGameOverCause('¡MUERTE DE LA TRIPULACIÓN POR ASFIXIA AL AGOTARSE EL OXÍGENO EN EL HÁBITAT (0% O₂)!');
+          setIsGameOverOpen(true);
+          spaceVoice.speak('Asfixia confirmada. Todos los signos vitales han cesado. Misión terminada.');
+        }
+
         isAdvancingRef.current = false;
         zeroOxygenTimeoutRef.current = null;
       }, 3000);
@@ -1580,6 +1714,10 @@ export function App() {
 
   // Handle Event Option chosen
   const handleSelectEventOption = (opt: MissionEventOption) => {
+    if (isSelectingEventOptionRef.current) return;
+    isSelectingEventOptionRef.current = true;
+    setTimeout(() => { isSelectingEventOptionRef.current = false; }, 400);
+
     updateCurrentColony(prev => {
       const nextRes = { ...prev.resources };
       if (opt.resourceDeltas.energy !== undefined) nextRes.energy = Math.max(0, Math.min(100, nextRes.energy + opt.resourceDeltas.energy));
@@ -1877,19 +2015,49 @@ export function App() {
 
   // Restart after Game Over or manually
   const handleRestartMission = (newDiff?: GameDifficulty) => {
+    if (isRestartingRef.current) return;
+    isRestartingRef.current = true;
+    setTimeout(() => { isRestartingRef.current = false; }, 600);
+
     const diff = newDiff || difficulty;
     setDifficulty(diff);
     setCurrentEvent(null);
     setIsWiringOpen(false);
     setIsGameOverOpen(false);
     setIsReportOpen(false);
+    setIsBotanicalLabOpen(false);
+    setIsRoverMissionOpen(false);
+    setIsNasaQuizOpen(false);
+    setIsIceMineOpen(false);
+    setIsPopulationExpansionOpen(false);
+    setIsHistoricalCrisesOpen(false);
+    setIsFlightLogOpen(false);
+    setIsAchievementsOpen(false);
+    setIsCommanderProfileOpen(false);
+    setIsDossierOpen(false);
+    setIsGuideOpen(false);
     setActiveCrisis(null); // Clear active crisis so it doesn't leak into new games!
 
+    // Cancel speech synthesis queue
+    spaceVoice.cancel();
+
+    // Cancel zero-oxygen grace period timer
     if (zeroOxygenTimeoutRef.current) {
       clearTimeout(zeroOxygenTimeoutRef.current);
       zeroOxygenTimeoutRef.current = null;
     }
+
+    // Reset all action lock refs
     isAdvancingRef.current = false;
+    isHarvestingRef.current = false;
+    isSortieSubmittingRef.current = false;
+    isWiringSubmittingRef.current = false;
+    isCommRestoringRef.current = false;
+    isQuizBonusSubmittingRef.current = false;
+    isUpgradingRef.current = false;
+    isAssigningMinerRef.current = false;
+    isShockingRef.current = false;
+    isSelectingEventOptionRef.current = false;
 
     setColonies(all => ({
       ...all,
@@ -2042,6 +2210,7 @@ export function App() {
         {/* 🚨 OXYGEN EMERGENCY BANNER WITH 2-SECOND DELAY */}
         <OxygenEmergencyBanner
           oxygenLevel={currentColony.resources.oxygen}
+          emergencyCharges={currentColony.emergencyO2Charges}
           onEmergencyO2Injected={handleEmergencyO2Injected}
           lang={lang}
         />
@@ -2207,7 +2376,7 @@ export function App() {
                 ...baseColony,
                 currentDay: 1,
                 missionCompleted: false,
-                resources: { ...baseColony.resources, ...crisis.initialOverrides },
+                resources: clampResources({ ...baseColony.resources, ...crisis.initialOverrides }, baseColony.resources),
                 radiationActive: crisis.specialCondition === 'extreme_radiation',
                 dustStormActive: crisis.specialCondition === 'solar_blackout',
               },
@@ -2236,6 +2405,7 @@ export function App() {
         }}
         onQuizBonus={handleQuizBonus}
         lang={lang}
+        hasQuizCompletedToday={currentColony.hasQuizCompletedToday}
       />
 
       {/* Game Over Modal on Crew Extinction or Insta-Kill */}

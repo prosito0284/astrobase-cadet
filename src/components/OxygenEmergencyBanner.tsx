@@ -20,17 +20,56 @@ export const OxygenEmergencyBanner: React.FC<OxygenEmergencyBannerProps> = ({
   emergencyCharges,
 }) => {
   const [isPressurizing, setIsPressurizing] = useState(false);
+  const isPressurizingRef = useRef(false);
   const [pressurizeProgress, setPressurizeProgress] = useState(0);
   const [localCharges, setLocalCharges] = useState(2);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const startTimeRef = useRef<number>(0);
 
-  // Clean up interval on unmount
+  const completePressurization = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    setIsPressurizing(false);
+    isPressurizingRef.current = false;
+    setLocalCharges(c => Math.max(0, c - 1));
+    soundFx.playHarvest();
+    onEmergencyO2Injected();
+  };
+
+  // Clear interval if oxygen level recovered to >= 25% (or game restarted)
   useEffect(() => {
-    return () => {
+    if (oxygenLevel >= 25) {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
+      isPressurizingRef.current = false;
+      setIsPressurizing(false);
+      setPressurizeProgress(0);
+    }
+  }, [oxygenLevel]);
+
+  // Clean up interval on unmount & handle visibility changes
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && isPressurizingRef.current) {
+        const elapsed = Date.now() - startTimeRef.current;
+        if (elapsed >= 1000) {
+          completePressurization();
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      isPressurizingRef.current = false;
     };
   }, []);
 
@@ -40,28 +79,29 @@ export const OxygenEmergencyBanner: React.FC<OxygenEmergencyBannerProps> = ({
   const effectiveCharges = emergencyCharges !== undefined ? emergencyCharges : localCharges;
 
   const handleStartEmergencyO2 = () => {
-    if (isPressurizing || effectiveCharges <= 0) return;
+    if (isPressurizingRef.current || isPressurizing || effectiveCharges <= 0) return;
+
+    // Clear any previous interval before creating a new one
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+
     soundFx.playAlert();
+    isPressurizingRef.current = true;
     setIsPressurizing(true);
     setPressurizeProgress(0);
 
-    const startTime = Date.now();
+    startTimeRef.current = Date.now();
     const duration = 1000; // 1000ms pressurization completes safely within 3.0s asphyxiation window
 
     intervalRef.current = setInterval(() => {
-      const elapsed = Date.now() - startTime;
+      const elapsed = Date.now() - startTimeRef.current;
       const pct = Math.min(100, Math.round((elapsed / duration) * 100));
       setPressurizeProgress(pct);
 
       if (elapsed >= duration) {
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-          intervalRef.current = null;
-        }
-        setIsPressurizing(false);
-        setLocalCharges(c => Math.max(0, c - 1));
-        soundFx.playHarvest();
-        onEmergencyO2Injected();
+        completePressurization();
       }
     }, 50);
   };

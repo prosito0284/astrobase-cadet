@@ -44,12 +44,14 @@ interface SortieTarget {
 const getStorageRoverSorties = (loc: BaseLocation): number => {
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
-      const raw = localStorage.getItem('astrobase_dual_save_v6') || localStorage.getItem('astrobase_dual_save_v5');
+      const raw = localStorage.getItem('astrobase_dual_save_v7') || localStorage.getItem('astrobase_dual_save_v6');
       if (raw) {
         const parsed = JSON.parse(raw);
-        const col = parsed?.[loc];
-        if (col && typeof col.roverSortiesToday === 'number') {
-          return col.roverSortiesToday;
+        if (parsed && typeof parsed === 'object') {
+          const col = parsed[loc];
+          if (col && typeof col.roverSortiesToday === 'number' && Number.isFinite(col.roverSortiesToday)) {
+            return col.roverSortiesToday;
+          }
         }
       }
     }
@@ -62,12 +64,12 @@ const getStorageRoverSorties = (loc: BaseLocation): number => {
 const incrementStorageRoverSorties = (loc: BaseLocation) => {
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
-      const raw = localStorage.getItem('astrobase_dual_save_v6');
+      const raw = localStorage.getItem('astrobase_dual_save_v7');
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (parsed?.[loc]) {
-          parsed[loc].roverSortiesToday = (parsed[loc].roverSortiesToday ?? 0) + 1;
-          localStorage.setItem('astrobase_dual_save_v6', JSON.stringify(parsed));
+        if (parsed && typeof parsed === 'object' && parsed[loc]) {
+          parsed[loc].roverSortiesToday = (Number(parsed[loc].roverSortiesToday) || 0) + 1;
+          localStorage.setItem('astrobase_dual_save_v7', JSON.stringify(parsed));
         }
       }
     }
@@ -88,6 +90,7 @@ export const RoverMissionModal: React.FC<RoverMissionModalProps> = ({
 }) => {
   const [selectedTargetId, setSelectedTargetId] = useState<string>('shackleton_ice');
   const [isDeploying, setIsDeploying] = useState<boolean>(false);
+  const isDeployingRef = useRef<boolean>(false);
   const [localSorties, setLocalSorties] = useState<number>(() => {
     return propSortiesToday !== undefined 
       ? propSortiesToday 
@@ -102,17 +105,20 @@ export const RoverMissionModal: React.FC<RoverMissionModalProps> = ({
       // oxlint-disable-next-line react/set-state-in-effect
       setLocalSorties(propSortiesToday !== undefined ? propSortiesToday : getStorageRoverSorties(location));
       setIsDeploying(false);
+      isDeployingRef.current = false;
     }
   }, [isOpen, propSortiesToday, location]);
 
-  // Cleanup pending deployment timeouts on unmount
+  // Cleanup pending deployment timeouts on unmount or modal close
   useEffect(() => {
     return () => {
       if (deployTimeoutRef.current) {
         clearTimeout(deployTimeoutRef.current);
+        deployTimeoutRef.current = null;
       }
+      isDeployingRef.current = false;
     };
-  }, []);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -221,7 +227,7 @@ export const RoverMissionModal: React.FC<RoverMissionModalProps> = ({
 
   const handleLaunchSortie = () => {
     // Race condition and precondition guards
-    if (isDeploying) return;
+    if (isDeployingRef.current || isDeploying) return;
     if (isDailyLimitReached) {
       soundFx.playAlert();
       return;
@@ -232,10 +238,12 @@ export const RoverMissionModal: React.FC<RoverMissionModalProps> = ({
     }
 
     soundFx.playHarvest();
+    isDeployingRef.current = true;
     setIsDeploying(true);
 
     deployTimeoutRef.current = setTimeout(() => {
       setIsDeploying(false);
+      isDeployingRef.current = false;
       soundFx.playVictory();
       confetti({ particleCount: 100, spread: 60, origin: { y: 0.6 } });
 

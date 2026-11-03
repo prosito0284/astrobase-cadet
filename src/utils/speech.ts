@@ -119,6 +119,10 @@ class SpaceSpeechEngine {
       this.isSpeaking = false;
     }
   }
+
+  public cancel() {
+    this.stop();
+  }
 }
 
 export const spaceVoice = new SpaceSpeechEngine();

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { BaseLocation, GameDifficulty } from '../types/game';
 import { 
   Rocket, 
@@ -100,6 +100,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onToggleLang,
 }) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const lastAdvanceTimeRef = useRef<number>(0);
+  const [isAdvanceThrottled, setIsAdvanceThrottled] = useState(false);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -207,10 +209,16 @@ export const Navbar: React.FC<NavbarProps> = ({
           ) : (
             <button
               onClick={() => {
+                const now = Date.now();
+                if (now - lastAdvanceTimeRef.current < 400 || isAdvanceThrottled) return;
+                lastAdvanceTimeRef.current = now;
+                setIsAdvanceThrottled(true);
                 soundFx.playToggleOn();
                 onAdvanceDay();
+                setTimeout(() => setIsAdvanceThrottled(false), 400);
               }}
-              className="flex items-center gap-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs px-2.5 sm:px-3 py-1.5 rounded-lg shadow-md shadow-emerald-900/40 transition-all transform hover:scale-[1.03] active:scale-[0.98] border border-emerald-400/40"
+              disabled={isAdvanceThrottled}
+              className={`flex items-center gap-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs px-2.5 sm:px-3 py-1.5 rounded-lg shadow-md shadow-emerald-900/40 transition-all transform hover:scale-[1.03] active:scale-[0.98] border border-emerald-400/40 ${isAdvanceThrottled ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <FastForward className="w-3.5 h-3.5 fill-white" />
               <span>{lang === 'es' ? 'Siguiente Día' : 'Next Day'}</span>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { ResourceState, BaseLocation, GameDifficulty, Astronaut } from '../types/game';
 import { 
   Award, 
@@ -41,6 +41,9 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
   onRestart,
   missionCompleted,
 }) => {
+  const isRestartingRef = useRef(false);
+  const [isRestarting, setIsRestarting] = useState(false);
+
   if (!isOpen) return null;
 
   const isMissionComplete = Boolean(
@@ -397,10 +400,14 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
           <div className="mt-2 flex justify-center print:hidden">
             <button
               onClick={() => {
+                if (isRestartingRef.current || isRestarting) return;
+                isRestartingRef.current = true;
+                setIsRestarting(true);
                 soundFx.playClick();
                 onRestart();
               }}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs shadow-lg shadow-emerald-950/50 border border-emerald-400/40 transition-all transform hover:scale-[1.02]"
+              disabled={isRestarting}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs shadow-lg shadow-emerald-950/50 border border-emerald-400/40 transition-all transform hover:scale-[1.02] ${isRestarting ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <span>🚀</span>
               <span>{lang === 'es' ? 'Iniciar Nueva Misión / Reiniciar Base' : 'Start New Mission / Restart Base'}</span>

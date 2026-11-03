@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { BaseLocation, GameDifficulty, Astronaut } from '../types/game';
 import { 
   Skull, 
@@ -29,7 +29,22 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
   onRestart,
   lang,
 }) => {
+  const isRestartingRef = useRef(false);
+  const [isRestarting, setIsRestarting] = useState(false);
+
   if (!isOpen) return null;
+
+  const handleRestartClick = (diff: GameDifficulty) => {
+    if (isRestartingRef.current || isRestarting) return;
+    isRestartingRef.current = true;
+    setIsRestarting(true);
+    if (diff === 'normal') {
+      soundFx.playHarvest();
+    } else {
+      soundFx.playVictory();
+    }
+    onRestart(diff);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/90 backdrop-blur-lg animate-fadeIn">
@@ -86,22 +101,18 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row items-center gap-2.5">
           <button
-            onClick={() => {
-              soundFx.playHarvest();
-              onRestart('normal');
-            }}
-            className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-red-700 to-rose-700 hover:from-red-600 hover:to-rose-600 text-white text-xs font-black shadow-lg shadow-red-950/60 border border-red-500 transition-all"
+            onClick={() => handleRestartClick('normal')}
+            disabled={isRestarting}
+            className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-red-700 to-rose-700 hover:from-red-600 hover:to-rose-600 text-white text-xs font-black shadow-lg shadow-red-950/60 border border-red-500 transition-all ${isRestarting ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <RotateCcw className="w-4 h-4" />
             <span>{lang === 'es' ? 'Reintentar en Modo Normal' : 'Retry Normal Mode'}</span>
           </button>
 
           <button
-            onClick={() => {
-              soundFx.playVictory();
-              onRestart('facil');
-            }}
-            className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-black shadow-lg shadow-emerald-950/60 border border-emerald-400 transition-all"
+            onClick={() => handleRestartClick('facil')}
+            disabled={isRestarting}
+            className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-black shadow-lg shadow-emerald-950/60 border border-emerald-400 transition-all ${isRestarting ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <Sparkles className="w-4 h-4" />
             <span>{lang === 'es' ? 'Cambiar a Modo Fácil (Sin Muertes)' : 'Switch to Easy Mode (No Casualties)'}</span>

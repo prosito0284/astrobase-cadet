@@ -11,6 +11,7 @@ interface EventModalProps {
 
 export const EventModal: React.FC<EventModalProps> = ({ event, onSelectOption, lang }) => {
   const [selectedOptionIndex, setSelectedOptionIndex] = useState<number | null>(null);
+  const isChoosingRef = useRef(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -19,18 +20,21 @@ export const EventModal: React.FC<EventModalProps> = ({ event, onSelectOption, l
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
       }
+      isChoosingRef.current = false;
     };
   }, []);
 
   if (!event) return null;
 
   const handleChoose = (opt: MissionEventOption, idx: number) => {
-    if (selectedOptionIndex !== null) return;
+    if (isChoosingRef.current || selectedOptionIndex !== null) return;
+    isChoosingRef.current = true;
     setSelectedOptionIndex(idx);
     soundFx.playClick();
     timeoutRef.current = setTimeout(() => {
       onSelectOption(opt);
       setSelectedOptionIndex(null);
+      isChoosingRef.current = false;
     }, 300);
   };
 

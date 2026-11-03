@@ -140,16 +140,18 @@ const getStorageColonyFlags = (): {
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
       const loc = localStorage.getItem('astrobase_location_v2') || 'moon';
-      const raw = localStorage.getItem('astrobase_dual_save_v6') || localStorage.getItem('astrobase_dual_save_v5');
+      const raw = localStorage.getItem('astrobase_dual_save_v7') || localStorage.getItem('astrobase_dual_save_v6');
       if (raw) {
         const parsed = JSON.parse(raw);
-        const col = parsed?.[loc];
-        if (col) {
-          return {
-            hasHarvestedToday: Boolean(col.hasHarvestedToday),
-            plantsNeedDoubleWaterOnce: Boolean(col.plantsNeedDoubleWaterOnce),
-            plantsWipedGrowth: Boolean(col.plantsWipedGrowth),
-          };
+        if (parsed && typeof parsed === 'object') {
+          const col = parsed[loc];
+          if (col && typeof col === 'object') {
+            return {
+              hasHarvestedToday: Boolean(col.hasHarvestedToday),
+              plantsNeedDoubleWaterOnce: Boolean(col.plantsNeedDoubleWaterOnce),
+              plantsWipedGrowth: Boolean(col.plantsWipedGrowth),
+            };
+          }
         }
       }
     }
@@ -171,12 +173,12 @@ const updateStorageColonyFlags = (updates: {
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
       const loc = localStorage.getItem('astrobase_location_v2') || 'moon';
-      const raw = localStorage.getItem('astrobase_dual_save_v6');
+      const raw = localStorage.getItem('astrobase_dual_save_v7');
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (parsed?.[loc]) {
+        if (parsed && typeof parsed === 'object' && parsed[loc]) {
           parsed[loc] = { ...parsed[loc], ...updates };
-          localStorage.setItem('astrobase_dual_save_v6', JSON.stringify(parsed));
+          localStorage.setItem('astrobase_dual_save_v7', JSON.stringify(parsed));
         }
       }
     }
@@ -213,6 +215,7 @@ export const BotanicalLabModal: React.FC<BotanicalLabModalProps> = ({
     return propPlantsWipedGrowth !== undefined ? propPlantsWipedGrowth : getStorageColonyFlags().plantsWipedGrowth;
   });
 
+  const isWateringRef = useRef<boolean>(false);
   const isHarvestingRef = useRef<boolean>(false);
   const waterTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const harvestTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -224,6 +227,8 @@ export const BotanicalLabModal: React.FC<BotanicalLabModalProps> = ({
       setHasHarvestedLocal(false);
       setIsWatering(false);
       setIsHarvesting(false);
+      isWateringRef.current = false;
+      isHarvestingRef.current = false;
       if (propHasHarvestedToday === false) {
         updateStorageColonyFlags({ hasHarvestedToday: false });
       }
@@ -237,13 +242,21 @@ export const BotanicalLabModal: React.FC<BotanicalLabModalProps> = ({
     }
   }, [solarWipedAlertActive]);
 
-  // Cleanup pending timeouts on unmount
+  // Cleanup pending timeouts on unmount or modal close
   useEffect(() => {
     return () => {
-      if (waterTimeoutRef.current) clearTimeout(waterTimeoutRef.current);
-      if (harvestTimeoutRef.current) clearTimeout(harvestTimeoutRef.current);
+      if (waterTimeoutRef.current) {
+        clearTimeout(waterTimeoutRef.current);
+        waterTimeoutRef.current = null;
+      }
+      if (harvestTimeoutRef.current) {
+        clearTimeout(harvestTimeoutRef.current);
+        harvestTimeoutRef.current = null;
+      }
+      isWateringRef.current = false;
+      isHarvestingRef.current = false;
     };
-  }, []);
+  }, [isOpen]);
 
   const doubleWaterActive = doubleWaterOverride ?? (propPlantsNeedDoubleWaterOnce !== undefined ? propPlantsNeedDoubleWaterOnce : getStorageColonyFlags().plantsNeedDoubleWaterOnce);
   const colonyHarvested = propHasHarvestedToday !== undefined ? propHasHarvestedToday : getStorageColonyFlags().hasHarvestedToday;
@@ -263,13 +276,14 @@ export const BotanicalLabModal: React.FC<BotanicalLabModalProps> = ({
   const waterCostRequired = doubleWaterActive ? 10 : 5;
 
   const handleWaterCrop = () => {
-    if (isWatering || growthProgress >= 100) return;
+    if (isWateringRef.current || isWatering || growthProgress >= 100) return;
     if (currentWater < waterCostRequired) {
       soundFx.playAlert();
       return;
     }
 
     soundFx.playHarvest();
+    isWateringRef.current = true;
     setIsWatering(true);
 
     // Deduct water via parent callback if provided
@@ -277,6 +291,7 @@ export const BotanicalLabModal: React.FC<BotanicalLabModalProps> = ({
 
     waterTimeoutRef.current = setTimeout(() => {
       setIsWatering(false);
+      isWateringRef.current = false;
       setGrowthProgress(prev => Math.min(100, prev + selectedCrop.baseGrowthRate));
 
       if (doubleWaterActive) {

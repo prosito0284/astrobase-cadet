@@ -147,6 +147,7 @@ export const NasaQuizModal: React.FC<NasaQuizModalProps> = ({
   const [score, setScore] = useState(0);
   const [isCompleted, setIsCompleted] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
+  const isNavigatingRef = useRef(false);
   const [hasCompletedThisSession, setHasCompletedThisSession] = useState(false);
   const navigationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -156,8 +157,9 @@ export const NasaQuizModal: React.FC<NasaQuizModalProps> = ({
         clearTimeout(navigationTimeoutRef.current);
         navigationTimeoutRef.current = null;
       }
+      isNavigatingRef.current = false;
     };
-  }, []);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -178,7 +180,8 @@ export const NasaQuizModal: React.FC<NasaQuizModalProps> = ({
   };
 
   const handleNextQuestion = () => {
-    if (isNavigating) return;
+    if (isNavigatingRef.current || isNavigating) return;
+    isNavigatingRef.current = true;
     setIsNavigating(true);
     soundFx.playClick();
     if (currentQuestionIndex < QUIZ_QUESTIONS.length - 1) {
@@ -186,6 +189,7 @@ export const NasaQuizModal: React.FC<NasaQuizModalProps> = ({
       setSelectedAnswer(null);
       setIsAnswered(false);
       setIsNavigating(false);
+      isNavigatingRef.current = false;
     } else {
       // Finished quiz!
       setIsCompleted(true);
@@ -203,6 +207,7 @@ export const NasaQuizModal: React.FC<NasaQuizModalProps> = ({
 
       navigationTimeoutRef.current = setTimeout(() => {
         setIsNavigating(false);
+        isNavigatingRef.current = false;
       }, 500);
     }
   };
