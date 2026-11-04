@@ -25,6 +25,7 @@ import {
   User
 } from 'lucide-react';
 import { soundFx } from '../utils/audio';
+import { PlanetGlobeSelectorModal } from './globe3d/PlanetGlobeSelectorModal';
 
 interface NavbarProps {
   currentDay: number;
@@ -100,6 +101,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onToggleLang,
 }) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isGlobeModalOpen, setIsGlobeModalOpen] = useState(false);
   const lastAdvanceTimeRef = useRef<number>(0);
   const [isAdvanceThrottled, setIsAdvanceThrottled] = useState(false);
 
@@ -152,8 +154,21 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Center: Location & Day Controls */}
         <div className="flex items-center gap-2 bg-slate-950/80 border border-slate-800 rounded-xl px-2.5 py-1 shadow-inner">
-          {/* Location Toggle */}
+          {/* Location Toggle & 3D Globe Selector */}
           <div className="flex items-center bg-slate-900 rounded-lg p-0.5 border border-slate-700/60">
+            {/* 3D Planet Globe Selector Modal Trigger */}
+            <button
+              onClick={() => {
+                soundFx.playClick();
+                setIsGlobeModalOpen(true);
+              }}
+              className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-bold transition-all bg-gradient-to-r from-blue-950 to-indigo-950 text-cyan-300 hover:text-white border border-cyan-500/40 hover:border-cyan-400 shadow-sm"
+              title={lang === 'es' ? 'Abrir Selector de Misión Planetaria 3D' : 'Open 3D Planetary Globe Selector'}
+            >
+              <Globe2 className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+              <span className="hidden lg:inline">{lang === 'es' ? 'Misión 3D' : '3D Mission'}</span>
+            </button>
+
             <button
               onClick={() => {
                 soundFx.playClick();
@@ -493,6 +508,17 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
         </div>
       </div>
+
+      {/* 3D Interactive Planetary Globe Selector Modal */}
+      <PlanetGlobeSelectorModal
+        isOpen={isGlobeModalOpen}
+        onClose={() => setIsGlobeModalOpen(false)}
+        currentLocation={location}
+        onSelectLocation={(loc) => {
+          onChangeLocation(loc);
+        }}
+        lang={lang}
+      />
     </header>
   );
 };

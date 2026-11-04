@@ -1,15 +1,14 @@
 import React, { useState } from 'react';
 import { BaseLocation, BaseModule } from '../types/game';
 import { 
-  Sun, 
   ShieldAlert, 
   Wind, 
-  Sparkles, 
-  Wifi, 
-  AlertCircle,
-  Eye,
-  Info
+  Info,
+  Box,
+  LayoutGrid
 } from 'lucide-react';
+import { BaseScene3D } from './3d/BaseScene3D';
+import { soundFx } from '../utils/audio';
 
 interface BaseViewProps {
   location: BaseLocation;
@@ -30,7 +29,7 @@ interface BaseViewProps {
 export const BaseView: React.FC<BaseViewProps> = ({
   location,
   modules,
-  currentDay,
+  currentDay: _currentDay,
   radiationActive,
   dustStormActive,
   isLunarNight,
@@ -42,6 +41,25 @@ export const BaseView: React.FC<BaseViewProps> = ({
   lang,
 }) => {
   const [hoveredModule, setHoveredModule] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'3d' | '2d'>(() => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const saved = localStorage.getItem('astrobase_base_view_mode');
+      if (saved === '2d' || saved === '3d') return saved;
+    }
+    return '3d';
+  });
+
+  const handleToggleMode = (mode: '3d' | '2d') => {
+    setViewMode(mode);
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        localStorage.setItem('astrobase_base_view_mode', mode);
+      } catch {
+        // Safe catch for restricted storage environments
+      }
+    }
+    soundFx.playClick();
+  };
 
   const isMoon = location === 'moon';
 
@@ -52,18 +70,72 @@ export const BaseView: React.FC<BaseViewProps> = ({
   const bunkerModule = modules.find(m => m.id === 'storm_bunker');
   const iceModule = modules.find(m => m.id === 'water_ice_extractor');
   const commsModule = modules.find(m => m.id === 'comm_array');
-  const labModule = modules.find(m => m.id === 'science_lab');
 
   return (
     <div className="relative w-full rounded-2xl overflow-hidden border border-slate-700/80 shadow-2xl bg-slate-950 transition-all select-none">
-      {/* Dynamic Background: Sky & Celestial Bodies */}
-      <div 
-        className={`relative h-64 sm:h-80 w-full overflow-hidden transition-all duration-1000 ${
-          isMoon 
-            ? isLunarNight ? 'bg-gradient-to-b from-slate-950 via-zinc-950 to-slate-900' : 'bg-gradient-to-b from-black via-slate-950 to-slate-900'
-            : dustStormActive ? 'bg-gradient-to-b from-amber-950/90 via-orange-950 to-stone-900' : 'bg-gradient-to-b from-amber-950/40 via-stone-900 to-amber-950/60'
-        }`}
-      >
+      {/* Top Header Mode Switcher Bar */}
+      <div className="flex items-center justify-between px-3 py-2 bg-slate-900/90 border-b border-slate-800">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+          <span className="text-[11px] font-black text-slate-300 tracking-wider uppercase">
+            {location === 'moon' 
+              ? (lang === 'es' ? 'Cráter Shackleton · Polo Sur Lunar' : 'Shackleton Crater · Lunar South Pole')
+              : (lang === 'es' ? 'Cráter Jezero · Delta Marciano' : 'Jezero Crater · Martian Delta')}
+          </span>
+        </div>
+
+        {/* View Mode Toggle Button */}
+        <div className="flex items-center bg-slate-950/80 border border-slate-800 p-0.5 rounded-xl shadow-inner">
+          <button
+            onClick={() => handleToggleMode('3d')}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+              viewMode === '3d'
+                ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-md shadow-cyan-600/30'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Box className="w-3.5 h-3.5" />
+            <span>{lang === 'es' ? '3D Inmersiva' : '3D Immersive'}</span>
+          </button>
+          <button
+            onClick={() => handleToggleMode('2d')}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+              viewMode === '2d'
+                ? 'bg-slate-700 text-white shadow-md'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <LayoutGrid className="w-3.5 h-3.5" />
+            <span>{lang === 'es' ? '2D Clásica' : '2D Classic'}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Render 3D Base Scene when in 3D Mode */}
+      {viewMode === '3d' ? (
+        <BaseScene3D
+          location={location}
+          modules={modules}
+          radiationActive={radiationActive}
+          dustStormActive={dustStormActive}
+          isLunarNight={isLunarNight}
+          wiringErrorActive={wiringErrorActive}
+          emergencyO2Active={emergencyO2Active}
+          assignedToMineCount={assignedToMineCount}
+          onSelectModule={onSelectModule}
+          selectedModuleId={selectedModuleId}
+          lang={lang}
+        />
+      ) : (
+        <>
+          {/* Dynamic Background: Sky & Celestial Bodies */}
+          <div 
+            className={`relative h-64 sm:h-80 w-full overflow-hidden transition-all duration-1000 ${
+              isMoon 
+                ? isLunarNight ? 'bg-gradient-to-b from-slate-950 via-zinc-950 to-slate-900' : 'bg-gradient-to-b from-black via-slate-950 to-slate-900'
+                : dustStormActive ? 'bg-gradient-to-b from-amber-950/90 via-orange-950 to-stone-900' : 'bg-gradient-to-b from-amber-950/40 via-stone-900 to-amber-950/60'
+            }`}
+          >
         {/* Stars */}
         <div className="absolute inset-0 opacity-80 pointer-events-none">
           <div className="absolute top-4 left-10 w-1 h-1 bg-white rounded-full animate-ping" />
@@ -377,6 +449,8 @@ export const BaseView: React.FC<BaseViewProps> = ({
           {location === 'moon' ? 'Luna: Cráter Shackleton' : 'Marte: Cráter Jezero (Perseverance)'}
         </span>
       </div>
-    </div>
+    </>
+  )}
+</div>
   );
 };

@@ -1,67 +1,131 @@
-# Project: Astrobase Cadet Security, Exploit & Architectural Audit
+# Project: Astrobase Cadet 3D & Gameplay Enhancements
 
 ## Architecture
-- **Framework**: React 19, TypeScript, Vite, Tailwind CSS
-- **State Architecture**: Centralized reactive state in `src/App.tsx` managing colony resources, crew status, modules, achievements, and events.
-- **Minigame / Modal Architecture**: Functional modals communicating with parent state via callback props.
-- **Security Integrity Principle**: Strict state validation, atomic state updaters, debounced user actions, precondition assertions on all reward and progression claims, upper-bound resource clamping, and synchronized timer lifecycles.
+- **Framework**: React 19, TypeScript, Vite, Tailwind CSS, Three.js (pure vanilla Three.js with React canvas refs for 100% deterministic WebGL lifecycle and zero React 19 peer-dependency conflicts).
+- **Rendering Architecture**: Dual-view toggleable base simulation (`BaseView.tsx`) with 3D interactive WebGL view (`BaseScene3D.tsx`) and 2D classic strip. Interactive 3D Rover driving minigame (`RoverMissionModal.tsx` + `Rover3DCanvas.tsx`). Interactive 3D Planetary Globe (`PlanetGlobeSelectorModal.tsx`).
+- **Physics & Simulation**: Standalone mathematical heightmap `getY(x, z)` and vehicle physics engine (`roverPhysics.ts`) with momentum, acceleration, terrain normal pitch/roll alignment, elastic obstacle rebound, and battery drainage calculation.
+- **Memory & Lifecycle Integrity**: Strict recursive WebGL resource disposal (`disposal.ts`), `requestAnimationFrame` cancellation, `webglcontextlost`/`webglcontextrestored` event handling, and strict `deltaTime` clamping ($dt \le 0.1$).
+- **Deployment**: Git sync to `https://github.com/prosito0284/astrobase-cadet.git` (main) and automated production deployment on Vercel (`checodeleonvaldes-4471`).
 
 ## Feature Inventory
-| # | Feature / Vulnerability | Description | Milestone | Source | Status |
-|---|-------------------------|-------------|-----------|--------|:------:|
-| 1 | V-CORE-LOCKOUT | `batteryLockoutSeconds` lacks countdown decrement in game loop, staying permanently at 5s | M1 | Explorer 1 | RESOLVED |
-| 2 | V-CORE-EMP | `empStunSeconds` lacks countdown decrement / clear logic in game loop | M1 | Explorer 1 | RESOLVED |
-| 3 | V-CORE-DAY-SPAM | Rapid clicking on "Siguiente Día" bypasses 1s fatal O2 grace timer into campaign victory | M1 | Explorer 1 | RESOLVED |
-| 4 | V-CORE-CRISIS-SKIP | Completing 5-day Apollo 13 crisis on Hard awards 28/30-day full campaign achievement | M1 | Explorer 1 | RESOLVED |
-| 5 | V-CORE-CAPS | Science points and resources lack global upper bounds/caps in add functions and storage deserialization | M1 | Explorer 1 | RESOLVED |
-| 6 | V-CORE-REDUCER-EFFECTS | Side-effects (sound, speech, logs) inside React state updater functions cause duplicate triggers | M1 | Explorer 1, 3 | RESOLVED |
-| 7 | V-BOTANICAL-WATER | `handleWaterCrop` checks `currentWater >= 5` but never deducts water (0 cost irrigation) | M2 | Explorer 1, 2 | RESOLVED |
-| 8 | V-BOTANICAL-HARVEST | Unlimited harvest spam on Sol 1 (+25 food, +15 science, +5 health, +12 morale) with zero cooldown | M2 | Explorer 1, 2 | RESOLVED |
-| 9 | V-BOTANICAL-SOLAR | Solar flare flags (`plantsNeedDoubleWaterOnce`, `plantsWipedGrowth`) bypassed in modal | M2 | Explorer 2 | RESOLVED |
-| 10 | V-ROVER-BATTERY | Rover sortie checks batteryCost but never passes/deducts it in `App.tsx` | M2 | Explorer 1, 2 | RESOLVED |
-| 11 | V-ROVER-ENERGY | Free perpetual energy targets (+15 / +18 energy) grant positive net power for zero cost | M2 | Explorer 2 | RESOLVED |
-| 12 | V-ROVER-RACE | 1200ms flight timeout allows switching targets or rapid queueing of expeditions | M2 | Explorer 1, 2 | RESOLVED |
-| 13 | V-ROVER-CAPS | No daily sortie limit or cooldown per Sol on rover expeditions | M2 | Explorer 1, 2 | RESOLVED |
-| 14 | V-WIRING-PERSIST | Wire connections persist across modal reopenings (solves future faults automatically) | M3 | Explorer 3 | RESOLVED |
-| 15 | V-WIRING-DEBOUNCE | 700ms victory delay allows re-triggering `onSuccess()` and fires even after modal closed | M3 | Explorer 3 | RESOLVED |
-| 16 | V-WIRING-INJECTIVE | Multiple left terminals connect to single right terminal (non-injective mapping) | M3 | Explorer 3 | RESOLVED |
-| 17 | V-WIRING-PRECOND | `handleWiringSuccess` does not check if batteryFault or wiringErrorActive was actually active | M3 | Explorer 3 | RESOLVED |
-| 18 | V-COMM-PERSIST | Frequency (8.41) and angle (45°) state retention auto-solves future blackouts immediately | M3 | Explorer 3 | RESOLVED |
-| 19 | V-COMM-DEBOUNCE | Multi-click spam on `handleFixAntenna` calls `onRestoreComm()` repeatedly | M3 | Explorer 3 | RESOLVED |
-| 20 | V-COMM-AUDIO | Slider drag fires `soundFx.playClick()` on every pixel change, flooding Web Audio | M3 | Explorer 3 | RESOLVED |
-| 21 | V-ICEMINE-RACE | Closure race condition allows assigning same astronaut twice `[id, id]`, giving 2-miner yield for 1 crew | M3 | Explorer 1, 3 | RESOLVED |
-| 22 | V-ICEMINE-SAFETY | Rapid clicks allow assigning all crew to mine, leaving 0 crew in base habitat | M3 | Explorer 3 | RESOLVED |
-| 23 | V-ICEMINE-GHOST | Deceased crew members remain in `assignedToMine` permanently blocking slots | M3 | Explorer 1 | RESOLVED |
-| 24 | V-QUIZ-DOUBLE | NASA Quiz invokes both `onAddSciencePoints` and `onQuizBonus(20, 20)` awarding double rewards | M4 | Explorer 1, 2 | RESOLVED |
-| 25 | V-QUIZ-RETRY | Unlimited retries on Sol 1 granting up to +70 science and +20% morale repeatedly | M4 | Explorer 1, 2 | RESOLVED |
-| 26 | V-QUIZ-SCORE | 0/5 failing score still awards full completion bonus | M4 | Explorer 2 | RESOLVED |
-| 27 | V-QUIZ-DEBOUNCE | Question 5 "Ver Resultados" button lacks debounce guard | M4 | Explorer 2 | RESOLVED |
-| 28 | V-REPORT-PREMATURE | Navbar exposes award button on Day 1; modal displays Supreme Commander victory certificate | M4 | Explorer 2 | RESOLVED |
-| 29 | V-REPORT-CRISIS | Restarting mission does not clear `activeCrisis`, leaking into new games | M4 | Explorer 2 | RESOLVED |
-| 30 | V-REPORT-NAN | Division by zero on crew health telemetry if crew array is empty (`NaN%`) | M4 | Explorer 2 | RESOLVED |
-| 31 | V-EVENT-DEBOUNCE | Option buttons unblocked during 300ms transition, duplicating resource/science gains | M4 | Explorer 1, 3 | RESOLVED |
-| 32 | V-OXYGEN-INFINITE | Infinite free emergency O2 (+35%) without consuming canisters or charge limit | M4 | Explorer 1, 3 | RESOLVED |
-| 33 | V-OXYGEN-TIMER | 1.0s asphyxiation death timer conflicts with 2.0s valve pressurization timer | M4 | Explorer 1, 3 | RESOLVED |
-| 34 | V-POPULATION-PRECOND | `handleConfirmPopulationExpansion` missing difficulty ('dificil') and Day 15 checks | M4 | Explorer 3 | RESOLVED |
-| 35 | V-POPULATION-ZERO | Zero-resource base gets 2 free specialist crew members for 0 cost | M4 | Explorer 3 | RESOLVED |
-| 36 | V-POPULATION-SIDE-EFFECT | Rapid clicks trigger external side-effects (toast, voice, achievement) multiple times | M4 | Explorer 3 | RESOLVED |
-| 37 | V-MODULE-RACE | Double-clicking module upgrade subtracts science twice (into negatives) and exceeds maxLevel | M4 | Explorer 1, 3 | RESOLVED |
-| 38 | V-TEST-HARNESS | Comprehensive automated test suite (Tiers 1-5, 84 tests) verifying all security fixes | M5 | E2E Testing Track | RESOLVED |
-| 39 | V-AUDIT-FINAL | Final adversarial verification, audit hardening (Tier 5), and AUDIT_SECURITY_REPORT.md | M6 | Final Track | RESOLVED |
+| # | Feature | Description | Milestone | Source | Status |
+|---|---------|-------------|-----------|--------|:------:|
+| 1 | F-3D-DEPS | Install `three` and `@types/three` dependencies with zero peer-dep conflicts | M1 | Survey 1 | DONE |
+| 2 | F-3D-BASE-SCENE | 3D interactive WebGL scene in `BaseView.tsx` with terrain for Shackleton & Jezero | M1 | Survey 2 | DONE |
+| 3 | F-3D-ORBIT-CAM | 360° interactive orbit camera (rotation, zoom, tilt) with mouse and touch gestures | M1 | Survey 2 | DONE |
+| 4 | F-3D-STRUCTURES | Central Dome, Veggie Greenhouse with lighting, tunnels, animated solar panels, DSN antenna, magnetic shield | M1 | Survey 2 | DONE |
+| 5 | F-3D-PARTICLES | 3D particles for lunar/martian dust storms and DONKI X-flare solar proton streams | M1 | Survey 2 | DONE |
+| 6 | F-3D-RAYCAST | Interactive raycasting on 3D modules to trigger inspection/repair/operate modals | M1 | Survey 2 | DONE |
+| 7 | F-3D-TOGGLE | Seamless toggle between 3D immersive view and 2D classic strip with state persistence | M1 | Survey 2 | DONE |
+| 8 | F-ROVER-PHYSICS | Real-time vehicle physics with velocity, steering, acceleration, inertia, slope resistance | M2 | Survey 3 | DONE |
+| 9 | F-ROVER-CONTROLS | Dual control schemes: Keyboard (WASD/arrows) + on-screen mobile virtual joystick/D-pad | M2 | Survey 3 | DONE |
+| 10 | F-ROVER-OBSTACLES | Procedural rocks/boulders, impact craters, and crevasses with elastic rebound and speed penalty | M2 | Survey 3 | DONE |
+| 11 | F-ROVER-LASER | Spectrometer laser tool (Space/click/touch) with beam, audio zap, and 3-shard node fragmentation | M2 | Survey 3 | DONE |
+| 12 | F-ROVER-RESOURCES | Cyan Ice (Water), bronze Regolith (Shield), and violet Science nodes with magnetic collection | M2 | Survey 3 | DONE |
+| 13 | F-ROVER-BATTERY | Dynamic battery drainage (passive, speed, uphill, laser) with warning ramp and Base Lander beacon | M2 | Survey 3 | DONE |
+| 14 | F-ROVER-REWARDS | Dynamic reward calculation based on gathered resources fed into `onCompleteSortie` | M2 | Survey 3 | DONE |
+| 15 | F-ROVER-FALLBACK | Accessible "Despacho Rápido" (Quick Sortie) path preserving headless test contracts | M2 | Survey 3 | DONE |
+| 16 | F-ASTRONAUTS-3D | Animated astronaut figures with visible walking/inspection tasks on base and tunnels | M3 | Survey 2 | DONE |
+| 17 | F-GLOBE-3D | Interactive 3D Moon and Mars planetary globe selector with 360° rotation & landing markers | M3 | Survey 3 | DONE |
+| 18 | F-WEBGL-DISPOSAL | Recursive disposal of geometries, materials, textures, renderers and DOM removal | M4 | Survey 1, 2 | DONE |
+| 19 | F-LIFECYCLE-STABILITY | `cancelAnimationFrame` cleanup, `webglcontextlost`/`restored`, tab visibility pause/resume | M4 | Survey 1, 2 | DONE |
+| 20 | F-DELTA-CLAMP | Strict `deltaTime` clamping ($dt \le 0.1$) against background tab freeze and speed hacks | M4 | Survey 2, 3 | DONE |
+| 21 | F-BRAND-PRESERVE | 100% preservation of "🌲 Troncos Intergalácticos", NASA events, balance, dual save v7 | M4 | Survey 1, 2 | DONE |
+| 22 | F-TEST-RETENTION | All 109 existing automated tests continue to pass 100% (`npm test`) | M5 | Survey 1 | DONE |
+| 23 | F-TEST-NEW-3D | Comprehensive unit & integration tests for 3D base logic, rover physics, battery, and disposal | M5 | Survey 1, 3 | DONE |
+| 24 | F-BUILD-CLEAN | Clean `npm run build` compilation with zero TypeScript errors or blocking warnings | M5 | Survey 1 | DONE |
+| 25 | F-GIT-SYNC | Autonomous Git synchronization (`git add`, `git commit`, `git push origin main`) | M5 | Survey 1 | DONE |
+| 26 | F-VERCEL-DEPLOY | Autonomous Vercel production deployment update verified via Vercel CLI | M5 | Survey 1 | DONE |
 
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|:------:|
-| M1 | Core State & Game Loop Integrity | `src/App.tsx`, `src/types/`, timers, resource clamping, lockout tick, crisis achievements | None | DONE |
-| M2 | Resource & Exploration Minigames | `src/components/BotanicalLabModal.tsx`, `src/components/RoverMissionModal.tsx`, water/battery deduction & caps | M1 | DONE |
-| M3 | Facility & Engineering Minigames | `src/components/WiringMiniGameModal.tsx`, `src/components/CommMiniGameModal.tsx`, `src/components/IceMineModal.tsx` | M1 | DONE |
-| M4 | Crew Survival, Events & Progression | `src/components/OxygenEmergencyBanner.tsx`, `src/components/EventModal.tsx`, `src/components/PopulationExpansionModal.tsx`, `src/components/NasaQuizModal.tsx`, `src/components/MissionReportModal.tsx`, `src/components/ModuleControl.tsx` | M1 | DONE |
-| M5 | E2E Testing Track (Tiers 1-5) | Opaque-box automated test suite (84 tests) covering all exploit mitigations, boundary cases, and STEM balance | M1, M2, M3, M4 | DONE |
-| M6 | Final Adversarial Hardening & Audit Report | Pass 100% E2E tests, Tier 5 adversarial tests, and generate `AUDIT_SECURITY_REPORT.md` | M5 | DONE |
+| M1 | 3D Interactive Space Base | `three` install, `BaseScene3D.tsx`, `base3DBuilder.ts`, `particleSystems.ts`, `BaseView.tsx` 2D/3D toggle, 360 camera, structures, raycasting | None | DONE |
+| M2 | 3D Playable Rover Driving Mode | `RoverMissionModal.tsx`, `roverPhysics.ts`, `roverTerrain.ts`, `roverModels.ts`, `RoverHUD.tsx`, `Rover3DCanvas.tsx` | M1 | DONE |
+| M3 | Animated Astronauts & 3D Planet Globe | Astronaut animations on base/tunnels, `PlanetGlobeSelectorModal.tsx`, `Navbar.tsx` globe integration | M1 | DONE |
+| M4 | Studio Quality, WebGL Memory Leaks & Anti-Bugs | `disposal.ts`, context loss handlers, rAF cleanup, deltaTime clamping, anti-cheat, brand & save v7 checks | M1, M2, M3 | DONE |
+| M5 | Test Hardening, Git Sync & Vercel Deployment | New tests, 109+ tests pass, `npm run build`, git push, vercel deploy | M1, M2, M3, M4 | DONE |
 
-## Verification Summary
-- **Build (`npm run build`)**: Pass (0 errors, 1987 modules transformed, built in <1s)
-- **Lint (`npx oxlint`)**: Pass (0 warnings, 0 errors across all source and test files)
-- **Test Suite (`npm test`)**: Pass (84/84 tests passing across Tiers 1–5, 100% pass rate in ~700ms)
-- **Forensic Audit**: CLEAN (0 integrity violations, authenticated by `teamwork_auditor`)
-- **Documentation**: `AUDIT_SECURITY_REPORT.md` delivered at project root (656 lines, 62.4 kB).
+## Interface Contracts
+
+### BaseView ↔ BaseScene3D
+```typescript
+interface BaseScene3DProps {
+  location: 'moon' | 'mars';
+  modules: BaseModule[];
+  radiationActive: boolean;
+  dustStormActive: boolean;
+  isLunarNight: boolean;
+  wiringErrorActive?: boolean;
+  emergencyO2Active?: boolean;
+  assignedToMineCount?: number;
+  onSelectModule: (moduleId: string) => void;
+  selectedModuleId: string | null;
+  lang: 'es' | 'en';
+}
+```
+
+### RoverMissionModal ↔ Rover3DCanvas
+```typescript
+interface Rover3DCanvasProps {
+  location: 'moon' | 'mars';
+  activeTarget: RoverTarget;
+  currentEnergy: number;
+  onFinishMission: (results: {
+    collectedWater: number;
+    collectedShield: number;
+    collectedScience: number;
+    batteryUsed: number;
+    batteryRemainingPct: number;
+    dockedSuccessfully: boolean;
+  }) => void;
+  onCancel: () => void;
+  lang: 'es' | 'en';
+}
+```
+
+### roverPhysics ↔ RoverHUD
+```typescript
+interface RoverState {
+  x: number;
+  y: number;
+  z: number;
+  yaw: number;
+  speed: number;
+  batteryPct: number;
+  cargo: { water: number; shield: number; science: number };
+  laserCooldown: number;
+  isDrilling: boolean;
+  warningAlert: boolean;
+  criticalAlert: boolean;
+  distanceToBase: number;
+}
+```
+
+## Code Layout
+```
+src/
+├── components/
+│   ├── BaseView.tsx                      # Master base view with 3D/2D toggle
+│   ├── RoverMissionModal.tsx              # Rover modal with 3D game + Quick Sortie
+│   ├── Navbar.tsx                        # Header with planet selector launcher
+│   ├── 3d/
+│   │   ├── BaseScene3D.tsx               # Three.js canvas & render loop for space base
+│   │   ├── base3DBuilder.ts              # Procedural terrain, 3D structures, lighting
+│   │   ├── particleSystems.ts            # Dust storm & DONKI solar radiation particles
+│   │   └── disposal.ts                   # Recursive WebGL resource disposal & memory guard
+│   ├── rover3d/
+│   │   ├── Rover3DCanvas.tsx             # Three.js canvas & minigame loop
+│   │   ├── roverPhysics.ts               # Standalone vehicle physics & collision engine
+│   │   ├── roverTerrain.ts               # Multi-octave continuous heightmap & nodes
+│   │   ├── roverModels.ts                # VIPER & Perseverance procedural meshes & laser
+│   │   └── RoverHUD.tsx                  # Touch controls, speedometer, battery & cargo
+│   └── globe3d/
+│       ├── PlanetGlobeSelectorModal.tsx  # 3D interactive Moon/Mars globe selector
+│       └── globeShaders.ts               # Procedural planet surfaces & atmospheric halos
+tests/
+├── tier1_*.test.ts                       # Existing 15 test files (109 tests preserved)
+├── tier1_3d_base.test.ts                 # New unit tests for 3D base logic & structures
+├── tier1_3d_rover_physics.test.ts        # New unit tests for rover physics & collision
+└── tier1_globe_and_disposal.test.ts      # New unit tests for WebGL disposal & globe math
+```
