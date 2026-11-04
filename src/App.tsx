@@ -2262,7 +2262,7 @@ export function App() {
           wiringErrorActive={currentColony.wiringErrorActive}
           emergencyO2Active={currentColony.emergencyO2Active}
           assignedToMineCount={currentColony.assignedToMine.length}
-          onSelectModule={(id) => setSelectedModuleId(id)}
+          onSelectModule={setSelectedModuleId}
           selectedModuleId={selectedModuleId}
           lang={lang}
         />

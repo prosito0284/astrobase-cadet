@@ -125,6 +125,7 @@ export const BaseView: React.FC<BaseViewProps> = ({
           onSelectModule={onSelectModule}
           selectedModuleId={selectedModuleId}
           lang={lang}
+          onSwitchTo2D={() => handleToggleMode('2d')}
         />
       ) : (
         <>

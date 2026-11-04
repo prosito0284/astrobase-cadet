@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { BaseLocation } from '../types/game';
 import { 
   Compass, 
@@ -284,7 +284,7 @@ export const RoverMissionModal: React.FC<RoverMissionModalProps> = ({
   };
 
   // Complete Interactive 3D Driving Mode
-  const handleComplete3DDriving = (results: {
+  const handleComplete3DDriving = useCallback((results: {
     collectedWater: number;
     collectedShield: number;
     collectedScience: number;
@@ -322,7 +322,7 @@ export const RoverMissionModal: React.FC<RoverMissionModalProps> = ({
     setLocalSorties(prev => prev + 1);
     incrementStorageRoverSorties(location);
     onClose();
-  };
+  }, [activeTarget, location, onCompleteSortie, onClose]);
 
   const getRewardIcon = (type: string) => {
     switch (type) {

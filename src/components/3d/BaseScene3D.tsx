@@ -13,7 +13,8 @@ import {
   ShieldAlert, 
   Wind, 
   Info,
-  Maximize2
+  Maximize2,
+  LayoutGrid
 } from 'lucide-react';
 
 export interface BaseScene3DProps {
@@ -28,6 +29,7 @@ export interface BaseScene3DProps {
   onSelectModule: (moduleId: string) => void;
   selectedModuleId: string | null;
   lang: 'es' | 'en';
+  onSwitchTo2D?: () => void;
 }
 
 interface ModuleCameraPreset {
@@ -60,12 +62,21 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
   onSelectModule,
   selectedModuleId,
   lang,
+  onSwitchTo2D,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const [hoveredModuleId, setHoveredModuleId] = useState<string | null>(null);
   const [contextLost, setContextLost] = useState<boolean>(false);
+  const [webGlError, setWebGlError] = useState<string | null>(null);
+  const [canvasKey, setCanvasKey] = useState<number>(0);
+
+  // Stable callback ref to avoid tearing down Three.js scene on every App render
+  const onSelectModuleRef = useRef(onSelectModule);
+  useEffect(() => {
+    onSelectModuleRef.current = onSelectModule;
+  }, [onSelectModule]);
 
   // References for render loop & controls
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -127,9 +138,9 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
     s.targetPhi = preset.phi;
     s.targetRadius = preset.radius;
     if (preset.id !== 'overview') {
-      onSelectModule(preset.id);
+      onSelectModuleRef.current(preset.id);
     }
-  }, [onSelectModule]);
+  }, []);
 
   // Main Three.js Lifecycle
   useEffect(() => {
@@ -169,6 +180,7 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
       rendererRef.current = renderer;
     } catch (err) {
       console.warn('WebGL initialization failed:', err);
+      setWebGlError(err instanceof Error ? err.message : 'Error al inicializar WebGL');
       return;
     }
 
@@ -291,7 +303,7 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
           }
           if (clickedModuleId) {
             soundFx.playClick();
-            onSelectModule(clickedModuleId);
+            onSelectModuleRef.current(clickedModuleId);
           }
         }
       }
@@ -370,24 +382,28 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
         camera.position.set(cx, cy, cz);
         camera.lookAt(targetLookAt);
 
-        // Update 3D base structures & animations
-        builder.update(dt, dynamicStateRef.current);
+        try {
+          // Update 3D base structures & animations
+          builder.update(dt, dynamicStateRef.current);
 
-        // Update particle storms
-        particles.update(
-          dt,
-          dynamicStateRef.current.dustStormActive,
-          dynamicStateRef.current.radiationActive
-        );
+          // Update particle storms
+          particles.update(
+            dt,
+            dynamicStateRef.current.dustStormActive,
+            dynamicStateRef.current.radiationActive
+          );
 
-        // Dynamic fog adaptation during dust storm
-        if (location === 'mars' && scene.fog) {
-          const targetFogHex = dynamicStateRef.current.dustStormActive ? 0x9a3412 : 0x451a03;
-          (scene.fog as THREE.FogExp2).color.setHex(targetFogHex);
+          // Dynamic fog adaptation during dust storm
+          if (location === 'mars' && scene.fog) {
+            const targetFogHex = dynamicStateRef.current.dustStormActive ? 0x9a3412 : 0x451a03;
+            (scene.fog as THREE.FogExp2).color.setHex(targetFogHex);
+          }
+
+          // Render frame
+          renderer.render(scene, camera);
+        } catch (renderErr) {
+          console.warn('3D render tick error:', renderErr);
         }
-
-        // Render frame
-        renderer.render(scene, camera);
 
         rafIdRef.current = requestAnimationFrame(tick);
       };
@@ -423,10 +439,17 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
       builderRef.current = null;
       particlesRef.current = null;
     };
-  }, [location, onSelectModule]);
+  }, [location, canvasKey]);
 
   // Selected module lookup
   const activeModuleData = modules.find(m => m.id === (hoveredModuleId || selectedModuleId));
+
+  const handleRetry3D = () => {
+    soundFx.playClick();
+    setWebGlError(null);
+    setContextLost(false);
+    setCanvasKey(k => k + 1);
+  };
 
   return (
     <div 
@@ -435,21 +458,42 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
     >
       {/* 3D WebGL Canvas */}
       <canvas 
+        key={`${location}-${canvasKey}`}
         ref={canvasRef} 
         className="w-full h-full block outline-none"
       />
 
-      {/* Context Loss Alert */}
-      {contextLost && (
-        <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/85 backdrop-blur-md text-amber-200">
-          <div className="flex flex-col items-center gap-2 text-center p-6 rounded-2xl border border-amber-500/50">
-            <ShieldAlert className="w-8 h-8 text-amber-400 animate-pulse" />
-            <span className="font-bold text-sm">
-              {lang === 'es' ? 'Contexto WebGL Suspendido' : 'WebGL Context Suspended'}
+      {/* WebGL Error or Context Loss Fallback Card */}
+      {(contextLost || webGlError) && (
+        <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/85 backdrop-blur-md text-amber-200 p-4">
+          <div className="flex flex-col items-center gap-3 text-center p-6 rounded-2xl border border-amber-500/50 bg-slate-900/90 max-w-md shadow-2xl">
+            <ShieldAlert className="w-10 h-10 text-amber-400 animate-pulse" />
+            <span className="font-bold text-base text-white">
+              {lang === 'es' ? 'Gráficos 3D en Pausa' : '3D Graphics Suspended'}
             </span>
             <span className="text-xs text-slate-300">
-              {lang === 'es' ? 'Recuperando aceleración gráfica...' : 'Restoring graphic acceleration...'}
+              {lang === 'es' 
+                ? 'El navegador pausó o no pudo inicializar el contexto WebGL. Puedes reintentar o usar la vista 2D clásica.'
+                : 'Browser suspended or failed to initialize WebGL context. You can retry or switch to 2D view.'}
             </span>
+            <div className="flex items-center gap-2 mt-2">
+              <button
+                onClick={handleRetry3D}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs transition-all shadow-md shadow-cyan-600/30"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>{lang === 'es' ? 'Reintentar 3D' : 'Retry 3D'}</span>
+              </button>
+              {onSwitchTo2D && (
+                <button
+                  onClick={onSwitchTo2D}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold text-xs transition-all"
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                  <span>{lang === 'es' ? 'Vista 2D Clásica' : '2D Classic'}</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

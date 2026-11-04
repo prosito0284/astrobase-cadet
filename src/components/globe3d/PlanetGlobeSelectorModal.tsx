@@ -425,7 +425,7 @@ export const PlanetGlobeSelectorModal: React.FC<PlanetGlobeSelectorModalProps> =
             ref={containerRef} 
             className="md:col-span-7 relative h-[280px] sm:h-[340px] md:h-full bg-slate-950 overflow-hidden cursor-grab active:cursor-grabbing select-none"
           >
-            <canvas ref={canvasRef} className="w-full h-full block outline-none" />
+            <canvas key={selectedLocation} ref={canvasRef} className="w-full h-full block outline-none" />
 
             {/* In-viewport HUD controls */}
             <div className="absolute top-3 left-3 flex flex-col gap-1.5 pointer-events-auto">

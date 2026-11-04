@@ -79,7 +79,8 @@ export function disposeThreeObject(obj: THREE.Object3D): void {
 }
 
 /**
- * Safely disposes a WebGLRenderer, forces context loss, and removes canvas from DOM if mounted.
+ * Safely disposes a Three.js WebGLRenderer, releasing shaders, buffers, and textures.
+ * Does not remove React JSX-managed canvas elements from the DOM.
  */
 export function disposeRenderer(renderer: THREE.WebGLRenderer | null): void {
   if (!renderer) return;
@@ -96,11 +97,6 @@ export function disposeRenderer(renderer: THREE.WebGLRenderer | null): void {
     }
   } catch {
     // Ignore error if context was already lost
-  }
-
-  const dom = renderer.domElement;
-  if (dom && dom.parentNode) {
-    dom.parentNode.removeChild(dom);
   }
 }
 

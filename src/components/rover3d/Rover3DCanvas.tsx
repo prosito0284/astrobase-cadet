@@ -339,6 +339,16 @@ export const Rover3DCanvas: React.FC<Rover3DCanvasProps> = ({
     }
   }, [location]);
 
+  // Stable callback refs for animation & keyboard loops
+  const triggerLaserFireRef = useRef(triggerLaserFire);
+  useEffect(() => { triggerLaserFireRef.current = triggerLaserFire; }, [triggerLaserFire]);
+
+  const handleResetVehicleRef = useRef(handleResetVehicle);
+  useEffect(() => { handleResetVehicleRef.current = handleResetVehicle; }, [handleResetVehicle]);
+
+  const finishSortieRef = useRef(finishSortie);
+  useEffect(() => { finishSortieRef.current = finishSortie; }, [finishSortie]);
+
   // Main Three.js Scene, Physics & Game Loop Lifecycle
   useEffect(() => {
     const container = containerRef.current;
@@ -493,10 +503,10 @@ export const Rover3DCanvas: React.FC<Rover3DCanvasProps> = ({
       keysPressedRef.current[e.key.toLowerCase()] = true;
       if (e.code === 'Space') {
         e.preventDefault();
-        triggerLaserFire();
+        triggerLaserFireRef.current();
       }
       if (e.key.toLowerCase() === 'r') {
-        handleResetVehicle();
+        handleResetVehicleRef.current();
       }
     };
 
@@ -617,7 +627,7 @@ export const Rover3DCanvas: React.FC<Rover3DCanvasProps> = ({
       if (batteryPctRef.current <= 0 && !blackoutTriggered && !isFinishedRef.current) {
         blackoutTriggered = true;
         setTimeout(() => {
-          finishSortie(false);
+          finishSortieRef.current(false);
         }, 1200);
       }
 
@@ -727,10 +737,13 @@ export const Rover3DCanvas: React.FC<Rover3DCanvasProps> = ({
       }
 
       // Strict Three.js resource disposal
+      if (container && renderer?.domElement && renderer.domElement.parentNode === container) {
+        container.removeChild(renderer.domElement);
+      }
       disposeThreeObject(scene);
       disposeRenderer(renderer);
     };
-  }, [location, triggerLaserFire, handleResetVehicle, finishSortie]);
+  }, [location]);
 
   return (
     <div className="relative w-full h-[75vh] sm:h-[80vh] bg-black rounded-3xl overflow-hidden border-2 border-cyan-500/60 shadow-[0_0_60px_rgba(6,182,212,0.3)]">
