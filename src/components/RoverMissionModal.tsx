@@ -16,6 +16,7 @@ import {
 import { soundFx } from '../utils/audio';
 import confetti from 'canvas-confetti';
 import { Rover3DCanvas } from './rover3d/Rover3DCanvas';
+import { rollGeologicalSample, GeologicalSpecimen } from '../data/geologicalSamples';
 
 interface RoverMissionModalProps {
   isOpen: boolean;
@@ -27,6 +28,7 @@ interface RoverMissionModalProps {
   sortiesToday?: number;
   maxSortiesPerDay?: number;
   hasRoverHangar?: boolean;
+  onDiscoverSample?: (sample: GeologicalSpecimen) => void;
 }
 
 interface SortieTarget {
@@ -82,6 +84,28 @@ const incrementStorageRoverSorties = (loc: BaseLocation) => {
   }
 };
 
+export const addSampleToCabinetStorage = (loc: BaseLocation, sampleId: string): boolean => {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const raw = localStorage.getItem('astrobase_dual_save_v7');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object' && parsed[loc]) {
+          const cabinet: string[] = Array.isArray(parsed[loc].sampleCabinet) ? parsed[loc].sampleCabinet : [];
+          if (!cabinet.includes(sampleId)) {
+            parsed[loc].sampleCabinet = [...cabinet, sampleId];
+            localStorage.setItem('astrobase_dual_save_v7', JSON.stringify(parsed));
+            return true;
+          }
+        }
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return false;
+};
+
 export const RoverMissionModal: React.FC<RoverMissionModalProps> = ({
   isOpen,
   onClose,
@@ -92,10 +116,12 @@ export const RoverMissionModal: React.FC<RoverMissionModalProps> = ({
   sortiesToday: propSortiesToday,
   maxSortiesPerDay = 2,
   hasRoverHangar = false,
+  onDiscoverSample,
 }) => {
   const [selectedTargetId, setSelectedTargetId] = useState<string>('shackleton_ice');
   const [isDeploying, setIsDeploying] = useState<boolean>(false);
   const [isDriving3D, setIsDriving3D] = useState<boolean>(false);
+  const [discoveredSampleToast, setDiscoveredSampleToast] = useState<GeologicalSpecimen | null>(null);
   const isDeployingRef = useRef<boolean>(false);
   const [localSorties, setLocalSorties] = useState<number>(() => {
     return propSortiesToday !== undefined 
@@ -255,6 +281,13 @@ export const RoverMissionModal: React.FC<RoverMissionModalProps> = ({
       soundFx.playVictory();
       confetti({ particleCount: 100, spread: 60, origin: { y: 0.6 } });
 
+      // Trigger geological sample collection roll upon return
+      const sample = rollGeologicalSample(location, activeTarget.id);
+      if (sample) {
+        addSampleToCabinetStorage(location, sample.id);
+        onDiscoverSample?.(sample);
+      }
+
       const sortiePayload = {
         batteryCost: activeTarget.batteryCost,
         ...(activeTarget.rewardType === 'water' ? { water: activeTarget.rewardAmount } : {}),
@@ -300,6 +333,13 @@ export const RoverMissionModal: React.FC<RoverMissionModalProps> = ({
     setIsDriving3D(false);
     confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
 
+    // Trigger geological sample collection roll upon return
+    const sample = rollGeologicalSample(location, activeTarget.id);
+    if (sample) {
+      addSampleToCabinetStorage(location, sample.id);
+      onDiscoverSample?.(sample);
+    }
+
     // Dynamic calculation combining target baseline + interactive cargo shards
     const baseWater = activeTarget.rewardType === 'water' ? activeTarget.rewardAmount : 0;
     const baseShield = activeTarget.rewardType === 'shield' ? activeTarget.rewardAmount : 0;
@@ -328,7 +368,7 @@ export const RoverMissionModal: React.FC<RoverMissionModalProps> = ({
     setLocalSorties(prev => prev + 1);
     incrementStorageRoverSorties(location);
     onClose();
-  }, [activeTarget, location, onCompleteSortie, onClose]);
+  }, [activeTarget, location, onCompleteSortie, onClose, hasRoverHangar, onDiscoverSample]);
 
   const getRewardIcon = (type: string) => {
     switch (type) {
@@ -412,6 +452,11 @@ export const RoverMissionModal: React.FC<RoverMissionModalProps> = ({
               onCancel={() => setIsDriving3D(false)}
               lang={lang}
               hasRoverHangar={hasRoverHangar}
+              onDiscoverSample={(sample) => {
+                addSampleToCabinetStorage(location, sample.id);
+                setDiscoveredSampleToast(sample);
+                onDiscoverSample?.(sample);
+              }}
             />
           </div>
         ) : (
@@ -552,6 +597,32 @@ export const RoverMissionModal: React.FC<RoverMissionModalProps> = ({
               </div>
             </div>
           </>
+        )}
+
+        {/* Exciting Rare Geological Specimen Discovery Banner */}
+        {discoveredSampleToast && (
+          <div className="mt-3 p-3.5 rounded-2xl bg-gradient-to-r from-emerald-950/90 via-slate-900 to-emerald-950/90 border-2 border-emerald-400 text-white flex items-center justify-between gap-3 shadow-[0_0_40px_rgba(16,185,129,0.4)] animate-bounce">
+            <div className="flex items-center gap-3">
+              <span className="text-3xl shrink-0">{discoveredSampleToast.visuals.icon}</span>
+              <div>
+                <div className="text-[10px] font-black uppercase tracking-wider text-emerald-300">
+                  {lang === 'es' ? '¡Nueva Muestra Geológica Descubierta!' : 'New Rare Geological Specimen Discovered!'}
+                </div>
+                <div className="text-xs font-bold text-white">
+                  {lang === 'es' ? discoveredSampleToast.nameEs : discoveredSampleToast.nameEn}
+                </div>
+                <div className="text-[10px] text-cyan-300 font-mono">
+                  +{discoveredSampleToast.stackingBonus.scienceBonusPct}% {lang === 'es' ? 'Ciencia' : 'Science'} · +{discoveredSampleToast.stackingBonus.moraleBonus} {lang === 'es' ? 'Moral' : 'Morale'}
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => setDiscoveredSampleToast(null)}
+              className="text-xs font-bold px-3 py-1 rounded-xl bg-emerald-900/60 hover:bg-emerald-800 text-emerald-200 border border-emerald-500/40"
+            >
+              {lang === 'es' ? 'Entendido' : 'Dismiss'}
+            </button>
+          </div>
         )}
       </div>
     </div>

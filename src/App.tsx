@@ -43,6 +43,8 @@ import { CommanderProfileModal } from './components/CommanderProfileModal';
 import { FlightLogModal } from './components/FlightLogModal';
 import { BaseBuildingMenuModal } from './components/BaseBuildingMenuModal';
 import { BUILDING_CATALOG } from './components/3d/baseBuildingBuilder';
+import { GeologicalCabinetModal } from './components/GeologicalCabinetModal';
+import { calculateCabinetBonuses, isValidGeologicalSampleId, GeologicalSpecimen } from './data/geologicalSamples';
 import { soundFx, spaceAmbient } from './utils/audio';
 import { spaceVoice } from './utils/speech';
 import confetti from 'canvas-confetti';
@@ -136,6 +138,7 @@ const createInitialColonyData = (loc: BaseLocation, diff: GameDifficulty = 'norm
     populationExpanded: false,
     assignedToMine: [],
     builtBuildings: [],
+    sampleCabinet: [],
     lastEventDay: 1,
     lastSolarFlareDay: 1,
     lastEventId: undefined,
@@ -223,6 +226,10 @@ export function App() {
             ? Array.from(new Set(c.builtBuildings.filter((b: any) => typeof b === 'string' && validBuildingIds.includes(b as BaseBuildingId)))) as BaseBuildingId[]
             : [];
 
+          const sanitizedSampleCabinet: string[] = Array.isArray(c?.sampleCabinet)
+            ? Array.from(new Set(c.sampleCabinet.filter((id: any) => typeof id === 'string' && isValidGeologicalSampleId(id))))
+            : [];
+
           return {
             ...init,
             currentDay: safeDay,
@@ -255,6 +262,7 @@ export function App() {
             populationExpanded: Boolean(c?.populationExpanded),
             assignedToMine: sanitizedAssignedToMine as string[],
             builtBuildings: sanitizedBuiltBuildings,
+            sampleCabinet: sanitizedSampleCabinet,
             lastEventDay: safeNum(c?.lastEventDay, 1, 1, 100),
             lastSolarFlareDay: safeNum(c?.lastSolarFlareDay, 1, 1, 100),
             lastEventId: typeof c?.lastEventId === 'string' ? c.lastEventId : undefined,
@@ -309,8 +317,42 @@ export function App() {
   const [isCommanderProfileOpen, setIsCommanderProfileOpen] = useState(false);
   const [isFlightLogOpen, setIsFlightLogOpen] = useState(false);
   const [isBuildingMenuOpen, setIsBuildingMenuOpen] = useState(false);
+  const [isGeologicalCabinetOpen, setIsGeologicalCabinetOpen] = useState(false);
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Rare NASA Astromaterials Discovery Handler
+  const handleDiscoverSample = (sample: GeologicalSpecimen) => {
+    updateCurrentColony(prev => {
+      const cabinet = prev.sampleCabinet || [];
+      if (cabinet.includes(sample.id)) return prev;
+
+      const updatedCabinet = [...cabinet, sample.id];
+      const updatedCrew = prev.crew.map(m => m.status === 'deceased' ? m : {
+        ...m,
+        morale: Math.min(100, m.morale + sample.stackingBonus.moraleBonus),
+      });
+
+      return {
+        ...prev,
+        sampleCabinet: updatedCabinet,
+        crew: updatedCrew,
+      };
+    });
+
+    soundFx.playVictory();
+    confetti({ particleCount: 110, spread: 70, origin: { y: 0.6 } });
+    showToast(
+      lang === 'es'
+        ? `🔬 ¡Nueva Muestra Geológica Descubierta! ${sample.nameEs} (+${sample.stackingBonus.scienceBonusPct}% Ciencia, +${sample.stackingBonus.moraleBonus} Moral)`
+        : `🔬 New Geological Specimen Discovered! ${sample.nameEn} (+${sample.stackingBonus.scienceBonusPct}% Sci, +${sample.stackingBonus.moraleBonus} Morale)`
+    );
+    addFlightLog(
+      'success',
+      `Muestra geológica analizada: ${sample.nameEs}. Bonificaciones activas: +${sample.stackingBonus.scienceBonusPct}% Ciencia, +${sample.stackingBonus.moraleBonus} Moral.`,
+      `Geological specimen cataloged: ${sample.nameEn}. Active buffs: +${sample.stackingBonus.scienceBonusPct}% Science, +${sample.stackingBonus.moraleBonus} Morale.`
+    );
+  };
 
   // Debouncing & Re-entrancy guards
   const isUpgradingRef = useRef(false);
@@ -1232,9 +1274,10 @@ export function App() {
     let newRad = currentColony.resources.radiationExposure + (currentColony.radiationActive ? 6 : 0.5);
 
     const scienceBonusMultiplier = difficulty === 'dificil' ? 1.5 : 1.0;
+    const cabinetBonuses = calculateCabinetBonuses(currentColony.sampleCabinet || []);
     let newScience = Math.min(
       MAX_SCIENCE_POINTS,
-      currentColony.resources.sciencePoints + Math.round(Math.max(1, deltaScience) * scienceBonusMultiplier)
+      currentColony.resources.sciencePoints + Math.round(Math.max(1, deltaScience) * scienceBonusMultiplier * cabinetBonuses.scienceMultiplier)
     );
 
     // 7. SPACE DEBRIS CHECK
@@ -1355,8 +1398,9 @@ export function App() {
         if (isExtreme) moraleDelta -= Math.round(6 * 1.25);
       }
 
+      const cabinetMoraleBuff = cabinetBonuses.totalMoraleBonus > 0 ? Math.min(5, Math.ceil(cabinetBonuses.totalMoraleBonus * 0.2)) : 0;
       const calculatedHealth = Math.max(0, Math.min(100, c.health + healthDelta));
-      const calculatedMorale = Math.max(0, Math.min(100, c.morale + moraleDelta));
+      const calculatedMorale = Math.max(0, Math.min(100, c.morale + moraleDelta + cabinetMoraleBuff));
 
       if (calculatedHealth <= 0 && (difficulty === 'normal' || difficulty === 'dificil')) {
         anyDeathOccurred = true;
@@ -2400,6 +2444,7 @@ export function App() {
           assignedToMineCount={currentColony.assignedToMine.length}
           builtBuildings={currentColony.builtBuildings ?? []}
           onOpenBuildingMenu={() => setIsBuildingMenuOpen(true)}
+          onOpenGeologicalCabinet={() => setIsGeologicalCabinetOpen(true)}
           onSelectModule={setSelectedModuleId}
           selectedModuleId={selectedModuleId}
           lang={lang}
@@ -2416,6 +2461,7 @@ export function App() {
           onRepairModule={() => {}}
           lang={lang}
           difficulty={difficulty}
+          onOpenGeologicalCabinet={() => setIsGeologicalCabinetOpen(true)}
         />
 
         {/* 4. CREW ROSTER & HEALTH (NASA OSDR / Real Casualties on Health=0) */}
@@ -2501,6 +2547,15 @@ export function App() {
         hasRoverHangar={currentColony.builtBuildings?.includes('rover_hangar')}
         lang={lang}
         sortiesToday={currentColony.roverSortiesToday ?? 0}
+        onDiscoverSample={handleDiscoverSample}
+      />
+
+      <GeologicalCabinetModal
+        isOpen={isGeologicalCabinetOpen}
+        onClose={() => setIsGeologicalCabinetOpen(false)}
+        location={location}
+        sampleCabinet={currentColony.sampleCabinet}
+        lang={lang}
       />
 
       <HistoricalCrisesModal

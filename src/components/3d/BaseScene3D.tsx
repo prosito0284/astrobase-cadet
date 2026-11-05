@@ -25,7 +25,8 @@ import {
   Maximize2, 
   LayoutGrid,
   User,
-  Building2
+  Building2,
+  Microscope
 } from 'lucide-react';
 import { BaseBuildingId } from '../../types/game';
 import { 
@@ -57,6 +58,7 @@ export interface BaseScene3DProps {
   onTriggerRepair?: (crisisType: 'battery' | 'o2' | 'solar_storm', moduleId: string) => void;
   builtBuildings?: BaseBuildingId[];
   onOpenBuildingMenu?: () => void;
+  onOpenGeologicalCabinet?: () => void;
 }
 
 interface ModuleCameraPreset {
@@ -95,6 +97,7 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
   onTriggerRepair,
   builtBuildings = [],
   onOpenBuildingMenu,
+  onOpenGeologicalCabinet,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -929,6 +932,21 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
             >
               <Building2 className="w-3.5 h-3.5 text-cyan-200 group-hover:scale-110 transition-transform" />
               <span>{lang === 'es' ? '🏗️ Expansión de Base' : '🏗️ Base Building'}</span>
+            </button>
+          )}
+
+          {/* 🔬 NASA Astromaterials Geological Cabinet Button */}
+          {onOpenGeologicalCabinet && (
+            <button
+              onClick={() => {
+                soundFx.playClick();
+                onOpenGeologicalCabinet();
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold shadow-lg shadow-emerald-950/50 border border-emerald-400/40 transition-all active:scale-95 group"
+              title={lang === 'es' ? 'Gabinete de Muestras Geológicas de la NASA' : 'NASA Geological Specimen Cabinet'}
+            >
+              <Microscope className="w-3.5 h-3.5 text-emerald-200 group-hover:scale-110 transition-transform" />
+              <span>{lang === 'es' ? '🔬 Gabinete de Muestras' : '🔬 Sample Cabinet'}</span>
             </button>
           )}
 

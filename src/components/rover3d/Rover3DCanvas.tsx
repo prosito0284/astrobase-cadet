@@ -36,6 +36,7 @@ import {
 import { RoverHUD } from './RoverHUD';
 import { disposeThreeObject, disposeRenderer } from '../3d/disposal';
 import { soundFx } from '../../utils/audio';
+import { rollGeologicalSample, GeologicalSpecimen } from '../../data/geologicalSamples';
 
 export interface Rover3DCanvasProps {
   location: PlanetLocation;
@@ -60,6 +61,7 @@ export interface Rover3DCanvasProps {
   onCancel: () => void;
   lang: 'es' | 'en';
   hasRoverHangar?: boolean;
+  onDiscoverSample?: (sample: GeologicalSpecimen) => void;
 }
 
 /**
@@ -123,9 +125,15 @@ export const Rover3DCanvas: React.FC<Rover3DCanvasProps> = ({
   onCancel,
   lang,
   hasRoverHangar = false,
+  onDiscoverSample,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const synthRef = useRef<LaserAudioSynth | null>(null);
+  const onDiscoverSampleRef = useRef(onDiscoverSample);
+  useEffect(() => { onDiscoverSampleRef.current = onDiscoverSample; }, [onDiscoverSample]);
+
+  // Sample Discovery Banner State
+  const [sampleDiscoveryBanner, setSampleDiscoveryBanner] = useState<GeologicalSpecimen | null>(null);
 
   // HUD and Telemetry State
   const [speed, setSpeed] = useState<number>(0);
@@ -306,6 +314,17 @@ export const Rover3DCanvas: React.FC<Rover3DCanvasProps> = ({
         const meshGroup = nodeMeshesRef.current.get(hitNode.id);
         if (meshGroup) {
           meshGroup.visible = false;
+        }
+
+        // Trigger sample collection roll from mined node
+        const minedSample = rollGeologicalSample(location, hitNode.type);
+        if (minedSample) {
+          setSampleDiscoveryBanner(minedSample);
+          soundFx.playVictory();
+          onDiscoverSampleRef.current?.(minedSample);
+          setTimeout(() => {
+            setSampleDiscoveryBanner(null);
+          }, 4500);
         }
 
         // Spawn 3 collectible mineral shards
@@ -778,6 +797,24 @@ export const Rover3DCanvas: React.FC<Rover3DCanvasProps> = ({
         onControlChange={handleControlChange}
         onResetVehicle={handleResetVehicle}
       />
+
+      {/* Exciting Geological Sample Discovery Banner */}
+      {sampleDiscoveryBanner && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 bg-gradient-to-r from-emerald-950/95 via-slate-900/95 to-emerald-950/95 border-2 border-emerald-400 text-white px-5 py-3 rounded-2xl shadow-[0_0_50px_rgba(16,185,129,0.6)] backdrop-blur-md animate-bounce flex items-center gap-3.5 pointer-events-none">
+          <span className="text-3xl shrink-0">{sampleDiscoveryBanner.visuals.icon}</span>
+          <div className="flex flex-col">
+            <span className="text-[10px] uppercase font-black tracking-widest text-emerald-300">
+              {lang === 'es' ? '¡NUEVA MUESTRA GEOLÓGICA EXTRAÍDA!' : 'NEW GEOLOGICAL SPECIMEN EXTRACTED!'}
+            </span>
+            <span className="text-sm font-black text-white">
+              {lang === 'es' ? sampleDiscoveryBanner.nameEs : sampleDiscoveryBanner.nameEn}
+            </span>
+            <span className="text-[11px] text-cyan-300 font-mono">
+              +{sampleDiscoveryBanner.stackingBonus.scienceBonusPct}% {lang === 'es' ? 'Ciencia' : 'Sci'} · +{sampleDiscoveryBanner.stackingBonus.moraleBonus} {lang === 'es' ? 'Moral' : 'Morale'}
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

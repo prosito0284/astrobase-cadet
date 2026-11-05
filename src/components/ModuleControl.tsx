@@ -6,7 +6,8 @@ import {
   Zap, 
   Wind, 
   Droplets, 
-  Sparkles
+  Sparkles,
+  Microscope
 } from 'lucide-react';
 import { soundFx } from '../utils/audio';
 
@@ -19,6 +20,7 @@ interface ModuleControlProps {
   onRepairModule: (id: string) => void;
   lang: 'es' | 'en';
   difficulty?: GameDifficulty;
+  onOpenGeologicalCabinet?: () => void;
 }
 
 export const ModuleControl: React.FC<ModuleControlProps> = ({
@@ -30,6 +32,7 @@ export const ModuleControl: React.FC<ModuleControlProps> = ({
   onRepairModule: _onRepairModule,
   lang,
   difficulty = 'normal',
+  onOpenGeologicalCabinet,
 }) => {
   const [isUpgrading, setIsUpgrading] = useState(false);
   const upgradeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -165,6 +168,20 @@ export const ModuleControl: React.FC<ModuleControlProps> = ({
                       : (lang === 'es' ? 'Mejorar (10 pts)' : 'Upgrade (10 pts)')}
                 </span>
               </button>
+
+              {activeModule.id === 'science_lab' && onOpenGeologicalCabinet && (
+                <button
+                  onClick={() => {
+                    soundFx.playClick();
+                    onOpenGeologicalCabinet();
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/50 text-emerald-300 transition-all active:scale-95"
+                  title="Abrir el Gabinete de Muestras Geológicas de la NASA"
+                >
+                  <Microscope className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>{lang === 'es' ? '🔬 Gabinete Muestras' : '🔬 Sample Cabinet'}</span>
+                </button>
+              )}
             </div>
           </div>
 

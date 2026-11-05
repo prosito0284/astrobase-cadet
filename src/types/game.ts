@@ -155,6 +155,7 @@ export interface ColonySaveData {
   lastSolarFlareDay?: number;    // Sol when the last solar flare occurred
   lastEventId?: string;          // ID of the last triggered event (to prevent back-to-back duplicate modals)
   builtBuildings?: BaseBuildingId[]; // Constructed 3D base expansion structures
+  sampleCabinet?: string[];      // Acquired rare NASA geological specimen IDs
 }
 
 export type BaseBuildingId = 'rover_hangar' | 'greenhouse_2' | 'dsoc_tower';

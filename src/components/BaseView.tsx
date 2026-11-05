@@ -6,7 +6,8 @@ import {
   Info,
   Box,
   LayoutGrid,
-  Building2
+  Building2,
+  Microscope
 } from 'lucide-react';
 import { BaseScene3D } from './3d/BaseScene3D';
 import { soundFx } from '../utils/audio';
@@ -30,6 +31,7 @@ interface BaseViewProps {
   onTriggerRepair?: (crisisType: 'battery' | 'o2' | 'solar_storm', moduleId: string) => void;
   builtBuildings?: BaseBuildingId[];
   onOpenBuildingMenu?: () => void;
+  onOpenGeologicalCabinet?: () => void;
 }
 
 export const BaseView: React.FC<BaseViewProps> = ({
@@ -50,6 +52,7 @@ export const BaseView: React.FC<BaseViewProps> = ({
   onTriggerRepair,
   builtBuildings = [],
   onOpenBuildingMenu,
+  onOpenGeologicalCabinet,
 }) => {
   const [hoveredModule, setHoveredModule] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'3d' | '2d'>(() => {
@@ -111,6 +114,20 @@ export const BaseView: React.FC<BaseViewProps> = ({
             </button>
           )}
 
+          {onOpenGeologicalCabinet && (
+            <button
+              onClick={() => {
+                soundFx.playClick();
+                onOpenGeologicalCabinet();
+              }}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-md shadow-emerald-950/40 border border-emerald-400/40 transition-all active:scale-95"
+              title={lang === 'es' ? 'Gabinete de Muestras Geológicas de la NASA' : 'NASA Geological Specimen Cabinet'}
+            >
+              <Microscope className="w-3.5 h-3.5 text-emerald-200" />
+              <span>{lang === 'es' ? '🔬 Gabinete de Muestras' : '🔬 Sample Cabinet'}</span>
+            </button>
+          )}
+
           <div className="flex items-center bg-slate-950/80 border border-slate-800 p-0.5 rounded-xl shadow-inner">
             <button
               onClick={() => handleToggleMode('3d')}
@@ -158,6 +175,7 @@ export const BaseView: React.FC<BaseViewProps> = ({
           onTriggerRepair={onTriggerRepair}
           builtBuildings={builtBuildings}
           onOpenBuildingMenu={onOpenBuildingMenu}
+          onOpenGeologicalCabinet={onOpenGeologicalCabinet}
         />
       ) : (
         <>
