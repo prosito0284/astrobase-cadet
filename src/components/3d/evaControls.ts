@@ -115,8 +115,21 @@ export function updateEvaMouseLook(
 // Dynamic expansion building colliders registry (Rover Hangar, 2nd Greenhouse, DSOC Tower)
 let activeExpansionColliders: DomeCollider[] = [];
 
-export function setExpansionColliders(colliders: DomeCollider[]): void {
-  activeExpansionColliders = [...colliders];
+export const DEFAULT_EXPANSION_COLLIDER_MAP: Record<string, DomeCollider> = {
+  rover_hangar: { id: 'exp_rover_hangar', name: 'Hangar del Rover', x: 8, z: -8, radius: 4.5 },
+  greenhouse_2: { id: 'exp_greenhouse_2', name: '2º Invernadero (Domo)', x: 18, z: 8, radius: 4.0 },
+  dsoc_tower: { id: 'exp_dsoc_tower', name: 'Torre Láser DSOC', x: -8, z: 18, radius: 3.0 },
+};
+
+export function setExpansionColliders(colliders: (DomeCollider | string)[]): void {
+  activeExpansionColliders = colliders.map(c => {
+    if (typeof c === 'string') {
+      const def = DEFAULT_EXPANSION_COLLIDER_MAP[c];
+      if (def) return def;
+      return { id: `exp_${c}`, name: c, x: 0, z: 0, radius: 3.5 };
+    }
+    return c;
+  });
 }
 
 export function getExpansionColliders(): DomeCollider[] {

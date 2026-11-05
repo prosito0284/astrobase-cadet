@@ -60,6 +60,12 @@ export const EXPANSION_COLLIDER_RADII: Record<BaseBuildingId, number> = {
   dsoc_tower: 3.0,
 };
 
+export const EXPANSION_COLLIDER_DEFS: Record<BaseBuildingId, { id: string; name: string; x: number; z: number; radius: number }> = {
+  rover_hangar: { id: 'exp_rover_hangar', name: 'Hangar del Rover', x: 8, z: -8, radius: 4.5 },
+  greenhouse_2: { id: 'exp_greenhouse_2', name: '2º Invernadero (Domo)', x: 18, z: 8, radius: 4.0 },
+  dsoc_tower: { id: 'exp_dsoc_tower', name: 'Torre Láser DSOC', x: -8, z: 18, radius: 3.0 },
+};
+
 /**
  * Builds the 3D procedural mesh for the Rover Hangar (`rover_hangar`).
  * Includes reinforced garage arch canopy, deployment ramp, battery charging stanchions, and blinking status beacon.
@@ -67,6 +73,7 @@ export const EXPANSION_COLLIDER_RADII: Record<BaseBuildingId, number> = {
 export function buildRoverHangarMesh(): THREE.Group {
   const group = new THREE.Group();
   group.name = 'expansion_rover_hangar';
+  group.userData.buildingId = 'rover_hangar';
 
   // 1. Reinforced Foundation & Platform Floor
   const floorGeom = new THREE.BoxGeometry(7.2, 0.4, 8.0);
@@ -201,6 +208,7 @@ export function buildRoverHangarMesh(): THREE.Group {
 export function build2ndGreenhouseMesh(): THREE.Group {
   const group = new THREE.Group();
   group.name = 'expansion_greenhouse_2';
+  group.userData.buildingId = 'greenhouse_2';
 
   // 1. Concrete Base Ring / Foundation
   const ringGeom = new THREE.CylinderGeometry(5.2, 5.4, 0.6, 32);
@@ -286,6 +294,12 @@ export function build2ndGreenhouseMesh(): THREE.Group {
   tier3.position.set(0, 3.8, 0);
   group.add(tier3);
 
+  // Interior hydroponic PointLight providing vibrant bio-glow
+  const hydroLight = new THREE.PointLight(0x10b981, 1.5, 14);
+  hydroLight.position.set(0, 2.5, 0);
+  hydroLight.name = 'greenhouse_hydro_light';
+  group.add(hydroLight);
+
   // 4. Airlock Entry Collar
   const airlockGeom = new THREE.BoxGeometry(2.2, 1.8, 2.2);
   const airlockMat = new THREE.MeshStandardMaterial({
@@ -322,6 +336,7 @@ export function build2ndGreenhouseMesh(): THREE.Group {
 export function buildDSOCTowerMesh(): THREE.Group {
   const group = new THREE.Group();
   group.name = 'expansion_dsoc_tower';
+  group.userData.buildingId = 'dsoc_tower';
 
   // 1. Reinforced Hexagonal Foundation
   const baseGeom = new THREE.CylinderGeometry(3.0, 3.4, 0.6, 6);
@@ -421,6 +436,7 @@ export function buildDSOCTowerMesh(): THREE.Group {
   });
   const beam = new THREE.Mesh(beamGeom, beamMat);
   beam.name = 'dsoc_laser_beam';
+  beam.userData.isLaserBeam = true;
   beam.position.set(0, 7.2, 6.8);
   gimbalAssembly.add(beam);
 

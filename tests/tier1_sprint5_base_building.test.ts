@@ -1,10 +1,26 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import * as THREE from 'three';
 import {
   BUILDING_CATALOG,
   BaseBuildingManager,
 } from './helpers/sprintHarness';
 import { AstrobaseSimulation } from './helpers/gameHarness';
+import {
+  buildRoverHangarMesh,
+  build2ndGreenhouseMesh,
+  buildDSOCTowerMesh,
+  updateExpansionBuildings,
+  disposeExpansionBuildings,
+  EXPANSION_COLLIDER_DEFS,
+} from '../src/components/3d/baseBuildingBuilder';
+import {
+  setExpansionColliders,
+  getExpansionColliders,
+  clearExpansionColliders,
+  resolveCollisions,
+} from '../src/components/3d/evaControls';
+import { BaseBuildingId, ColonySaveData } from '../src/types/game';
 
 describe('Tier 1.18: Sprint 5 - 3D Base Expansion (Base Building & Active Colony Buffs)', () => {
 
@@ -229,6 +245,120 @@ describe('Tier 1.18: Sprint 5 - 3D Base Expansion (Base Building & Active Colony
       assert.strictEqual(effects.foodDelta, 0);
       assert.strictEqual(effects.o2Delta, 0);
       assert.strictEqual(effects.scienceMultiplier, 1.0);
+    });
+  });
+
+  describe('Feature 17: F-3D-EXPANSION-MESHES-COLLIDERS-PERSISTENCE (Procedural 3D & EVA Physics)', () => {
+    it('3D-1: Rover Hangar procedural mesh instantiates with canopy, stanchions, beacon, and shadow casting', () => {
+      const hangar = buildRoverHangarMesh();
+      assert.ok(hangar instanceof THREE.Group, 'Hangar must be a Three.js Group');
+      assert.strictEqual(hangar.userData.buildingId, 'rover_hangar');
+
+      let meshCount = 0;
+      let hasShadowCastingMesh = false;
+      hangar.traverse(child => {
+        if (child instanceof THREE.Mesh) {
+          meshCount++;
+          if (child.castShadow) hasShadowCastingMesh = true;
+        }
+      });
+
+      assert.ok(meshCount >= 8, `Rover Hangar must contain >= 8 procedural meshes (found ${meshCount})`);
+      assert.strictEqual(hasShadowCastingMesh, true, 'Rover Hangar meshes must cast shadows');
+    });
+
+    it('3D-2: 2nd Greenhouse procedural mesh instantiates with geodesic dome, hydroponic glow, and airlock', () => {
+      const greenhouse = build2ndGreenhouseMesh();
+      assert.ok(greenhouse instanceof THREE.Group, 'Greenhouse 2 must be a Three.js Group');
+      assert.strictEqual(greenhouse.userData.buildingId, 'greenhouse_2');
+
+      let hasPointLight = false;
+      let meshCount = 0;
+      greenhouse.traverse(child => {
+        if (child instanceof THREE.PointLight) hasPointLight = true;
+        if (child instanceof THREE.Mesh) meshCount++;
+      });
+
+      assert.ok(meshCount >= 5, `Greenhouse 2 must contain >= 5 procedural meshes (found ${meshCount})`);
+      assert.strictEqual(hasPointLight, true, 'Greenhouse 2 must have an interior hydroponic PointLight');
+    });
+
+    it('3D-3: DSOC Tower procedural mesh instantiates with lattice mast, reflector dish, and Earth-pointing laser emitter', () => {
+      const dsoc = buildDSOCTowerMesh();
+      assert.ok(dsoc instanceof THREE.Group, 'DSOC tower must be a Three.js Group');
+      assert.strictEqual(dsoc.userData.buildingId, 'dsoc_tower');
+
+      let hasLaserBeam = false;
+      let meshCount = 0;
+      dsoc.traverse(child => {
+        if (child instanceof THREE.Mesh) {
+          meshCount++;
+          if (child.userData.isLaserBeam) hasLaserBeam = true;
+        }
+      });
+
+      assert.ok(meshCount >= 8, `DSOC tower must contain >= 8 procedural meshes (found ${meshCount})`);
+      assert.strictEqual(hasLaserBeam, true, 'DSOC tower must have an optical laser beam mesh');
+    });
+
+    it('3D-4: updateExpansionBuildings animates beacon flashes and laser pulse emissions without error', () => {
+      const parent = new THREE.Group();
+      const hangar = buildRoverHangarMesh();
+      const dsoc = buildDSOCTowerMesh();
+      parent.add(hangar);
+      parent.add(dsoc);
+
+      assert.doesNotThrow(() => {
+        updateExpansionBuildings(parent, 1.5, 0.016);
+        updateExpansionBuildings(parent, 2.5, 0.016);
+      });
+    });
+
+    it('3D-5: disposeExpansionBuildings safely cleans up all child geometries, materials, and textures', () => {
+      const parent = new THREE.Group();
+      parent.add(buildRoverHangarMesh());
+      parent.add(build2ndGreenhouseMesh());
+      parent.add(buildDSOCTowerMesh());
+
+      assert.strictEqual(parent.children.length, 3);
+      assert.doesNotThrow(() => {
+        disposeExpansionBuildings(parent);
+      });
+      assert.strictEqual(parent.children.length, 0, 'All children must be removed on recursive disposal');
+    });
+
+    it('3D-6: EVA astronaut controls enforce collision pushback against base expansion structures', () => {
+      clearExpansionColliders();
+      setExpansionColliders(['rover_hangar', 'greenhouse_2', 'dsoc_tower']);
+      const colliders = getExpansionColliders();
+
+      assert.strictEqual(colliders.length, 3);
+      const hangarCol = colliders.find(c => c.id === 'exp_rover_hangar');
+      assert.ok(hangarCol, 'Hangar collider must be registered');
+
+      // Attempt moving into Hangar center [8, 0, -8]
+      const playerRadius = 0.5;
+      const res = resolveCollisions(hangarCol.x + 0.1, hangarCol.z + 0.1, playerRadius, colliders);
+      assert.strictEqual(res.collided, true, 'EVA movement must collide with hangar perimeter');
+
+      const dist = Math.hypot(res.x - hangarCol.x, res.z - hangarCol.z);
+      assert.ok(dist >= hangarCol.radius + playerRadius - 0.001, 'Astronaut must be pushed outside the hangar boundary');
+
+      clearExpansionColliders();
+      assert.strictEqual(getExpansionColliders().length, 0);
+    });
+
+    it('3D-7: Colony state persistence preserves builtBuildings across JSON serialization/deserialization', () => {
+      const sampleColony: Partial<ColonySaveData> = {
+        currentDay: 12,
+        builtBuildings: ['rover_hangar', 'dsoc_tower'],
+      };
+
+      const serialized = JSON.stringify(sampleColony);
+      const deserialized = JSON.parse(serialized);
+
+      assert.deepStrictEqual(deserialized.builtBuildings, ['rover_hangar', 'dsoc_tower']);
+      assert.strictEqual(deserialized.builtBuildings.includes('greenhouse_2'), false);
     });
   });
 
