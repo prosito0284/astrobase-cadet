@@ -11,7 +11,7 @@ export const BUILDING_CATALOG: Record<BaseBuildingId, BaseBuildingDefinition> = 
     descriptionEs: 'Bahía industrial de mantenimiento con recarga inductiva acelerada de baterías, banco extendido de +25 kWh y calibrador de láser minero de largo alcance.',
     descriptionEn: 'Industrial maintenance bay with accelerated inductive battery recharge, +25 kWh extended capacity buffer, and long-range mining laser collimator.',
     costScience: 60,
-    defaultPosition: [8, 0, -8],
+    defaultPosition: [0, 0, -15],
     effects: {
       batteryBonusPct: 50,
       laserRangeBonus: 30,
@@ -28,8 +28,8 @@ export const BUILDING_CATALOG: Record<BaseBuildingId, BaseBuildingDefinition> = 
     defaultPosition: [18, 0, 8],
     effects: {
       extraCrewCapacity: 4,
-      foodDelta: 2.5,
-      o2Delta: 3.0,
+      foodDelta: 12,
+      o2Delta: 6,
     },
   },
   dsoc_tower: {
@@ -61,7 +61,7 @@ export const EXPANSION_COLLIDER_RADII: Record<BaseBuildingId, number> = {
 };
 
 export const EXPANSION_COLLIDER_DEFS: Record<BaseBuildingId, { id: string; name: string; x: number; z: number; radius: number }> = {
-  rover_hangar: { id: 'exp_rover_hangar', name: 'Hangar del Rover', x: 8, z: -8, radius: 4.5 },
+  rover_hangar: { id: 'exp_rover_hangar', name: 'Hangar del Rover', x: 0, z: -15, radius: 4.5 },
   greenhouse_2: { id: 'exp_greenhouse_2', name: '2º Invernadero (Domo)', x: 18, z: 8, radius: 4.0 },
   dsoc_tower: { id: 'exp_dsoc_tower', name: 'Torre Láser DSOC', x: -8, z: 18, radius: 3.0 },
 };
@@ -464,6 +464,15 @@ export function buildExpansionBuildingMesh(id: BaseBuildingId): THREE.Group {
     }
   }
 }
+
+/**
+ * Functional alias matching procedural builder dispatcher convention.
+ */
+export const createExpansionBuildingMesh = (
+  id: BaseBuildingId,
+  _pos?: [number, number, number]
+): THREE.Group => buildExpansionBuildingMesh(id);
+
 
 /**
  * Animation tick for expansion buildings:

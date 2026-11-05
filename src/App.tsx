@@ -2166,6 +2166,7 @@ export function App() {
     setIsCommanderProfileOpen(false);
     setIsDossierOpen(false);
     setIsGuideOpen(false);
+    setIsBuildingMenuOpen(false);
     setActiveCrisis(null); // Clear active crisis so it doesn't leak into new games!
 
     // Cancel speech synthesis queue

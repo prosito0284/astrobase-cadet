@@ -4,7 +4,7 @@ import { BaseLocation, BaseModule } from '../../types/game';
 import { buildSpaceBase3D, Base3DSceneResult } from './base3DBuilder';
 import { createParticleSystems, ParticleController } from './particleSystems';
 import { createDamageParticleSystems, DamageParticleSystem } from './damageParticles';
-import { disposeRenderer, safeCancelAnimationFrame } from './disposal';
+import { disposeRenderer, safeCancelAnimationFrame, disposeThreeObject } from './disposal';
 import { soundFx, evaBreathing } from '../../utils/audio';
 import { HelmetHUD } from './HelmetHUD';
 import { 
@@ -31,6 +31,7 @@ import { BaseBuildingId } from '../../types/game';
 import { 
   BUILDING_CATALOG, 
   buildExpansionBuildingMesh, 
+  createExpansionBuildingMesh,
   updateExpansionBuildings, 
   disposeExpansionBuildings,
   EXPANSION_COLLIDER_RADII
@@ -350,41 +351,7 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
     expansionGroup.name = 'expansion_buildings_group';
     scene.add(expansionGroup);
     expansionGroupRef.current = expansionGroup;
-
-    // Build initial expansion buildings and EVA colliders
     interactiveExpansionsRef.current = [];
-    const colliders: DomeCollider[] = [];
-
-    for (const id of builtBuildings) {
-      const def = BUILDING_CATALOG[id];
-      if (!def) continue;
-
-      const mesh = buildExpansionBuildingMesh(id);
-      const pos = def.defaultPosition;
-      const y = getTerrainHeight(pos[0], pos[2], location);
-      mesh.position.set(pos[0], y, pos[2]);
-
-      mesh.traverse(child => {
-        if (child instanceof THREE.Mesh) {
-          child.castShadow = true;
-          child.receiveShadow = true;
-        }
-      });
-
-      mesh.userData = { moduleId: id, isExpansion: true, nameEs: def.nameEs, nameEn: def.nameEn };
-      interactiveExpansionsRef.current.push(mesh);
-      expansionGroup.add(mesh);
-
-      colliders.push({
-        id,
-        name: def.nameEs,
-        x: pos[0],
-        z: pos[2],
-        radius: EXPANSION_COLLIDER_RADII[id] || 3.5,
-      });
-    }
-
-    setExpansionColliders(colliders);
 
     // 6. Raycaster
     const raycaster = new THREE.Raycaster();
@@ -464,7 +431,8 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
         // Hover Raycast
         raycaster.setFromCamera(mouseNdc, camera);
         const damageHoverHits = raycaster.intersectObjects(damageParticles.getDamagedModuleMeshes(), true);
-        const hits = raycaster.intersectObjects(builder.interactiveObjects, true);
+        const candidateObjects = [...builder.interactiveObjects, ...interactiveExpansionsRef.current];
+        const hits = raycaster.intersectObjects(candidateObjects, true);
 
         if (damageHoverHits.length > 0 && damageHoverHits[0].object.userData?.moduleId) {
           setHoveredModuleId(damageHoverHits[0].object.userData.moduleId);
@@ -472,7 +440,7 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
         } else if (hits.length > 0) {
           let topObj: THREE.Object3D | null = hits[0].object;
           let modId: string | null = null;
-          while (topObj && topObj !== builder.group) {
+          while (topObj && topObj !== builder.group && topObj !== expansionGroupRef.current) {
             if (topObj.userData && topObj.userData.moduleId) {
               modId = topObj.userData.moduleId;
               break;
@@ -542,7 +510,7 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
           if (hits.length > 0) {
             let topObj: THREE.Object3D | null = hits[0].object;
             let clickedModuleId: string | null = null;
-            while (topObj && topObj !== builder.group && topObj !== expansionGroup) {
+            while (topObj && topObj !== builder.group && topObj !== expansionGroupRef.current) {
               if (topObj.userData && topObj.userData.moduleId) {
                 clickedModuleId = topObj.userData.moduleId;
                 break;
@@ -743,6 +711,84 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
       damageParticlesRef.current = null;
     };
   }, [location, canvasKey]);
+
+  // Reactive Synchronization for Base Expansion Buildings (Sprint 5)
+  // Dynamically materializes procedural 3D models and registers EVA colliders in real time without remounting.
+  const builtBuildingsKey = (builtBuildings || []).slice().sort().join(',');
+
+  useEffect(() => {
+    const group = expansionGroupRef.current;
+    if (!group) return;
+
+    const targetList = (builtBuildings || []).filter(id => Boolean(BUILDING_CATALOG[id]));
+    const targetSet = new Set<BaseBuildingId>(targetList);
+
+    // 1. If any building in the group is no longer in builtBuildings (e.g. on reset/restart), recursively dispose and remove it
+    const toRemove: THREE.Object3D[] = [];
+    for (const child of group.children) {
+      const bId = child.userData?.moduleId as BaseBuildingId;
+      if (!bId || !targetSet.has(bId)) {
+        toRemove.push(child);
+      }
+    }
+
+    for (const child of toRemove) {
+      group.remove(child);
+      interactiveExpansionsRef.current = interactiveExpansionsRef.current.filter(m => m !== child);
+      disposeThreeObject(child);
+    }
+
+    // 2. If a building in builtBuildings is not yet in expansionGroupRef.current, instantiate and add it
+    const existingIds = new Set<BaseBuildingId>(
+      group.children
+        .map(c => c.userData?.moduleId as BaseBuildingId)
+        .filter(Boolean)
+    );
+
+    for (const id of targetList) {
+      if (existingIds.has(id)) continue;
+      const def = BUILDING_CATALOG[id];
+      if (!def) continue;
+
+      const pos = def.defaultPosition;
+      const mesh = createExpansionBuildingMesh(id, pos);
+      const y = getTerrainHeight(pos[0], pos[2], location);
+      mesh.position.set(pos[0], y, pos[2]);
+
+      mesh.traverse(child => {
+        if (child instanceof THREE.Mesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+
+      mesh.userData = {
+        ...mesh.userData,
+        moduleId: id,
+        isExpansion: true,
+        nameEs: def.nameEs,
+        nameEn: def.nameEn,
+      };
+
+      interactiveExpansionsRef.current.push(mesh);
+      group.add(mesh);
+    }
+
+    // 3. Update setExpansionColliders immediately so EVA collisions react dynamically
+    const colliders: DomeCollider[] = [];
+    for (const id of targetList) {
+      const def = BUILDING_CATALOG[id];
+      if (!def) continue;
+      colliders.push({
+        id: `exp_${id}`,
+        name: def.nameEs,
+        x: def.defaultPosition[0],
+        z: def.defaultPosition[2],
+        radius: EXPANSION_COLLIDER_RADII[id] || 3.5,
+      });
+    }
+    setExpansionColliders(colliders);
+  }, [builtBuildingsKey, location, canvasKey]);
 
   // Selected module lookup (includes active 3D base expansion buildings)
   const currentInspectId = hoveredModuleId || selectedModuleId;

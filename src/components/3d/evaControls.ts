@@ -116,7 +116,7 @@ export function updateEvaMouseLook(
 let activeExpansionColliders: DomeCollider[] = [];
 
 export const DEFAULT_EXPANSION_COLLIDER_MAP: Record<string, DomeCollider> = {
-  rover_hangar: { id: 'exp_rover_hangar', name: 'Hangar del Rover', x: 8, z: -8, radius: 4.5 },
+  rover_hangar: { id: 'exp_rover_hangar', name: 'Hangar del Rover', x: 0, z: -15, radius: 4.5 },
   greenhouse_2: { id: 'exp_greenhouse_2', name: '2º Invernadero (Domo)', x: 18, z: 8, radius: 4.0 },
   dsoc_tower: { id: 'exp_dsoc_tower', name: 'Torre Láser DSOC', x: -8, z: 18, radius: 3.0 },
 };

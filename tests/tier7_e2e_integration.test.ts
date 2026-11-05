@@ -233,9 +233,9 @@ describe('Tier 7: Dual Track Comprehensive E2E Integration Test Suite (Sprints 1
       assert.strictEqual(buildRes.success, true);
 
       const effects = manager.getActiveEffects();
-      // O2 delta (+3.0) cushions ECLSS against water-short crop failures
-      assert.strictEqual(effects.o2Delta, 3.0);
-      assert.strictEqual(effects.foodDelta, 2.5);
+      // O2 delta (+6) cushions ECLSS against water-short crop failures
+      assert.strictEqual(effects.o2Delta, 6);
+      assert.strictEqual(effects.foodDelta, 12);
     });
 
     it('T3.5: Cross-Feature - DSOC Optical Laser Tower triples science reward on NASA STEM quiz claim', () => {

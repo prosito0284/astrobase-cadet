@@ -4,16 +4,18 @@ import * as THREE from 'three';
 import {
   BUILDING_CATALOG,
   BaseBuildingManager,
-} from './helpers/sprintHarness';
-import { AstrobaseSimulation } from './helpers/gameHarness';
-import {
   buildRoverHangarMesh,
   build2ndGreenhouseMesh,
   buildDSOCTowerMesh,
+  createExpansionBuildingMesh,
   updateExpansionBuildings,
   disposeExpansionBuildings,
   EXPANSION_COLLIDER_DEFS,
+  EXPANSION_COLLIDER_RADII,
 } from '../src/components/3d/baseBuildingBuilder';
+import { getTerrainHeight } from '../src/components/3d/base3DBuilder';
+import { disposeThreeObject } from '../src/components/3d/disposal';
+import { AstrobaseSimulation } from './helpers/gameHarness';
 import {
   setExpansionColliders,
   getExpansionColliders,
@@ -122,9 +124,9 @@ describe('Tier 1.18: Sprint 5 - 3D Base Expansion (Base Building & Active Colony
       assert.strictEqual(effects.laserRangeBonus, 30);
     });
 
-    it('HANGAR-4: Default Hangar position anchors to plateau coordinates [8, 0, -8]', () => {
-      assert.deepStrictEqual(BUILDING_CATALOG.rover_hangar.defaultPosition, [8, 0, -8]);
-      const dist = Math.hypot(8, -8);
+    it('HANGAR-4: Default Hangar position anchors to plateau coordinates [0, 0, -15]', () => {
+      assert.deepStrictEqual(BUILDING_CATALOG.rover_hangar.defaultPosition, [0, 0, -15]);
+      const dist = Math.hypot(0, -15);
       assert.ok(dist <= 25, 'Hangar must reside within 25m base radius');
     });
 
@@ -155,7 +157,7 @@ describe('Tier 1.18: Sprint 5 - 3D Base Expansion (Base Building & Active Colony
       assert.strictEqual(effects.extraCrewCapacity, 4, 'Extra crew capacity must be +4 (enabling 6 + 4 = 10 crew)');
     });
 
-    it('GREEN-2: 2nd Greenhouse adds +2.5 food delta per Sol to colony production', () => {
+    it('GREEN-2: 2nd Greenhouse adds +12 food delta per Sol to colony production', () => {
       const sim = new AstrobaseSimulation('mars', 'normal');
       sim.colony.resources.sciencePoints = 100;
 
@@ -163,10 +165,10 @@ describe('Tier 1.18: Sprint 5 - 3D Base Expansion (Base Building & Active Colony
       manager.constructBuilding('greenhouse_2', sim);
 
       const effects = manager.getActiveEffects();
-      assert.strictEqual(effects.foodDelta, 2.5);
+      assert.strictEqual(effects.foodDelta, 12);
     });
 
-    it('GREEN-3: 2nd Greenhouse adds +3.0 oxygen delta per Sol to ECLSS life support', () => {
+    it('GREEN-3: 2nd Greenhouse adds +6 oxygen delta per Sol to ECLSS life support', () => {
       const sim = new AstrobaseSimulation('mars', 'normal');
       sim.colony.resources.sciencePoints = 100;
 
@@ -174,7 +176,7 @@ describe('Tier 1.18: Sprint 5 - 3D Base Expansion (Base Building & Active Colony
       manager.constructBuilding('greenhouse_2', sim);
 
       const effects = manager.getActiveEffects();
-      assert.strictEqual(effects.o2Delta, 3.0);
+      assert.strictEqual(effects.o2Delta, 6);
     });
 
     it('GREEN-4: Default 2nd Greenhouse position anchors to coordinates [18, 0, 8]', () => {
@@ -186,9 +188,9 @@ describe('Tier 1.18: Sprint 5 - 3D Base Expansion (Base Building & Active Colony
     it('GREEN-5: Expanded life support offsets daily ECLSS drain of expanded crew roster', () => {
       const baseDrainLiving = 4 * 1.5; // 6.0 O2/day for 4 crew
       const deltaO2 = BUILDING_CATALOG.greenhouse_2.effects.o2Delta!;
-      const netDrain = baseDrainLiving - deltaO2; // 6.0 - 3.0 = 3.0 net drain
+      const netDrain = baseDrainLiving - deltaO2; // 6.0 - 6.0 = 0.0 net drain
 
-      assert.strictEqual(netDrain, 3.0, '2nd Greenhouse reduces net daily O2 drain by 50%');
+      assert.strictEqual(netDrain, 0.0, '2nd Greenhouse completely offsets daily O2 drain of 4 crew members');
     });
   });
 
@@ -230,8 +232,8 @@ describe('Tier 1.18: Sprint 5 - 3D Base Expansion (Base Building & Active Colony
       const effects = manager.getActiveEffects();
       assert.strictEqual(effects.batteryBonusPct, 50);
       assert.strictEqual(effects.extraCrewCapacity, 4);
-      assert.strictEqual(effects.foodDelta, 2.5);
-      assert.strictEqual(effects.o2Delta, 3.0);
+      assert.strictEqual(effects.foodDelta, 12);
+      assert.strictEqual(effects.o2Delta, 6);
       assert.strictEqual(effects.scienceMultiplier, 3.0);
       assert.strictEqual(sim.colony.resources.sciencePoints, 300 - (60 + 75 + 90)); // 75 remaining
     });
@@ -336,7 +338,7 @@ describe('Tier 1.18: Sprint 5 - 3D Base Expansion (Base Building & Active Colony
       const hangarCol = colliders.find(c => c.id === 'exp_rover_hangar');
       assert.ok(hangarCol, 'Hangar collider must be registered');
 
-      // Attempt moving into Hangar center [8, 0, -8]
+      // Attempt moving into Hangar center [0, 0, -15]
       const playerRadius = 0.5;
       const res = resolveCollisions(hangarCol.x + 0.1, hangarCol.z + 0.1, playerRadius, colliders);
       assert.strictEqual(res.collided, true, 'EVA movement must collide with hangar perimeter');
@@ -359,6 +361,102 @@ describe('Tier 1.18: Sprint 5 - 3D Base Expansion (Base Building & Active Colony
 
       assert.deepStrictEqual(deserialized.builtBuildings, ['rover_hangar', 'dsoc_tower']);
       assert.strictEqual(deserialized.builtBuildings.includes('greenhouse_2'), false);
+    });
+
+    it('3D-8: Dynamic reactive synchronization instantiates meshes and registers EVA colliders in real time without remounting', () => {
+      clearExpansionColliders();
+      const parentGroup = new THREE.Group();
+      parentGroup.name = 'expansion_buildings_group';
+      const interactiveList: THREE.Object3D[] = [];
+
+      // Simulation of BaseScene3D reactive sync logic
+      const syncGroup = (builtList: BaseBuildingId[], location: 'moon' | 'mars') => {
+        const targetSet = new Set(builtList);
+        const toRemove: THREE.Object3D[] = [];
+        for (const child of parentGroup.children) {
+          const bId = child.userData?.moduleId as BaseBuildingId;
+          if (!bId || !targetSet.has(bId)) {
+            toRemove.push(child);
+          }
+        }
+        for (const child of toRemove) {
+          parentGroup.remove(child);
+          const idx = interactiveList.indexOf(child);
+          if (idx !== -1) interactiveList.splice(idx, 1);
+          disposeThreeObject(child);
+        }
+
+        const existingIds = new Set<BaseBuildingId>(
+          parentGroup.children.map(c => c.userData?.moduleId as BaseBuildingId).filter(Boolean)
+        );
+
+        for (const id of builtList) {
+          if (existingIds.has(id)) continue;
+          const def = BUILDING_CATALOG[id];
+          if (!def) continue;
+
+          const pos = def.defaultPosition;
+          const mesh = createExpansionBuildingMesh(id, pos);
+          const y = getTerrainHeight(pos[0], pos[2], location);
+          mesh.position.set(pos[0], y, pos[2]);
+          mesh.traverse(child => {
+            if (child instanceof THREE.Mesh) {
+              child.castShadow = true;
+              child.receiveShadow = true;
+            }
+          });
+          mesh.userData = { moduleId: id, isExpansion: true, nameEs: def.nameEs, nameEn: def.nameEn };
+          interactiveList.push(mesh);
+          parentGroup.add(mesh);
+        }
+
+        const colliders = builtList.map(id => {
+          const def = BUILDING_CATALOG[id];
+          return {
+            id: `exp_${id}`,
+            name: def.nameEs,
+            x: def.defaultPosition[0],
+            z: def.defaultPosition[2],
+            radius: EXPANSION_COLLIDER_RADII[id] || 3.5,
+          };
+        });
+        setExpansionColliders(colliders);
+      };
+
+      // 1. Initial State: 0 buildings constructed
+      syncGroup([], 'moon');
+      assert.strictEqual(parentGroup.children.length, 0);
+      assert.strictEqual(interactiveList.length, 0);
+      assert.strictEqual(getExpansionColliders().length, 0);
+
+      // 2. Dynamic Purchase 1: Rover Hangar purchased while 3D view is active
+      syncGroup(['rover_hangar'], 'moon');
+      assert.strictEqual(parentGroup.children.length, 1);
+      const hangarMesh = parentGroup.children[0];
+      assert.strictEqual(hangarMesh.userData.moduleId, 'rover_hangar');
+      assert.strictEqual(hangarMesh.position.x, 0);
+      assert.strictEqual(hangarMesh.position.z, -15);
+      assert.strictEqual(getExpansionColliders().length, 1);
+      assert.strictEqual(getExpansionColliders()[0].id, 'exp_rover_hangar');
+      assert.strictEqual(getExpansionColliders()[0].x, 0);
+      assert.strictEqual(getExpansionColliders()[0].z, -15);
+
+      // 3. Dynamic Purchase 2: DSOC Tower added dynamically without remounting or rebuilding Hangar
+      syncGroup(['rover_hangar', 'dsoc_tower'], 'moon');
+      assert.strictEqual(parentGroup.children.length, 2);
+      // Hangar mesh reference MUST be strictly preserved (no flickering or teardown)
+      assert.strictEqual(parentGroup.children[0], hangarMesh, 'Initial Hangar mesh reference must be preserved');
+      const dsocMesh = parentGroup.children[1];
+      assert.strictEqual(dsocMesh.userData.moduleId, 'dsoc_tower');
+      assert.strictEqual(dsocMesh.position.x, -8);
+      assert.strictEqual(dsocMesh.position.z, 18);
+      assert.strictEqual(getExpansionColliders().length, 2);
+
+      // 4. Mission Restart: builtBuildings resets to []
+      syncGroup([], 'moon');
+      assert.strictEqual(parentGroup.children.length, 0, 'All expansion meshes must be cleanly disposed on reset');
+      assert.strictEqual(interactiveList.length, 0);
+      assert.strictEqual(getExpansionColliders().length, 0);
     });
   });
 

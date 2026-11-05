@@ -502,7 +502,7 @@ export const BUILDING_CATALOG: Record<string, BuildingDefinition> = {
     nameEs: 'Hangar del Rover',
     nameEn: 'Rover Hangar',
     costScience: 60,
-    defaultPosition: [8, 0, -8],
+    defaultPosition: [0, 0, -15],
     effects: {
       batteryBonusPct: 50,
       laserRangeBonus: 30,
@@ -517,8 +517,8 @@ export const BUILDING_CATALOG: Record<string, BuildingDefinition> = {
     defaultPosition: [18, 0, 8],
     effects: {
       extraCrewCapacity: 4,
-      foodDelta: 2.5,
-      o2Delta: 3.0,
+      foodDelta: 12,
+      o2Delta: 6,
     },
   },
   dsoc_tower: {
