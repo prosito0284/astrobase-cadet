@@ -92,6 +92,8 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
   lang,
   onSwitchTo2D,
   onTriggerRepair,
+  builtBuildings = [],
+  onOpenBuildingMenu,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -100,6 +102,10 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
   const [contextLost, setContextLost] = useState<boolean>(false);
   const [webGlError, setWebGlError] = useState<string | null>(null);
   const [canvasKey, setCanvasKey] = useState<number>(0);
+
+  // Expansion buildings refs
+  const expansionGroupRef = useRef<THREE.Group | null>(null);
+  const interactiveExpansionsRef = useRef<THREE.Object3D[]>([]);
 
   // EVA First-Person Mode State
   const [isEvaMode, setIsEvaMode] = useState<boolean>(false);
@@ -339,6 +345,47 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
     damageParticlesRef.current = damageParticles;
     scene.add(damageParticles.group);
 
+    // 5C. Procedural Base Expansion Buildings (Sprint 5)
+    const expansionGroup = new THREE.Group();
+    expansionGroup.name = 'expansion_buildings_group';
+    scene.add(expansionGroup);
+    expansionGroupRef.current = expansionGroup;
+
+    // Build initial expansion buildings and EVA colliders
+    interactiveExpansionsRef.current = [];
+    const colliders: DomeCollider[] = [];
+
+    for (const id of builtBuildings) {
+      const def = BUILDING_CATALOG[id];
+      if (!def) continue;
+
+      const mesh = buildExpansionBuildingMesh(id);
+      const pos = def.defaultPosition;
+      const y = getTerrainHeight(pos[0], pos[2], location);
+      mesh.position.set(pos[0], y, pos[2]);
+
+      mesh.traverse(child => {
+        if (child instanceof THREE.Mesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+
+      mesh.userData = { moduleId: id, isExpansion: true, nameEs: def.nameEs, nameEn: def.nameEn };
+      interactiveExpansionsRef.current.push(mesh);
+      expansionGroup.add(mesh);
+
+      colliders.push({
+        id,
+        name: def.nameEs,
+        x: pos[0],
+        z: pos[2],
+        radius: EXPANSION_COLLIDER_RADII[id] || 3.5,
+      });
+    }
+
+    setExpansionColliders(colliders);
+
     // 6. Raycaster
     const raycaster = new THREE.Raycaster();
     const mouseNdc = new THREE.Vector2();
@@ -489,12 +536,13 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
         }
 
         if (!handledDamageClick) {
-          const hits = raycaster.intersectObjects(builder.interactiveObjects, true);
+          const candidateObjects = [...builder.interactiveObjects, ...interactiveExpansionsRef.current];
+          const hits = raycaster.intersectObjects(candidateObjects, true);
 
           if (hits.length > 0) {
             let topObj: THREE.Object3D | null = hits[0].object;
             let clickedModuleId: string | null = null;
-            while (topObj && topObj !== builder.group) {
+            while (topObj && topObj !== builder.group && topObj !== expansionGroup) {
               if (topObj.userData && topObj.userData.moduleId) {
                 clickedModuleId = topObj.userData.moduleId;
                 break;
@@ -643,6 +691,9 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
             (scene.fog as THREE.FogExp2).color.setHex(0x9a3412);
           }
 
+          // Update expansion buildings animation (Sprint 5)
+          updateExpansionBuildings(expansionGroup, dt, clock.getElapsedTime());
+
           // Render frame
           renderer.render(scene, camera);
         } catch (renderErr) {
@@ -674,6 +725,11 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
       canvas.removeEventListener('webglcontextlost', handleContextLost);
       canvas.removeEventListener('webglcontextrestored', handleContextRestored);
 
+      disposeExpansionBuildings(expansionGroup);
+      clearExpansionColliders();
+      interactiveExpansionsRef.current = [];
+      expansionGroupRef.current = null;
+
       builder.dispose();
       particles.dispose();
       damageParticles.dispose();
@@ -688,8 +744,28 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
     };
   }, [location, canvasKey]);
 
-  // Selected module lookup
-  const activeModuleData = modules.find(m => m.id === (hoveredModuleId || selectedModuleId));
+  // Selected module lookup (includes active 3D base expansion buildings)
+  const currentInspectId = hoveredModuleId || selectedModuleId;
+  const expansionDef = currentInspectId && BUILDING_CATALOG[currentInspectId as BaseBuildingId];
+  const activeModuleData = modules.find(m => m.id === currentInspectId) || (expansionDef ? {
+    id: expansionDef.id,
+    name: expansionDef.nameEn,
+    nameEs: expansionDef.nameEs,
+    description: expansionDef.descriptionEn,
+    descriptionEs: expansionDef.descriptionEs,
+    isActive: true,
+    level: 1,
+    maxLevel: 1,
+    category: 'science' as const,
+    icon: '🏗️',
+    powerRequired: 0,
+    oxygenDelta: expansionDef.effects.o2Delta || 0,
+    waterDelta: 0,
+    foodDelta: expansionDef.effects.foodDelta || 0,
+    shieldDelta: 0,
+    scienceDelta: 0,
+    healthStatus: 100,
+  } : null);
 
   const handleRetry3D = () => {
     soundFx.playClick();
@@ -795,6 +871,21 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
       {/* Camera Controls & EVA Walk Button Bar (Top Right) */}
       {!isEvaMode && (
         <div className="absolute top-3 right-3 z-20 flex items-center gap-2">
+          {/* 🏗️ Base Building Expansion Button */}
+          {onOpenBuildingMenu && (
+            <button
+              onClick={() => {
+                soundFx.playClick();
+                onOpenBuildingMenu();
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white text-xs font-bold shadow-lg shadow-cyan-950/50 border border-cyan-400/40 transition-all active:scale-95 group"
+              title={lang === 'es' ? 'Expansión de Base 3D' : 'Base Expansion 3D'}
+            >
+              <Building2 className="w-3.5 h-3.5 text-cyan-200 group-hover:scale-110 transition-transform" />
+              <span>{lang === 'es' ? '🏗️ Expansión de Base' : '🏗️ Base Building'}</span>
+            </button>
+          )}
+
           {/* 👨🚀 Primary EVA First-Person Walk Button */}
           <button
             onClick={handleEnterEva}

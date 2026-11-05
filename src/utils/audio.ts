@@ -17,7 +17,10 @@ export function getAudioContext(): AudioContext | null {
   }
   if (audioCtx && audioCtx.state === 'suspended') {
     try {
-      audioCtx.resume();
+      const p = audioCtx.resume();
+      if (p && typeof p.catch === 'function') {
+        p.catch(() => {});
+      }
     } catch {}
   }
   return audioCtx;
@@ -416,7 +419,8 @@ export class SpaceAmbientSynth {
   }
 
   public setIntensity(level: number) {
-    this.intensity = Math.max(0.0, Math.min(1.0, level));
+    const sanitized = Number.isFinite(level) ? level : (level === Infinity ? 1.0 : 0.0);
+    this.intensity = Math.max(0.0, Math.min(1.0, sanitized));
     const ctx = getAudioContext();
     if (ctx && this.masterGain && this.filter) {
       try {

@@ -9,7 +9,8 @@ import {
   ColonySaveData,
   Achievement,
   FlightLogEntry,
-  CommanderProfile
+  CommanderProfile,
+  BaseBuildingId
 } from './types/game';
 import { SCENARIOS } from './data/scenarios';
 import { INITIAL_MODULES } from './data/modules';
@@ -40,6 +41,8 @@ import { PopulationExpansionModal } from './components/PopulationExpansionModal'
 import { AchievementsModal } from './components/AchievementsModal';
 import { CommanderProfileModal } from './components/CommanderProfileModal';
 import { FlightLogModal } from './components/FlightLogModal';
+import { BaseBuildingMenuModal } from './components/BaseBuildingMenuModal';
+import { BUILDING_CATALOG } from './components/3d/baseBuildingBuilder';
 import { soundFx, spaceAmbient } from './utils/audio';
 import { spaceVoice } from './utils/speech';
 import confetti from 'canvas-confetti';
@@ -132,6 +135,7 @@ const createInitialColonyData = (loc: BaseLocation, diff: GameDifficulty = 'norm
     empStunSeconds: 0,
     populationExpanded: false,
     assignedToMine: [],
+    builtBuildings: [],
     lastEventDay: 1,
     lastSolarFlareDay: 1,
     lastEventId: undefined,
@@ -214,6 +218,11 @@ export function App() {
             ? Array.from(new Set(c.assignedToMine.filter((id: any) => typeof id === 'string' && livingCrewIds.has(id))))
             : [];
 
+          const validBuildingIds: BaseBuildingId[] = ['rover_hangar', 'greenhouse_2', 'dsoc_tower'];
+          const sanitizedBuiltBuildings: BaseBuildingId[] = Array.isArray(c?.builtBuildings)
+            ? Array.from(new Set(c.builtBuildings.filter((b: any) => typeof b === 'string' && validBuildingIds.includes(b as BaseBuildingId)))) as BaseBuildingId[]
+            : [];
+
           return {
             ...init,
             currentDay: safeDay,
@@ -245,6 +254,7 @@ export function App() {
             empStunSeconds: Math.max(0, Math.min(5, Number(c?.empStunSeconds) || 0)),
             populationExpanded: Boolean(c?.populationExpanded),
             assignedToMine: sanitizedAssignedToMine as string[],
+            builtBuildings: sanitizedBuiltBuildings,
             lastEventDay: safeNum(c?.lastEventDay, 1, 1, 100),
             lastSolarFlareDay: safeNum(c?.lastSolarFlareDay, 1, 1, 100),
             lastEventId: typeof c?.lastEventId === 'string' ? c.lastEventId : undefined,
@@ -298,6 +308,7 @@ export function App() {
   const [isAchievementsOpen, setIsAchievementsOpen] = useState(false);
   const [isCommanderProfileOpen, setIsCommanderProfileOpen] = useState(false);
   const [isFlightLogOpen, setIsFlightLogOpen] = useState(false);
+  const [isBuildingMenuOpen, setIsBuildingMenuOpen] = useState(false);
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -1197,6 +1208,20 @@ export function App() {
     deltaH2O -= crewWaterConsumption;
     deltaFood -= crewFoodConsumption;
 
+    const hasGreenhouse2 = currentColony.builtBuildings?.includes('greenhouse_2');
+    if (hasGreenhouse2) {
+      deltaFood += 12;
+      deltaO2 += 6;
+    }
+
+    if (livingCount > 6 && !hasGreenhouse2) {
+      soundFx.playAlert();
+      showToast(lang === 'es' 
+        ? '⚠️ ¡CRISIS DE SOPORTE VITAL! Hábitat saturado (>6 tripulantes). Construye el 2º Invernadero para estabilizar soporte vital.' 
+        : '⚠️ LIFE SUPPORT CRISIS! Habitat saturated (>6 crew). Build 2nd Greenhouse to stabilize life support.'
+      );
+    }
+
     const netPower = totalProd - totalCons;
 
     let newEnergy = currentColony.resources.energy + (netPower * 0.4);
@@ -2056,6 +2081,68 @@ export function App() {
     }
   };
 
+  // 3D Base Expansion Construction Handler (Sprint 5)
+  const handleConstructBuilding = (buildingId: BaseBuildingId) => {
+    const def = BUILDING_CATALOG[buildingId];
+    if (!def) return;
+
+    if (currentColony.builtBuildings?.includes(buildingId)) {
+      soundFx.playAlert();
+      showToast(lang === 'es' ? '¡Estructura ya construida en la base!' : 'Structure already constructed in base!');
+      return;
+    }
+
+    if (currentColony.resources.sciencePoints < def.costScience) {
+      soundFx.playAlert();
+      showToast(lang === 'es'
+        ? `Ciencia insuficiente. Requiere ${def.costScience} pts (disponibles: ${currentColony.resources.sciencePoints}).`
+        : `Insufficient Science. Requires ${def.costScience} pts (available: ${currentColony.resources.sciencePoints}).`
+      );
+      return;
+    }
+
+    let constructSuccess = false;
+    updateCurrentColony(prev => {
+      const already = prev.builtBuildings ?? [];
+      if (already.includes(buildingId)) return prev;
+      if (prev.resources.sciencePoints < def.costScience) return prev;
+
+      constructSuccess = true;
+      const isHangar = buildingId === 'rover_hangar';
+      const newMaxEnergy = isHangar ? (prev.resources.maxEnergy || 100) + 25 : prev.resources.maxEnergy;
+      const newEnergy = isHangar ? Math.min(newMaxEnergy, prev.resources.energy + 25) : prev.resources.energy;
+
+      const nextResources = clampResources({
+        ...prev.resources,
+        sciencePoints: Math.max(0, prev.resources.sciencePoints - def.costScience),
+        maxEnergy: newMaxEnergy,
+        energy: newEnergy,
+      }, {
+        ...prev.resources,
+        maxEnergy: newMaxEnergy,
+      });
+
+      return {
+        ...prev,
+        builtBuildings: [...already, buildingId],
+        resources: nextResources,
+      };
+    });
+
+    if (constructSuccess) {
+      soundFx.playVictory();
+      confetti({ particleCount: 90, spread: 70, origin: { y: 0.6 } });
+      const name = lang === 'es' ? def.nameEs : def.nameEn;
+      showToast(lang === 'es' ? `🏗️ ¡${name} construida con éxito!` : `🏗️ ${name} constructed successfully!`);
+      spaceVoice.speak(lang === 'es' ? `Construcción de ${name} finalizada.` : `${name} construction complete.`);
+      addFlightLog(
+        'success',
+        `Expansión de Base: ${def.nameEs} construida (-${def.costScience} pts Ciencia).`,
+        `Base Expansion: ${def.nameEn} constructed (-${def.costScience} Science pts).`
+      );
+    }
+  };
+
   // Restart after Game Over or manually
   const handleRestartMission = (newDiff?: GameDifficulty) => {
     if (isRestartingRef.current) return;
@@ -2310,6 +2397,8 @@ export function App() {
           emergencyO2Active={currentColony.emergencyO2Active}
           batteryFaultActive={Boolean(currentColony.batteryFault)}
           assignedToMineCount={currentColony.assignedToMine.length}
+          builtBuildings={currentColony.builtBuildings ?? []}
+          onOpenBuildingMenu={() => setIsBuildingMenuOpen(true)}
           onSelectModule={setSelectedModuleId}
           selectedModuleId={selectedModuleId}
           lang={lang}
@@ -2341,6 +2430,7 @@ export function App() {
           currentDay={currentColony.currentDay}
           oxygenLevel={currentColony.resources.oxygen}
           energyLevel={currentColony.resources.energy}
+          hasDsocTower={currentColony.builtBuildings?.includes('dsoc_tower')}
           lang={lang}
         />
       </main>
@@ -2407,6 +2497,7 @@ export function App() {
         location={location}
         currentEnergy={currentColony.resources.energy}
         onCompleteSortie={handleRoverSortieComplete}
+        hasRoverHangar={currentColony.builtBuildings?.includes('rover_hangar')}
         lang={lang}
         sortiesToday={currentColony.roverSortiesToday ?? 0}
       />
@@ -2538,6 +2629,16 @@ export function App() {
         onClose={() => setIsFlightLogOpen(false)}
         entries={flightLog}
         currentLocation={location}
+        lang={lang}
+      />
+
+      {/* 3D Base Expansion Construction Menu Modal (Sprint 5) */}
+      <BaseBuildingMenuModal
+        isOpen={isBuildingMenuOpen}
+        onClose={() => setIsBuildingMenuOpen(false)}
+        currentScience={currentColony.resources.sciencePoints}
+        builtBuildings={currentColony.builtBuildings ?? []}
+        onConstruct={handleConstructBuilding}
         lang={lang}
       />
 
