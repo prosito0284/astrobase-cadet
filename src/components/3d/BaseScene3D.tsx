@@ -5,6 +5,14 @@ import { buildSpaceBase3D, Base3DSceneResult } from './base3DBuilder';
 import { createParticleSystems, ParticleController } from './particleSystems';
 import { disposeRenderer, safeCancelAnimationFrame } from './disposal';
 import { soundFx } from '../../utils/audio';
+import { HelmetHUD } from './HelmetHUD';
+import { 
+  EvaControllerState, 
+  updateEvaMovement, 
+  updateEvaMouseLook, 
+  normalizeCompassDegrees, 
+  EVA_SPAWN_POINT 
+} from './evaControls';
 import { 
   RotateCcw, 
   ZoomIn, 
@@ -12,9 +20,10 @@ import {
   Compass, 
   ShieldAlert, 
   Wind, 
-  Info,
-  Maximize2,
-  LayoutGrid
+  Info, 
+  Maximize2, 
+  LayoutGrid,
+  User
 } from 'lucide-react';
 
 export interface BaseScene3DProps {
@@ -26,6 +35,7 @@ export interface BaseScene3DProps {
   wiringErrorActive?: boolean;
   emergencyO2Active?: boolean;
   assignedToMineCount?: number;
+  oxygenPct?: number;
   onSelectModule: (moduleId: string) => void;
   selectedModuleId: string | null;
   lang: 'es' | 'en';
@@ -59,6 +69,7 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
   wiringErrorActive = false,
   emergencyO2Active = false,
   assignedToMineCount = 0,
+  oxygenPct = 95,
   onSelectModule,
   selectedModuleId,
   lang,
@@ -71,6 +82,22 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
   const [contextLost, setContextLost] = useState<boolean>(false);
   const [webGlError, setWebGlError] = useState<string | null>(null);
   const [canvasKey, setCanvasKey] = useState<number>(0);
+
+  // EVA First-Person Mode State
+  const [isEvaMode, setIsEvaMode] = useState<boolean>(false);
+  const [cameraYawDeg, setCameraYawDeg] = useState<number>(0);
+  const isEvaModeRef = useRef<boolean>(false);
+  const evaStateRef = useRef<EvaControllerState>({
+    x: EVA_SPAWN_POINT.x,
+    y: EVA_SPAWN_POINT.y,
+    z: EVA_SPAWN_POINT.z,
+    yaw: EVA_SPAWN_POINT.yaw,
+    pitch: EVA_SPAWN_POINT.pitch,
+    isMoving: false,
+    isSprinting: false,
+    walkBobPhase: 0,
+  });
+  const keysPressedRef = useRef<Record<string, boolean>>({});
 
   // Stable callback ref to avoid tearing down Three.js scene on every App render
   const onSelectModuleRef = useRef(onSelectModule);
@@ -142,6 +169,80 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
     }
   }, []);
 
+  // Enter EVA mode: spawn at airlock portal (0, 5.5) and request pointer lock
+  const handleEnterEva = useCallback(() => {
+    soundFx.playClick();
+    setIsEvaMode(true);
+    isEvaModeRef.current = true;
+    evaStateRef.current = {
+      x: EVA_SPAWN_POINT.x,
+      y: EVA_SPAWN_POINT.y,
+      z: EVA_SPAWN_POINT.z,
+      yaw: EVA_SPAWN_POINT.yaw,
+      pitch: EVA_SPAWN_POINT.pitch,
+      isMoving: false,
+      isSprinting: false,
+      walkBobPhase: 0,
+    };
+    cameraState.current.isDragging = false;
+
+    if (canvasRef.current) {
+      try {
+        canvasRef.current.requestPointerLock?.();
+      } catch {
+        // Fallback if browser requires gesture or unsupported
+      }
+    }
+  }, []);
+
+  // Exit EVA mode: release pointer lock and restore smooth orbit camera presets
+  const handleExitEva = useCallback(() => {
+    soundFx.playClick();
+    setIsEvaMode(false);
+    isEvaModeRef.current = false;
+
+    if (typeof document !== 'undefined' && document.pointerLockElement) {
+      try {
+        document.exitPointerLock?.();
+      } catch {
+        // Safe ignore
+      }
+    }
+
+    const s = cameraState.current;
+    s.targetRadius = 28;
+    s.targetPhi = 1.05;
+    s.targetTheta = 0.78;
+    s.isDragging = false;
+  }, []);
+
+  // Window keyboard listener for WASD movement & Esc exit
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
+
+      keysPressedRef.current[e.code] = true;
+      keysPressedRef.current[e.key] = true;
+
+      if (e.key === 'Escape' && isEvaModeRef.current) {
+        handleExitEva();
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      keysPressedRef.current[e.code] = false;
+      keysPressedRef.current[e.key] = false;
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [handleExitEva]);
+
   // Main Three.js Lifecycle
   useEffect(() => {
     const container = containerRef.current;
@@ -153,9 +254,11 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
 
     // 1. Scene
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(location === 'moon' ? 0x020617 : 0x1c0c04);
+    scene.background = new THREE.Color(location === 'moon' ? 0x000000 : 0x451a03);
     if (location === 'mars') {
       scene.fog = new THREE.FogExp2(0x451a03, 0.012);
+    } else {
+      scene.fog = null; // Hard vacuum on Moon
     }
     sceneRef.current = scene;
 
@@ -219,6 +322,18 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
 
     // Pointer & Gesture Controls
     const handlePointerDown = (e: PointerEvent) => {
+      if (isEvaModeRef.current) {
+        // In EVA mode, clicking the canvas requests pointer lock
+        if (canvas && typeof document !== 'undefined' && document.pointerLockElement !== canvas) {
+          try {
+            canvas.requestPointerLock?.();
+          } catch {
+            // Pointerlock fallback
+          }
+        }
+        return;
+      }
+
       const s = cameraState.current;
       s.isDragging = true;
       s.dragStartX = e.clientX;
@@ -230,6 +345,15 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
     };
 
     const handlePointerMove = (e: PointerEvent) => {
+      if (isEvaModeRef.current) {
+        // In EVA mode, mouse movement turns camera look
+        const isLocked = typeof document !== 'undefined' && document.pointerLockElement === canvas;
+        if (isLocked || e.buttons > 0) {
+          updateEvaMouseLook(evaStateRef.current, e.movementX, e.movementY);
+        }
+        return;
+      }
+
       const s = cameraState.current;
       const rect = canvas.getBoundingClientRect();
       const currentX = e.clientX - rect.left;
@@ -274,6 +398,8 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
     };
 
     const handlePointerUp = (e: PointerEvent) => {
+      if (isEvaModeRef.current) return;
+
       const s = cameraState.current;
       s.isDragging = false;
       try {
@@ -310,6 +436,7 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
     };
 
     const handleWheel = (e: WheelEvent) => {
+      if (isEvaModeRef.current) return;
       e.preventDefault();
       const s = cameraState.current;
       const zoomDelta = e.deltaY * 0.02;
@@ -318,6 +445,7 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
 
     // Touch pinch-to-zoom
     const handleTouchMove = (e: TouchEvent) => {
+      if (isEvaModeRef.current) return;
       if (e.touches.length === 2) {
         e.preventDefault();
         const s = cameraState.current;
@@ -334,6 +462,7 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
     };
 
     const handleTouchEnd = () => {
+      if (isEvaModeRef.current) return;
       cameraState.current.touchPinchDist = 0;
     };
 
@@ -368,23 +497,38 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
         const rawDt = clock.getDelta();
         const dt = Math.min(rawDt, 0.1);
 
-        // Smooth camera damping
-        const s = cameraState.current;
-        s.radius += (s.targetRadius - s.radius) * Math.min(1, dt * 8.0);
-        s.theta += (s.targetTheta - s.theta) * Math.min(1, dt * 8.0);
-        s.phi += (s.targetPhi - s.phi) * Math.min(1, dt * 8.0);
+        if (isEvaModeRef.current) {
+          // Update EVA First-Person Kinematics
+          const eva = evaStateRef.current;
+          updateEvaMovement(dt, eva, keysPressedRef.current, location);
 
-        // Compute camera cartesian position from spherical
-        const cx = s.radius * Math.sin(s.phi) * Math.sin(s.theta);
-        const cy = s.radius * Math.cos(s.phi);
-        const cz = s.radius * Math.sin(s.phi) * Math.cos(s.theta);
+          // Update camera position & orientation
+          camera.position.set(eva.x, eva.y, eva.z);
+          camera.rotation.order = 'YXZ';
+          camera.rotation.set(eva.pitch, eva.yaw, 0, 'YXZ');
 
-        camera.position.set(cx, cy, cz);
-        camera.lookAt(targetLookAt);
+          // Update heading for Helmet HUD
+          const deg = normalizeCompassDegrees(eva.yaw);
+          setCameraYawDeg(deg);
+        } else {
+          // Smooth camera damping
+          const s = cameraState.current;
+          s.radius += (s.targetRadius - s.radius) * Math.min(1, dt * 8.0);
+          s.theta += (s.targetTheta - s.theta) * Math.min(1, dt * 8.0);
+          s.phi += (s.targetPhi - s.phi) * Math.min(1, dt * 8.0);
+
+          // Compute camera cartesian position from spherical
+          const cx = s.radius * Math.sin(s.phi) * Math.sin(s.theta);
+          const cy = s.radius * Math.cos(s.phi);
+          const cz = s.radius * Math.sin(s.phi) * Math.cos(s.theta);
+
+          camera.position.set(cx, cy, cz);
+          camera.lookAt(targetLookAt);
+        }
 
         try {
-          // Update 3D base structures & animations
-          builder.update(dt, dynamicStateRef.current);
+          // Update 3D base structures & animations (including diurnal solar cycle)
+          builder.update(dt, dynamicStateRef.current, scene);
 
           // Update particle storms
           particles.update(
@@ -394,9 +538,8 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
           );
 
           // Dynamic fog adaptation during dust storm
-          if (location === 'mars' && scene.fog) {
-            const targetFogHex = dynamicStateRef.current.dustStormActive ? 0x9a3412 : 0x451a03;
-            (scene.fog as THREE.FogExp2).color.setHex(targetFogHex);
+          if (location === 'mars' && scene.fog && dynamicStateRef.current.dustStormActive) {
+            (scene.fog as THREE.FogExp2).color.setHex(0x9a3412);
           }
 
           // Render frame
@@ -498,138 +641,174 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
         </div>
       )}
 
-      {/* Space Weather Alert Badges (Top Left) */}
-      <div className="absolute top-3 left-3 z-20 flex flex-col gap-1.5 pointer-events-none">
-        {radiationActive && (
-          <div className="flex items-center gap-2 bg-red-950/90 border border-red-500 text-red-200 px-3 py-1.5 rounded-xl shadow-lg backdrop-blur-md animate-bounce">
-            <ShieldAlert className="w-4 h-4 text-red-400" />
-            <span className="text-xs font-black">
-              {lang === 'es' ? 'DONKI CME: RADIACIÓN SOLAR ALTA' : 'DONKI CME: HIGH SOLAR RADIATION'}
-            </span>
-          </div>
-        )}
+      {/* Helmet HUD Overlay (Active in EVA Mode) */}
+      {isEvaMode && (
+        <HelmetHUD
+          oxygenPct={oxygenPct}
+          cameraYawDeg={cameraYawDeg}
+          suitPressureKPa={29.6}
+          suitTempC={21.0}
+          heartRateBpm={72}
+          radiationLevel={radiationActive ? 1.45 : 0.12}
+          location={location}
+          onExitEva={handleExitEva}
+          lang={lang}
+        />
+      )}
 
-        {dustStormActive && (
-          <div className="flex items-center gap-2 bg-amber-950/90 border border-amber-500 text-amber-200 px-3 py-1.5 rounded-xl shadow-lg backdrop-blur-md animate-pulse">
-            <Wind className="w-4 h-4 text-amber-400" />
-            <span className="text-xs font-black">
-              {lang === 'es' ? 'MEDA: TORMENTA DE POLVO ACTIVA' : 'MEDA: DUST STORM ACTIVE'}
-            </span>
-          </div>
-        )}
+      {/* Orbit Mode Space Weather Alert Badges (Top Left) */}
+      {!isEvaMode && (
+        <div className="absolute top-3 left-3 z-20 flex flex-col gap-1.5 pointer-events-none">
+          {radiationActive && (
+            <div className="flex items-center gap-2 bg-red-950/90 border border-red-500 text-red-200 px-3 py-1.5 rounded-xl shadow-lg backdrop-blur-md animate-bounce">
+              <ShieldAlert className="w-4 h-4 text-red-400" />
+              <span className="text-xs font-black">
+                {lang === 'es' ? 'DONKI CME: RADIACIÓN SOLAR ALTA' : 'DONKI CME: HIGH SOLAR RADIATION'}
+              </span>
+            </div>
+          )}
 
-        {location === 'moon' && isLunarNight && (
-          <div className="flex items-center gap-2 bg-indigo-950/90 border border-indigo-400 text-indigo-200 px-3 py-1.5 rounded-xl shadow-lg backdrop-blur-md">
-            <span className="w-2 h-2 rounded-full bg-indigo-400 animate-ping" />
-            <span className="text-xs font-black">
-              {lang === 'es' ? 'NOCHE LUNAR (-180 °C)' : 'LUNAR NIGHT (-180 °C)'}
-            </span>
-          </div>
-        )}
-      </div>
+          {dustStormActive && (
+            <div className="flex items-center gap-2 bg-amber-950/90 border border-amber-500 text-amber-200 px-3 py-1.5 rounded-xl shadow-lg backdrop-blur-md animate-pulse">
+              <Wind className="w-4 h-4 text-amber-400" />
+              <span className="text-xs font-black">
+                {lang === 'es' ? 'MEDA: TORMENTA DE POLVO ACTIVA' : 'MEDA: DUST STORM ACTIVE'}
+              </span>
+            </div>
+          )}
 
-      {/* Camera Controls & Presets Bar (Top Right) */}
-      <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 bg-slate-900/80 border border-slate-700/80 p-1.5 rounded-xl backdrop-blur-md shadow-xl">
-        <button
-          onClick={() => {
-            soundFx.playClick();
-            const s = cameraState.current;
-            s.targetRadius = Math.max(s.minRadius, s.targetRadius - 4);
-          }}
-          className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
-          title={lang === 'es' ? 'Acercar Zoom' : 'Zoom In'}
-        >
-          <ZoomIn className="w-4 h-4" />
-        </button>
-        <button
-          onClick={() => {
-            soundFx.playClick();
-            const s = cameraState.current;
-            s.targetRadius = Math.min(s.maxRadius, s.targetRadius + 4);
-          }}
-          className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
-          title={lang === 'es' ? 'Alejar Zoom' : 'Zoom Out'}
-        >
-          <ZoomOut className="w-4 h-4" />
-        </button>
-        <button
-          onClick={() => applyPreset(CAMERA_PRESETS[0])}
-          className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-cyan-900/60 text-slate-300 hover:text-cyan-300 transition-colors"
-          title={lang === 'es' ? 'Restablecer Cámara 360°' : 'Reset 360° Camera'}
-        >
-          <RotateCcw className="w-4 h-4" />
-        </button>
-      </div>
+          {location === 'moon' && isLunarNight && (
+            <div className="flex items-center gap-2 bg-indigo-950/90 border border-indigo-400 text-indigo-200 px-3 py-1.5 rounded-xl shadow-lg backdrop-blur-md">
+              <span className="w-2 h-2 rounded-full bg-indigo-400 animate-ping" />
+              <span className="text-xs font-black">
+                {lang === 'es' ? 'NOCHE LUNAR (-180 °C)' : 'LUNAR NIGHT (-180 °C)'}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
 
-      {/* Preset Quick Tabs (Floating along top edge) */}
-      <div className="absolute top-14 right-3 z-20 hidden sm:flex flex-col gap-1 items-end pointer-events-auto">
-        {CAMERA_PRESETS.map((preset) => (
+      {/* Camera Controls & EVA Walk Button Bar (Top Right) */}
+      {!isEvaMode && (
+        <div className="absolute top-3 right-3 z-20 flex items-center gap-2">
+          {/* 👨🚀 Primary EVA First-Person Walk Button */}
           <button
-            key={preset.id}
-            onClick={() => applyPreset(preset)}
-            className={`text-[10px] font-bold px-2 py-1 rounded-lg border backdrop-blur-md transition-all ${
-              selectedModuleId === preset.id
-                ? 'bg-cyan-950/90 border-cyan-400 text-cyan-200 shadow-lg shadow-cyan-500/20'
-                : 'bg-slate-900/70 border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800/80'
-            }`}
+            onClick={handleEnterEva}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white text-xs font-bold shadow-lg shadow-emerald-950/50 border border-emerald-400/40 transition-all active:scale-95 group"
+            title={lang === 'es' ? 'Salir a EVA (Cámara Astronauta en 1ª Persona)' : 'Enter EVA (1st Person Astronaut Camera)'}
           >
-            {lang === 'es' ? preset.nameEs : preset.nameEn}
+            <User className="w-3.5 h-3.5 text-emerald-200 group-hover:scale-110 transition-transform" />
+            <span>{lang === 'es' ? '👨🚀 Salir a EVA (1ª Persona)' : '👨🚀 Enter EVA (1st Person)'}</span>
           </button>
-        ))}
-      </div>
 
-      {/* Interactive Raycast Inspection Bar (Bottom Floating HUD) */}
-      <div className="absolute bottom-3 inset-x-3 sm:inset-x-6 z-20 flex items-center justify-between gap-3 bg-slate-900/90 border border-slate-700/80 px-4 py-2.5 rounded-2xl backdrop-blur-md shadow-2xl pointer-events-auto">
-        <div className="flex items-center gap-3 overflow-hidden">
-          <div className="w-8 h-8 rounded-xl bg-cyan-950/80 border border-cyan-400 flex items-center justify-center text-cyan-300 shrink-0">
-            <Compass className="w-4 h-4 animate-spin-slow" />
-          </div>
-          <div className="flex flex-col truncate">
-            {activeModuleData ? (
-              <>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-black text-cyan-300 truncate">
-                    {lang === 'es' ? activeModuleData.nameEs : activeModuleData.name}
-                  </span>
-                  <span className={`text-[9px] font-black px-1.5 py-0.2 rounded-full uppercase ${
-                    activeModuleData.isActive ? 'bg-emerald-950 border border-emerald-500 text-emerald-300' : 'bg-slate-800 text-slate-400'
-                  }`}>
-                    {activeModuleData.isActive ? (lang === 'es' ? 'ACTIVO' : 'ONLINE') : (lang === 'es' ? 'APAGADO' : 'OFFLINE')}
-                  </span>
-                </div>
-                <span className="text-[10px] text-slate-300 truncate">
-                  {lang === 'es' ? activeModuleData.descriptionEs : activeModuleData.description}
-                </span>
-              </>
-            ) : (
-              <>
-                <span className="text-xs font-bold text-slate-200">
-                  {location === 'moon' ? 'Base Shackleton 3D (Luna)' : 'Base Jezero 3D (Marte)'}
-                </span>
-                <span className="text-[10px] text-slate-400 flex items-center gap-1">
-                  <Info className="w-3 h-3 text-cyan-400 shrink-0" />
-                  {lang === 'es' 
-                    ? 'Arrastra para rotar en 360°, rueda/pellizca para zoom, o haz clic en cualquier módulo para operar.'
-                    : 'Drag to rotate 360°, wheel/pinch to zoom, or click any module to inspect.'}
-                </span>
-              </>
-            )}
+          {/* Orbit Camera Zoom & Reset Controls */}
+          <div className="flex items-center gap-1.5 bg-slate-900/80 border border-slate-700/80 p-1.5 rounded-xl backdrop-blur-md shadow-xl">
+            <button
+              onClick={() => {
+                soundFx.playClick();
+                const s = cameraState.current;
+                s.targetRadius = Math.max(s.minRadius, s.targetRadius - 4);
+              }}
+              className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
+              title={lang === 'es' ? 'Acercar Zoom' : 'Zoom In'}
+            >
+              <ZoomIn className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => {
+                soundFx.playClick();
+                const s = cameraState.current;
+                s.targetRadius = Math.min(s.maxRadius, s.targetRadius + 4);
+              }}
+              className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
+              title={lang === 'es' ? 'Alejar Zoom' : 'Zoom Out'}
+            >
+              <ZoomOut className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => applyPreset(CAMERA_PRESETS[0])}
+              className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-cyan-900/60 text-slate-300 hover:text-cyan-300 transition-colors"
+              title={lang === 'es' ? 'Restablecer Cámara 360°' : 'Reset 360° Camera'}
+            >
+              <RotateCcw className="w-4 h-4" />
+            </button>
           </div>
         </div>
+      )}
 
-        {activeModuleData && (
-          <button
-            onClick={() => {
-              soundFx.playClick();
-              onSelectModule(activeModuleData.id);
-            }}
-            className="shrink-0 flex items-center gap-1.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow-lg shadow-cyan-600/30 transition-all active:scale-95"
-          >
-            <Maximize2 className="w-3.5 h-3.5" />
-            <span>{lang === 'es' ? 'Inspeccionar' : 'Inspect'}</span>
-          </button>
-        )}
-      </div>
+      {/* Preset Quick Tabs (Floating along top edge) */}
+      {!isEvaMode && (
+        <div className="absolute top-14 right-3 z-20 hidden sm:flex flex-col gap-1 items-end pointer-events-auto">
+          {CAMERA_PRESETS.map((preset) => (
+            <button
+              key={preset.id}
+              onClick={() => applyPreset(preset)}
+              className={`text-[10px] font-bold px-2 py-1 rounded-lg border backdrop-blur-md transition-all ${
+                selectedModuleId === preset.id
+                  ? 'bg-cyan-950/90 border-cyan-400 text-cyan-200 shadow-lg shadow-cyan-500/20'
+                  : 'bg-slate-900/70 border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800/80'
+              }`}
+            >
+              {lang === 'es' ? preset.nameEs : preset.nameEn}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Interactive Raycast Inspection Bar (Bottom Floating HUD) */}
+      {!isEvaMode && (
+        <div className="absolute bottom-3 inset-x-3 sm:inset-x-6 z-20 flex items-center justify-between gap-3 bg-slate-900/90 border border-slate-700/80 px-4 py-2.5 rounded-2xl backdrop-blur-md shadow-2xl pointer-events-auto">
+          <div className="flex items-center gap-3 overflow-hidden">
+            <div className="w-8 h-8 rounded-xl bg-cyan-950/80 border border-cyan-400 flex items-center justify-center text-cyan-300 shrink-0">
+              <Compass className="w-4 h-4 animate-spin-slow" />
+            </div>
+            <div className="flex flex-col truncate">
+              {activeModuleData ? (
+                <>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black text-cyan-300 truncate">
+                      {lang === 'es' ? activeModuleData.nameEs : activeModuleData.name}
+                    </span>
+                    <span className={`text-[9px] font-black px-1.5 py-0.2 rounded-full uppercase ${
+                      activeModuleData.isActive ? 'bg-emerald-950 border border-emerald-500 text-emerald-300' : 'bg-slate-800 text-slate-400'
+                    }`}>
+                      {activeModuleData.isActive ? (lang === 'es' ? 'ACTIVO' : 'ONLINE') : (lang === 'es' ? 'APAGADO' : 'OFFLINE')}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-slate-300 truncate">
+                    {lang === 'es' ? activeModuleData.descriptionEs : activeModuleData.description}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="text-xs font-bold text-slate-200">
+                    {location === 'moon' ? 'Base Shackleton 3D (Luna)' : 'Base Jezero 3D (Marte)'}
+                  </span>
+                  <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                    <Info className="w-3 h-3 text-cyan-400 shrink-0" />
+                    {lang === 'es' 
+                      ? 'Arrastra para rotar en 360°, rueda/pellizca para zoom, o haz clic en cualquier módulo para operar.'
+                      : 'Drag to rotate 360°, wheel/pinch to zoom, or click any module to inspect.'}
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+
+          {activeModuleData && (
+            <button
+              onClick={() => {
+                soundFx.playClick();
+                onSelectModule(activeModuleData.id);
+              }}
+              className="shrink-0 flex items-center gap-1.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow-lg shadow-cyan-600/30 transition-all active:scale-95"
+            >
+              <Maximize2 className="w-3.5 h-3.5" />
+              <span>{lang === 'es' ? 'Inspeccionar' : 'Inspect'}</span>
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 };

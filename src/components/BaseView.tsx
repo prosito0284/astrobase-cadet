@@ -21,6 +21,7 @@ interface BaseViewProps {
   wiringErrorActive?: boolean;
   emergencyO2Active?: boolean;
   assignedToMineCount?: number;
+  oxygenPct?: number;
   onSelectModule: (moduleId: string) => void;
   selectedModuleId: string | null;
   lang: 'es' | 'en';
@@ -36,6 +37,7 @@ export const BaseView: React.FC<BaseViewProps> = ({
   wiringErrorActive = false,
   emergencyO2Active = false,
   assignedToMineCount = 0,
+  oxygenPct = 95,
   onSelectModule,
   selectedModuleId,
   lang,
@@ -122,6 +124,7 @@ export const BaseView: React.FC<BaseViewProps> = ({
           wiringErrorActive={wiringErrorActive}
           emergencyO2Active={emergencyO2Active}
           assignedToMineCount={assignedToMineCount}
+          oxygenPct={oxygenPct}
           onSelectModule={onSelectModule}
           selectedModuleId={selectedModuleId}
           lang={lang}
