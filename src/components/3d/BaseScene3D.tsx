@@ -24,8 +24,19 @@ import {
   Info, 
   Maximize2, 
   LayoutGrid,
-  User
+  User,
+  Building2
 } from 'lucide-react';
+import { BaseBuildingId } from '../../types/game';
+import { 
+  BUILDING_CATALOG, 
+  buildExpansionBuildingMesh, 
+  updateExpansionBuildings, 
+  disposeExpansionBuildings,
+  EXPANSION_COLLIDER_RADII
+} from './baseBuildingBuilder';
+import { setExpansionColliders, clearExpansionColliders, DomeCollider } from './evaControls';
+import { getTerrainHeight } from './base3DBuilder';
 
 export interface BaseScene3DProps {
   location: BaseLocation;
@@ -43,6 +54,8 @@ export interface BaseScene3DProps {
   lang: 'es' | 'en';
   onSwitchTo2D?: () => void;
   onTriggerRepair?: (crisisType: 'battery' | 'o2' | 'solar_storm', moduleId: string) => void;
+  builtBuildings?: BaseBuildingId[];
+  onOpenBuildingMenu?: () => void;
 }
 
 interface ModuleCameraPreset {
@@ -579,7 +592,7 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
           updateEvaMovement(dt, eva, keysPressedRef.current, location);
 
           // Update pressurized breathing audio cadence
-          evaBreathing.updateCadence(eva.isMoving, eva.isSprinting, oxygenPct, dt);
+          evaBreathing.updateCadence(eva.isMoving, eva.isSprinting, oxygenPct);
 
           // Update camera position & orientation
           camera.position.set(eva.x, eva.y, eva.z);

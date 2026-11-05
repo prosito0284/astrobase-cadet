@@ -59,6 +59,7 @@ export interface Rover3DCanvasProps {
   }) => void;
   onCancel: () => void;
   lang: 'es' | 'en';
+  hasRoverHangar?: boolean;
 }
 
 /**
@@ -121,6 +122,7 @@ export const Rover3DCanvas: React.FC<Rover3DCanvasProps> = ({
   onFinishMission,
   onCancel,
   lang,
+  hasRoverHangar = false,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const synthRef = useRef<LaserAudioSynth | null>(null);
@@ -226,7 +228,8 @@ export const Rover3DCanvas: React.FC<Rover3DCanvasProps> = ({
     // Laser raycasting from rover heading forward
     const rover = roverStateRef.current;
     const [fwdX, fwdZ] = getHeadingVector(rover.yaw);
-    const laserRange = 22.0;
+    // Laser mining range extends from 22/25m to 35m when Rover Hangar is active
+    const laserRange = hasRoverHangar ? 35.0 : 22.0;
 
     // Check hit against resource nodes
     let hitNode: ResourceNodeData | null = null;

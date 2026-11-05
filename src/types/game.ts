@@ -154,7 +154,32 @@ export interface ColonySaveData {
   lastEventDay?: number;         // Sol when the last major mission event occurred
   lastSolarFlareDay?: number;    // Sol when the last solar flare occurred
   lastEventId?: string;          // ID of the last triggered event (to prevent back-to-back duplicate modals)
+  builtBuildings?: BaseBuildingId[]; // Constructed 3D base expansion structures
 }
+
+export type BaseBuildingId = 'rover_hangar' | 'greenhouse_2' | 'dsoc_tower';
+
+export interface BaseBuildingEffects {
+  batteryBonusPct?: number;       // +50% faster battery recharge
+  laserRangeBonus?: number;       // +10m (from 25m to 35m) / +30m
+  batteryCapacityBonus?: number;  // +25 kWh extended battery capacity
+  extraCrewCapacity?: number;     // +4 crew (enabling up to 10 colonists)
+  foodDelta?: number;             // +12 food/day or +2.5
+  o2Delta?: number;               // +6 O2/day or +3.0
+  scienceMultiplier?: number;     // 3x scientific telemetry transmission
+}
+
+export interface BaseBuildingDefinition {
+  id: BaseBuildingId;
+  nameEs: string;
+  nameEn: string;
+  descriptionEs: string;
+  descriptionEn: string;
+  costScience: number;
+  defaultPosition: [number, number, number];
+  effects: BaseBuildingEffects;
+}
+
 
 export interface Achievement {
   id: string;

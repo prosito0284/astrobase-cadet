@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { BaseLocation, BaseModule } from '../types/game';
+import { BaseLocation, BaseModule, BaseBuildingId } from '../types/game';
 import { 
   ShieldAlert, 
   Wind, 
   Info,
   Box,
-  LayoutGrid
+  LayoutGrid,
+  Building2
 } from 'lucide-react';
 import { BaseScene3D } from './3d/BaseScene3D';
 import { soundFx } from '../utils/audio';
@@ -27,6 +28,8 @@ interface BaseViewProps {
   selectedModuleId: string | null;
   lang: 'es' | 'en';
   onTriggerRepair?: (crisisType: 'battery' | 'o2' | 'solar_storm', moduleId: string) => void;
+  builtBuildings?: BaseBuildingId[];
+  onOpenBuildingMenu?: () => void;
 }
 
 export const BaseView: React.FC<BaseViewProps> = ({
@@ -45,6 +48,8 @@ export const BaseView: React.FC<BaseViewProps> = ({
   selectedModuleId,
   lang,
   onTriggerRepair,
+  builtBuildings = [],
+  onOpenBuildingMenu,
 }) => {
   const [hoveredModule, setHoveredModule] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'3d' | '2d'>(() => {
@@ -90,30 +95,46 @@ export const BaseView: React.FC<BaseViewProps> = ({
           </span>
         </div>
 
-        {/* View Mode Toggle Button */}
-        <div className="flex items-center bg-slate-950/80 border border-slate-800 p-0.5 rounded-xl shadow-inner">
-          <button
-            onClick={() => handleToggleMode('3d')}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
-              viewMode === '3d'
-                ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-md shadow-cyan-600/30'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Box className="w-3.5 h-3.5" />
-            <span>{lang === 'es' ? '3D Inmersiva' : '3D Immersive'}</span>
-          </button>
-          <button
-            onClick={() => handleToggleMode('2d')}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
-              viewMode === '2d'
-                ? 'bg-slate-700 text-white shadow-md'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <LayoutGrid className="w-3.5 h-3.5" />
-            <span>{lang === 'es' ? '2D Clásica' : '2D Classic'}</span>
-          </button>
+        {/* Action Buttons: Base Building Modal & View Mode Toggle */}
+        <div className="flex items-center gap-2">
+          {onOpenBuildingMenu && (
+            <button
+              onClick={() => {
+                soundFx.playClick();
+                onOpenBuildingMenu();
+              }}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-md shadow-cyan-950/40 border border-cyan-400/40 transition-all active:scale-95"
+              title={lang === 'es' ? 'Expansión de Base 3D' : 'Base Expansion 3D'}
+            >
+              <Building2 className="w-3.5 h-3.5 text-cyan-200" />
+              <span>{lang === 'es' ? '🏗️ Expansión de Base' : '🏗️ Base Building'}</span>
+            </button>
+          )}
+
+          <div className="flex items-center bg-slate-950/80 border border-slate-800 p-0.5 rounded-xl shadow-inner">
+            <button
+              onClick={() => handleToggleMode('3d')}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                viewMode === '3d'
+                  ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-md shadow-cyan-600/30'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Box className="w-3.5 h-3.5" />
+              <span>{lang === 'es' ? '3D Inmersiva' : '3D Immersive'}</span>
+            </button>
+            <button
+              onClick={() => handleToggleMode('2d')}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                viewMode === '2d'
+                  ? 'bg-slate-700 text-white shadow-md'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              <span>{lang === 'es' ? '2D Clásica' : '2D Classic'}</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -135,6 +156,8 @@ export const BaseView: React.FC<BaseViewProps> = ({
           lang={lang}
           onSwitchTo2D={() => handleToggleMode('2d')}
           onTriggerRepair={onTriggerRepair}
+          builtBuildings={builtBuildings}
+          onOpenBuildingMenu={onOpenBuildingMenu}
         />
       ) : (
         <>

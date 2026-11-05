@@ -19,6 +19,7 @@ interface CommCenterProps {
   oxygenLevel: number;
   energyLevel: number;
   lang: 'es' | 'en';
+  hasDsocTower?: boolean;
 }
 
 interface MessageItem {
@@ -35,6 +36,7 @@ export const CommCenter: React.FC<CommCenterProps> = ({
   oxygenLevel,
   energyLevel,
   lang,
+  hasDsocTower = false,
 }) => {
   const isMars = location === 'mars';
   const [isTransmitting, setIsTransmitting] = useState(false);
@@ -114,11 +116,14 @@ export const CommCenter: React.FC<CommCenterProps> = ({
 
     setMessages(prev => [...prev, userMessage]);
 
-    // Communication delay simulation
+    // Communication delay simulation (Accelerated 3x when DSOC Laser Tower is active)
+    const speedDivisor = hasDsocTower ? 3.0 : 1.0;
+
     if (isMars) {
-      setSimulatedDelayProgress(5);
+      const totalDelay = Math.round(5000 / speedDivisor);
+      const initialCountdown = hasDsocTower ? 2 : 5;
+      setSimulatedDelayProgress(initialCountdown);
       startTimeRef.current = Date.now();
-      const totalDelay = 5000;
 
       const finishTransmission = () => {
         if (commTimerRef.current) {
@@ -132,10 +137,16 @@ export const CommCenter: React.FC<CommCenterProps> = ({
 
         const houstonResponse: MessageItem = {
           sender: 'Houston',
-          textEs: 'Houston a Base Jezero: Recibimos su transmisión con 12 minutos de retraso. Ingenieros recomiendan priorizar calefacción del hábitat y mantener reservas de agua para electrólisis.',
-          textEn: 'Houston to Jezero: Copy report with 12 min radio lag. Engineering flight team advises preserving habitat heat and conserving water electrolysis.',
-          time: 'T+12m',
-          delayNotice: 'Retraso de señal: 12 min ida y vuelta (300.000 km/s)',
+          textEs: hasDsocTower
+            ? 'Houston a Base Jezero: Telemetría óptica recibida a través de la Torre Láser DSOC (velocidad 3x acelerada). Parámetros nominales transmitidos sin degradación.'
+            : 'Houston a Base Jezero: Recibimos su transmisión con 12 minutos de retraso. Ingenieros recomiendan priorizar calefacción del hábitat y mantener reservas de agua para electrólisis.',
+          textEn: hasDsocTower
+            ? 'Houston to Jezero: Optical telemetry received via DSOC Laser Tower (3x accelerated speed). Systems green across high-bandwidth downlink.'
+            : 'Houston to Jezero: Copy report with 12 min radio lag. Engineering flight team advises preserving habitat heat and conserving water electrolysis.',
+          time: hasDsocTower ? 'T+4m (DSOC 3x)' : 'T+12m',
+          delayNotice: hasDsocTower 
+            ? 'Enlace Láser Óptico DSOC: Latencia reducida 3x (downlink de alta velocidad)' 
+            : 'Retraso de señal: 12 min ida y vuelta (300.000 km/s)',
         };
         setMessages(p => [...p, houstonResponse]);
       };
@@ -145,25 +156,30 @@ export const CommCenter: React.FC<CommCenterProps> = ({
         if (elapsed >= totalDelay) {
           finishTransmission();
         } else {
-          const remaining = Math.max(1, 5 - Math.floor(elapsed / 1000));
-          setSimulatedDelayProgress(remaining);
+          const remainingSec = Math.max(1, Math.ceil((totalDelay - elapsed) / 1000));
+          setSimulatedDelayProgress(remainingSec);
         }
-      }, 250);
+      }, 200);
     } else {
-      // Moon delay simulation: fast 1.3s
+      // Moon delay simulation: 1.3s or 0.43s with DSOC
+      const moonDelay = Math.round(1300 / speedDivisor);
       commTimerRef.current = setTimeout(() => {
         setIsTransmitting(false);
         soundFx.playQuindarTone('outro');
         soundFx.playRadioBeep();
         const houstonResponse: MessageItem = {
           sender: 'Houston',
-          textEs: 'Houston copia fuerte y claro Base Artemis. Respuesta inmediata (1.3s): Niveles de oxígeno adecuados. Recuerden verificar el extractor de hielo en el cráter Shackleton.',
-          textEn: 'Houston copies loud and clear Artemis. Immediate downlink (1.3s): Oxygen reserves acceptable. Ensure ice drill inspection at Shackleton rim.',
-          time: 'T+1.3s',
+          textEs: hasDsocTower
+            ? 'Houston copia Base Artemis: Enlace láser DSOC ultraveloz activo (<0.5s). Telemetría científica en tiempo real sincronizada.'
+            : 'Houston copia fuerte y claro Base Artemis. Respuesta inmediata (1.3s): Niveles de oxígeno adecuados. Recuerden verificar el extractor de hielo en el cráter Shackleton.',
+          textEn: hasDsocTower
+            ? 'Houston copies Artemis: DSOC ultrafast optical link active (<0.5s). Real-time scientific telemetry stream synchronized.'
+            : 'Houston copies loud and clear Artemis. Immediate downlink (1.3s): Oxygen reserves acceptable. Ensure ice drill inspection at Shackleton rim.',
+          time: hasDsocTower ? 'T+0.4s (DSOC 3x)' : 'T+1.3s',
         };
         setMessages(p => [...p, houstonResponse]);
         commTimerRef.current = null;
-      }, 1300);
+      }, moonDelay);
     }
   };
 
@@ -178,11 +194,17 @@ export const CommCenter: React.FC<CommCenterProps> = ({
             <h2 className="text-sm sm:text-base font-extrabold text-slate-100 flex items-center gap-2">
               <span>{lang === 'es' ? 'Terminal de Espacio Profundo (DSN)' : 'Deep Space Comm Terminal'}</span>
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                isMars 
-                  ? 'bg-amber-950/60 border-amber-500/60 text-amber-300' 
-                  : 'bg-cyan-950/60 border-cyan-500/60 text-cyan-300'
+                hasDsocTower
+                  ? 'bg-cyan-950 border-cyan-400 text-cyan-300 animate-pulse'
+                  : isMars 
+                    ? 'bg-amber-950/60 border-amber-500/60 text-amber-300' 
+                    : 'bg-cyan-950/60 border-cyan-500/60 text-cyan-300'
               }`}>
-                {isMars ? 'Latencia Crítica (12 min)' : 'Latencia Mínima (1.3 s)'}
+                {hasDsocTower
+                  ? (lang === 'es' ? '⚡ DSOC Láser Óptico (3x Velocidad)' : '⚡ DSOC Optical Laser (3x Speed)')
+                  : isMars 
+                    ? (lang === 'es' ? 'Latencia Crítica (12 min)' : 'Critical Latency (12 min)') 
+                    : (lang === 'es' ? 'Latencia Mínima (1.3 s)' : 'Minimum Latency (1.3 s)')}
               </span>
             </h2>
             <p className="text-[11px] text-slate-400">

@@ -112,8 +112,23 @@ export function updateEvaMouseLook(
   state.pitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, state.pitch));
 }
 
+// Dynamic expansion building colliders registry (Rover Hangar, 2nd Greenhouse, DSOC Tower)
+let activeExpansionColliders: DomeCollider[] = [];
+
+export function setExpansionColliders(colliders: DomeCollider[]): void {
+  activeExpansionColliders = [...colliders];
+}
+
+export function getExpansionColliders(): DomeCollider[] {
+  return activeExpansionColliders;
+}
+
+export function clearExpansionColliders(): void {
+  activeExpansionColliders = [];
+}
+
 /**
- * Resolves 2D collisions against all 6 module cylinders, 5 tunnel line segments,
+ * Resolves 2D collisions against all 6 module cylinders, expansion buildings, 5 tunnel line segments,
  * and the outer terrain perimeter boundary.
  *
  * Returns resolved coordinates and whether any collision was corrected.
@@ -121,14 +136,19 @@ export function updateEvaMouseLook(
 export function resolveCollisions(
   x: number,
   z: number,
-  playerRadius: number = PLAYER_COLLISION_RADIUS
+  playerRadius: number = PLAYER_COLLISION_RADIUS,
+  extraColliders?: readonly DomeCollider[]
 ): { x: number; z: number; collided: boolean } {
   let resX = x;
   let resZ = z;
   let collided = false;
 
-  // 1. Resolve Radial Dome Cylinder Collisions (6 modules)
-  for (const module of MODULE_COLLIDERS) {
+  const allColliders = extraColliders 
+    ? [...MODULE_COLLIDERS, ...extraColliders]
+    : [...MODULE_COLLIDERS, ...activeExpansionColliders];
+
+  // 1. Resolve Radial Dome Cylinder Collisions (6 modules + expansion structures)
+  for (const module of allColliders) {
     const dx = resX - module.x;
     const dz = resZ - module.z;
     const dist = Math.sqrt(dx * dx + dz * dz);
@@ -203,7 +223,8 @@ export function updateEvaMovement(
   dt: number,
   state: EvaControllerState,
   keys: Record<string, boolean>,
-  location: BaseLocation
+  location: BaseLocation,
+  extraColliders?: readonly DomeCollider[]
 ): void {
   // Delta time clamping against lag spikes / background tab jumps
   const safeDt = Math.max(0, Math.min(dt, 0.1));
@@ -270,8 +291,8 @@ export function updateEvaMovement(
     state.walkBobPhase = 0;
   }
 
-  // Resolve dome, tunnel, and perimeter boundary collisions
-  const resolved = resolveCollisions(nextX, nextZ, PLAYER_COLLISION_RADIUS);
+  // Resolve dome, tunnel, perimeter, and expansion building collisions
+  const resolved = resolveCollisions(nextX, nextZ, PLAYER_COLLISION_RADIUS, extraColliders);
   state.x = resolved.x;
   state.z = resolved.z;
 

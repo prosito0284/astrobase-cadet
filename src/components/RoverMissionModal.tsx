@@ -26,6 +26,7 @@ interface RoverMissionModalProps {
   lang: 'es' | 'en';
   sortiesToday?: number;
   maxSortiesPerDay?: number;
+  hasRoverHangar?: boolean;
 }
 
 interface SortieTarget {
@@ -90,6 +91,7 @@ export const RoverMissionModal: React.FC<RoverMissionModalProps> = ({
   lang,
   sortiesToday: propSortiesToday,
   maxSortiesPerDay = 2,
+  hasRoverHangar = false,
 }) => {
   const [selectedTargetId, setSelectedTargetId] = useState<string>('shackleton_ice');
   const [isDeploying, setIsDeploying] = useState<boolean>(false);
@@ -304,8 +306,9 @@ export const RoverMissionModal: React.FC<RoverMissionModalProps> = ({
     const baseScience = activeTarget.rewardType === 'science' ? activeTarget.rewardAmount : 0;
     const baseEnergy = activeTarget.rewardType === 'energy' ? activeTarget.rewardAmount : 0;
 
+    const rechargeRate = hasRoverHangar ? 0.24 : 0.12;
     const bonusEnergy = results.dockedSuccessfully 
-      ? Math.round(results.batteryRemainingPct * 0.12)
+      ? Math.round(results.batteryRemainingPct * rechargeRate)
       : 0;
 
     const finalWater = baseWater + (results.collectedWater * 3);
@@ -408,6 +411,7 @@ export const RoverMissionModal: React.FC<RoverMissionModalProps> = ({
               onFinishMission={handleComplete3DDriving}
               onCancel={() => setIsDriving3D(false)}
               lang={lang}
+              hasRoverHangar={hasRoverHangar}
             />
           </div>
         ) : (
