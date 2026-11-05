@@ -5,7 +5,7 @@ import { buildSpaceBase3D, Base3DSceneResult } from './base3DBuilder';
 import { createParticleSystems, ParticleController } from './particleSystems';
 import { createDamageParticleSystems, DamageParticleSystem } from './damageParticles';
 import { disposeRenderer, safeCancelAnimationFrame } from './disposal';
-import { soundFx } from '../../utils/audio';
+import { soundFx, evaBreathing } from '../../utils/audio';
 import { HelmetHUD } from './HelmetHUD';
 import { 
   EvaControllerState, 
@@ -187,6 +187,7 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
     soundFx.playClick();
     setIsEvaMode(true);
     isEvaModeRef.current = true;
+    evaBreathing.start();
     evaStateRef.current = {
       x: EVA_SPAWN_POINT.x,
       y: EVA_SPAWN_POINT.y,
@@ -213,6 +214,7 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
     soundFx.playClick();
     setIsEvaMode(false);
     isEvaModeRef.current = false;
+    evaBreathing.stop();
 
     if (typeof document !== 'undefined' && document.pointerLockElement) {
       try {
@@ -576,6 +578,9 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
           const eva = evaStateRef.current;
           updateEvaMovement(dt, eva, keysPressedRef.current, location);
 
+          // Update pressurized breathing audio cadence
+          evaBreathing.updateCadence(eva.isMoving, eva.isSprinting, oxygenPct, dt);
+
           // Update camera position & orientation
           camera.position.set(eva.x, eva.y, eva.z);
           camera.rotation.order = 'YXZ';
@@ -641,6 +646,7 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
 
     // Cleanup on unmount or location change
     return () => {
+      evaBreathing.stop();
       safeCancelAnimationFrame(rafIdRef.current);
       rafIdRef.current = null;
 

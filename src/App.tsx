@@ -1864,6 +1864,7 @@ export function App() {
     });
 
     if (sortieSuccess) {
+      soundFx.playQuindarTone('outro');
       soundFx.playVictory();
       confetti({ particleCount: 100, spread: 60, origin: { y: 0.6 } });
       const currentSortieNum = sortiesToday + 1;
@@ -2131,6 +2132,7 @@ export function App() {
     });
 
     if (wasBlackout) {
+      soundFx.playQuindarTone('outro');
       soundFx.playVictory();
       showToast('¡Enlace con Houston y la Red DSN restablecido con éxito!');
       spaceVoice.speak('Enlace de radio de espacio profundo restablecido.');
@@ -2166,7 +2168,10 @@ export function App() {
         onOpenGuide={() => setIsGuideOpen(true)}
         onOpenReport={() => setIsReportOpen(true)}
         onOpenBotanicalLab={() => setIsBotanicalLabOpen(true)}
-        onOpenRoverMission={() => setIsRoverMissionOpen(true)}
+        onOpenRoverMission={() => {
+          soundFx.playQuindarTone('intro');
+          setIsRoverMissionOpen(true);
+        }}
         onOpenHistoricalCrises={() => setIsHistoricalCrisesOpen(true)}
         onOpenNasaQuiz={() => setIsNasaQuizOpen(true)}
         onOpenWiring={openWiringModal}
@@ -2572,7 +2577,10 @@ export function App() {
             </button>
             <span>•</span>
             <button 
-              onClick={() => setIsRoverMissionOpen(true)}
+              onClick={() => {
+                soundFx.playQuindarTone('intro');
+                setIsRoverMissionOpen(true);
+              }}
               className="text-cyan-400 hover:underline font-bold"
             >
               {lang === 'es' ? 'Rover ISRU' : 'Rover ISRU'}

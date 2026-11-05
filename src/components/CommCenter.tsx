@@ -101,6 +101,7 @@ export const CommCenter: React.FC<CommCenterProps> = ({
   const handleRequestGuidance = () => {
     if (isTransmitting) return;
 
+    soundFx.playQuindarTone('intro');
     soundFx.playRadioBeep();
     setIsTransmitting(true);
 
@@ -126,6 +127,7 @@ export const CommCenter: React.FC<CommCenterProps> = ({
         }
         setIsTransmitting(false);
         setSimulatedDelayProgress(null);
+        soundFx.playQuindarTone('outro');
         soundFx.playRadioBeep();
 
         const houstonResponse: MessageItem = {
@@ -151,6 +153,7 @@ export const CommCenter: React.FC<CommCenterProps> = ({
       // Moon delay simulation: fast 1.3s
       commTimerRef.current = setTimeout(() => {
         setIsTransmitting(false);
+        soundFx.playQuindarTone('outro');
         soundFx.playRadioBeep();
         const houstonResponse: MessageItem = {
           sender: 'Houston',

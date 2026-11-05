@@ -242,6 +242,7 @@ export const RoverMissionModal: React.FC<RoverMissionModalProps> = ({
       return;
     }
 
+    soundFx.playQuindarTone('intro');
     soundFx.playHarvest();
     isDeployingRef.current = true;
     setIsDeploying(true);
@@ -279,6 +280,7 @@ export const RoverMissionModal: React.FC<RoverMissionModalProps> = ({
       return;
     }
 
+    soundFx.playQuindarTone('intro');
     soundFx.playClick();
     setIsDriving3D(true);
   };
@@ -292,6 +294,7 @@ export const RoverMissionModal: React.FC<RoverMissionModalProps> = ({
     batteryRemainingPct: number;
     dockedSuccessfully: boolean;
   }) => {
+    soundFx.playQuindarTone('outro');
     setIsDriving3D(false);
     confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
 
