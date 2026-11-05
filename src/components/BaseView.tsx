@@ -20,11 +20,13 @@ interface BaseViewProps {
   isLunarNight: boolean;
   wiringErrorActive?: boolean;
   emergencyO2Active?: boolean;
+  batteryFaultActive?: boolean;
   assignedToMineCount?: number;
   oxygenPct?: number;
   onSelectModule: (moduleId: string) => void;
   selectedModuleId: string | null;
   lang: 'es' | 'en';
+  onTriggerRepair?: (crisisType: 'battery' | 'o2' | 'solar_storm', moduleId: string) => void;
 }
 
 export const BaseView: React.FC<BaseViewProps> = ({
@@ -36,11 +38,13 @@ export const BaseView: React.FC<BaseViewProps> = ({
   isLunarNight,
   wiringErrorActive = false,
   emergencyO2Active = false,
+  batteryFaultActive = false,
   assignedToMineCount = 0,
   oxygenPct = 95,
   onSelectModule,
   selectedModuleId,
   lang,
+  onTriggerRepair,
 }) => {
   const [hoveredModule, setHoveredModule] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'3d' | '2d'>(() => {
@@ -123,12 +127,14 @@ export const BaseView: React.FC<BaseViewProps> = ({
           isLunarNight={isLunarNight}
           wiringErrorActive={wiringErrorActive}
           emergencyO2Active={emergencyO2Active}
+          batteryFaultActive={batteryFaultActive}
           assignedToMineCount={assignedToMineCount}
           oxygenPct={oxygenPct}
           onSelectModule={onSelectModule}
           selectedModuleId={selectedModuleId}
           lang={lang}
           onSwitchTo2D={() => handleToggleMode('2d')}
+          onTriggerRepair={onTriggerRepair}
         />
       ) : (
         <>

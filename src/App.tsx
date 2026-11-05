@@ -2013,6 +2013,48 @@ export function App() {
     }
   };
 
+  // Tactile 3D Raycasting Repair Handler (Sprint 3)
+  const handleTriggerRepair = (crisisType: 'battery' | 'o2' | 'solar_storm', _moduleId: string) => {
+    if (crisisType === 'battery') {
+      soundFx.playAlert();
+      openWiringModal();
+      const msg = lang === 'es'
+        ? '⚡ ¡Accediendo al panel de cableado del generador solar!'
+        : '⚡ Accessing solar farm emergency wiring panel!';
+      showToast(msg);
+      spaceVoice.speak(lang === 'es' ? 'Avería en generador solar. Accediendo a bahía de cableado.' : 'Solar farm fault. Accessing wiring bay.');
+    } else if (crisisType === 'o2') {
+      const currentCharges = currentColony.emergencyO2Charges ?? 2;
+      if (currentCharges > 0) {
+        handleEmergencyO2Injected();
+      } else {
+        soundFx.playAlert();
+        const msg = lang === 'es'
+          ? '⚠️ ¡Fuga de O₂ activa en Domo Central! Cartuchos de emergencia agotados.'
+          : '⚠️ Active O2 leak in Central Dome! Emergency canisters depleted.';
+        showToast(msg);
+        spaceVoice.speak(lang === 'es' ? 'Fuga de oxígeno en domo central. Cartuchos agotados.' : 'Oxygen leak in central dome. Canisters empty.');
+        addFlightLog(
+          'alert',
+          'Fuga de O2 en Domo Central: intento de presurización sin cartuchos disponibles.',
+          'O2 leak in Central Dome: pressurization attempted with zero canisters remaining.'
+        );
+      }
+    } else if (crisisType === 'solar_storm') {
+      soundFx.playAlert();
+      const msg = lang === 'es'
+        ? '🛡️ ¡PROTOCOLO DE ESCUDO SOLAR ACTIVADO! Refugiando personal y calibrando bobinas magnéticas.'
+        : '🛡️ SOLAR SHIELD PROTOCOL ACTIVATED! Sheltering crew and tuning magnetic coils.';
+      showToast(msg);
+      spaceVoice.speak(lang === 'es' ? 'Alerta de radiación solar. Protocolo de escudo magnético ejecutado.' : 'Solar radiation alert. Magnetic shield protocol executed.');
+      addFlightLog(
+        'alert',
+        'Protocolo táctil 3D activado: Escudo magnético reforzado y tripulación alertada.',
+        'Tactile 3D protocol engaged: Magnetic shield boosted and crew alerted.'
+      );
+    }
+  };
+
   // Restart after Game Over or manually
   const handleRestartMission = (newDiff?: GameDifficulty) => {
     if (isRestartingRef.current) return;
@@ -2261,10 +2303,12 @@ export function App() {
           isLunarNight={currentColony.isLunarNight}
           wiringErrorActive={currentColony.wiringErrorActive}
           emergencyO2Active={currentColony.emergencyO2Active}
+          batteryFaultActive={Boolean(currentColony.batteryFault)}
           assignedToMineCount={currentColony.assignedToMine.length}
           onSelectModule={setSelectedModuleId}
           selectedModuleId={selectedModuleId}
           lang={lang}
+          onTriggerRepair={handleTriggerRepair}
         />
 
         {/* 3. MODULE POWER & SYSTEM CONTROL */}

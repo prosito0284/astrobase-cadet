@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { BaseLocation, BaseModule } from '../../types/game';
 import { buildSpaceBase3D, Base3DSceneResult } from './base3DBuilder';
 import { createParticleSystems, ParticleController } from './particleSystems';
+import { createDamageParticleSystems, DamageParticleSystem } from './damageParticles';
 import { disposeRenderer, safeCancelAnimationFrame } from './disposal';
 import { soundFx } from '../../utils/audio';
 import { HelmetHUD } from './HelmetHUD';
@@ -34,12 +35,14 @@ export interface BaseScene3DProps {
   isLunarNight: boolean;
   wiringErrorActive?: boolean;
   emergencyO2Active?: boolean;
+  batteryFaultActive?: boolean;
   assignedToMineCount?: number;
   oxygenPct?: number;
   onSelectModule: (moduleId: string) => void;
   selectedModuleId: string | null;
   lang: 'es' | 'en';
   onSwitchTo2D?: () => void;
+  onTriggerRepair?: (crisisType: 'battery' | 'o2' | 'solar_storm', moduleId: string) => void;
 }
 
 interface ModuleCameraPreset {
@@ -68,12 +71,14 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
   isLunarNight,
   wiringErrorActive = false,
   emergencyO2Active = false,
+  batteryFaultActive = false,
   assignedToMineCount = 0,
   oxygenPct = 95,
   onSelectModule,
   selectedModuleId,
   lang,
   onSwitchTo2D,
+  onTriggerRepair,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -105,12 +110,18 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
     onSelectModuleRef.current = onSelectModule;
   }, [onSelectModule]);
 
+  const onTriggerRepairRef = useRef(onTriggerRepair);
+  useEffect(() => {
+    onTriggerRepairRef.current = onTriggerRepair;
+  }, [onTriggerRepair]);
+
   // References for render loop & controls
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const builderRef = useRef<Base3DSceneResult | null>(null);
   const particlesRef = useRef<ParticleController | null>(null);
+  const damageParticlesRef = useRef<DamageParticleSystem | null>(null);
   const rafIdRef = useRef<number | null>(null);
 
   // Orbit camera state (Spherical coords)
@@ -141,6 +152,7 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
     isLunarNight,
     wiringErrorActive,
     emergencyO2Active,
+    batteryFaultActive,
     assignedToMineCount,
     modules,
   });
@@ -152,10 +164,11 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
       isLunarNight,
       wiringErrorActive,
       emergencyO2Active,
+      batteryFaultActive,
       assignedToMineCount,
       modules,
     };
-  }, [radiationActive, dustStormActive, isLunarNight, wiringErrorActive, emergencyO2Active, assignedToMineCount, modules]);
+  }, [radiationActive, dustStormActive, isLunarNight, wiringErrorActive, emergencyO2Active, batteryFaultActive, assignedToMineCount, modules]);
 
   // Handle camera preset transition
   const applyPreset = useCallback((preset: ModuleCameraPreset) => {
@@ -297,6 +310,20 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
     particlesRef.current = particles;
     scene.add(particles.group);
 
+    // 5B. Damage & Crisis Particle Systems (Sprint 3)
+    const moduleCoordinates: Record<string, THREE.Vector3> = {
+      solar_farm: new THREE.Vector3(-8.5, 0, -5.5),
+      regolith_shield: new THREE.Vector3(0, 0, 0),
+      magnetic_shield: new THREE.Vector3(0, 0, 0),
+      greenhouse: new THREE.Vector3(8.5, 0, -4.5),
+      comm_array: new THREE.Vector3(-8.0, 0, 6.5),
+      water_ice_extractor: new THREE.Vector3(8.0, 0, 6.5),
+      storm_bunker: new THREE.Vector3(0, 0, 10.5),
+    };
+    const damageParticles = createDamageParticleSystems(moduleCoordinates);
+    damageParticlesRef.current = damageParticles;
+    scene.add(damageParticles.group);
+
     // 6. Raycaster
     const raycaster = new THREE.Raycaster();
     const mouseNdc = new THREE.Vector2();
@@ -374,9 +401,13 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
       } else {
         // Hover Raycast
         raycaster.setFromCamera(mouseNdc, camera);
+        const damageHoverHits = raycaster.intersectObjects(damageParticles.getDamagedModuleMeshes(), true);
         const hits = raycaster.intersectObjects(builder.interactiveObjects, true);
 
-        if (hits.length > 0) {
+        if (damageHoverHits.length > 0 && damageHoverHits[0].object.userData?.moduleId) {
+          setHoveredModuleId(damageHoverHits[0].object.userData.moduleId);
+          canvas.style.cursor = 'pointer';
+        } else if (hits.length > 0) {
           let topObj: THREE.Object3D | null = hits[0].object;
           let modId: string | null = null;
           while (topObj && topObj !== builder.group) {
@@ -415,21 +446,64 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
         mouseNdc.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
 
         raycaster.setFromCamera(mouseNdc, camera);
-        const hits = raycaster.intersectObjects(builder.interactiveObjects, true);
 
-        if (hits.length > 0) {
-          let topObj: THREE.Object3D | null = hits[0].object;
-          let clickedModuleId: string | null = null;
-          while (topObj && topObj !== builder.group) {
-            if (topObj.userData && topObj.userData.moduleId) {
-              clickedModuleId = topObj.userData.moduleId;
-              break;
-            }
-            topObj = topObj.parent;
+        const isBatteryCrisis = Boolean(
+          dynamicStateRef.current.wiringErrorActive || dynamicStateRef.current.batteryFaultActive
+        );
+        const isO2Crisis = Boolean(dynamicStateRef.current.emergencyO2Active);
+        const isStormCrisis = Boolean(dynamicStateRef.current.radiationActive);
+
+        // Check tactile click on damage meshes first
+        const damageHits = raycaster.intersectObjects(damageParticles.getDamagedModuleMeshes(), true);
+        let handledDamageClick = false;
+
+        if (damageHits.length > 0) {
+          const hitObj = damageHits[0].object;
+          const { moduleId, crisisType } = hitObj.userData || {};
+          const isCrisisActive =
+            (crisisType === 'battery' && isBatteryCrisis) ||
+            (crisisType === 'o2' && isO2Crisis) ||
+            (crisisType === 'solar_storm' && isStormCrisis);
+
+          if (isCrisisActive && crisisType && moduleId) {
+            soundFx.playAlert();
+            onTriggerRepairRef.current?.(crisisType, moduleId);
+            onSelectModuleRef.current(moduleId);
+            handledDamageClick = true;
           }
-          if (clickedModuleId) {
-            soundFx.playClick();
-            onSelectModuleRef.current(clickedModuleId);
+        }
+
+        if (!handledDamageClick) {
+          const hits = raycaster.intersectObjects(builder.interactiveObjects, true);
+
+          if (hits.length > 0) {
+            let topObj: THREE.Object3D | null = hits[0].object;
+            let clickedModuleId: string | null = null;
+            while (topObj && topObj !== builder.group) {
+              if (topObj.userData && topObj.userData.moduleId) {
+                clickedModuleId = topObj.userData.moduleId;
+                break;
+              }
+              topObj = topObj.parent;
+            }
+            if (clickedModuleId) {
+              if (clickedModuleId === 'solar_farm' && isBatteryCrisis) {
+                soundFx.playAlert();
+                onTriggerRepairRef.current?.('battery', 'solar_farm');
+              } else if (clickedModuleId === 'regolith_shield' && isO2Crisis) {
+                soundFx.playAlert();
+                onTriggerRepairRef.current?.('o2', 'regolith_shield');
+              } else if (
+                (clickedModuleId === 'magnetic_shield' || clickedModuleId === 'storm_bunker') &&
+                isStormCrisis
+              ) {
+                soundFx.playAlert();
+                onTriggerRepairRef.current?.('solar_storm', clickedModuleId);
+              } else {
+                soundFx.playClick();
+              }
+              onSelectModuleRef.current(clickedModuleId);
+            }
           }
         }
       }
@@ -537,6 +611,15 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
             dynamicStateRef.current.radiationActive
           );
 
+          // Update damage & crisis particle systems (Sprint 3)
+          damageParticles.update(dt, {
+            batteryFailure: Boolean(
+              dynamicStateRef.current.wiringErrorActive || dynamicStateRef.current.batteryFaultActive
+            ),
+            o2Leak: Boolean(dynamicStateRef.current.emergencyO2Active),
+            solarStorm: Boolean(dynamicStateRef.current.radiationActive),
+          });
+
           // Dynamic fog adaptation during dust storm
           if (location === 'mars' && scene.fog && dynamicStateRef.current.dustStormActive) {
             (scene.fog as THREE.FogExp2).color.setHex(0x9a3412);
@@ -574,6 +657,7 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
 
       builder.dispose();
       particles.dispose();
+      damageParticles.dispose();
       disposeRenderer(renderer);
 
       sceneRef.current = null;
@@ -581,6 +665,7 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
       rendererRef.current = null;
       builderRef.current = null;
       particlesRef.current = null;
+      damageParticlesRef.current = null;
     };
   }, [location, canvasKey]);
 
