@@ -110,6 +110,39 @@ export function computeHeading(
   return Math.atan2(to.x - from.x, to.z - from.z);
 }
 
+export interface SunPositionResult {
+  position: [number, number, number];
+  elevationDeg: number;
+  azimuthDeg: number;
+  isAboveHorizon: boolean;
+}
+
+// Module-level scratch structures to guarantee zero heap allocations in the 60 FPS update loop
+const _scratchSunPos: SunPositionResult = {
+  position: [0, 0, 0],
+  elevationDeg: 0,
+  azimuthDeg: 0,
+  isAboveHorizon: false,
+};
+
+const SOLAR_CYCLE_RING_SIZE = 4;
+let _scratchSolarCycleIndex = 0;
+const _scratchSolarCycleRing: SolarCycleState[] = [
+  { timeOfDaySeconds: 0, diurnalPeriodSeconds: 120, solarAngleRad: 0, sunElevationDeg: 0, sunAzimuthDeg: 0, isDay: false },
+  { timeOfDaySeconds: 0, diurnalPeriodSeconds: 120, solarAngleRad: 0, sunElevationDeg: 0, sunAzimuthDeg: 0, isDay: false },
+  { timeOfDaySeconds: 0, diurnalPeriodSeconds: 120, solarAngleRad: 0, sunElevationDeg: 0, sunAzimuthDeg: 0, isDay: false },
+  { timeOfDaySeconds: 0, diurnalPeriodSeconds: 120, solarAngleRad: 0, sunElevationDeg: 0, sunAzimuthDeg: 0, isDay: false },
+];
+
+const _scratchAmber = new THREE.Color(0xfef08a);
+const _scratchCyan = new THREE.Color(0x4a90e2);
+const _scratchTwilight = new THREE.Color(0x5a4050);
+const _scratchSunColor = new THREE.Color();
+const _scratchAmbientColor = new THREE.Color();
+const _scratchSkyColor = new THREE.Color();
+const _scratchEarthlight = new THREE.Color(0x0369a1);
+const _scratchSceneBackground = new THREE.Color(0x000000);
+
 /**
  * Calculates continuous diurnal orbital sun coordinates, elevation, and azimuth angles.
  * Orbital period defaults to 120 seconds.
@@ -117,13 +150,9 @@ export function computeHeading(
 export function calculateSunPosition(
   timeSeconds: number,
   orbitPeriod: number = 120,
-  orbitRadius: number = 150
-): {
-  position: [number, number, number];
-  elevationDeg: number;
-  azimuthDeg: number;
-  isAboveHorizon: boolean;
-} {
+  orbitRadius: number = 150,
+  target?: SunPositionResult
+): SunPositionResult {
   const phase = (timeSeconds % orbitPeriod) / orbitPeriod;
   const azimuthRad = phase * 2 * Math.PI;
   // Elevation follows sinusoidal day/night cycle
@@ -135,6 +164,16 @@ export function calculateSunPosition(
 
   const elevationDeg = (elevationRad * 180) / Math.PI;
   const azimuthDeg = ((azimuthRad * 180) / Math.PI) % 360;
+
+  if (target) {
+    target.position[0] = x;
+    target.position[1] = y;
+    target.position[2] = z;
+    target.elevationDeg = elevationDeg;
+    target.azimuthDeg = azimuthDeg;
+    target.isAboveHorizon = y > 0;
+    return target;
+  }
 
   return {
     position: [x, y, z],
@@ -194,6 +233,7 @@ export function getPlanetLightingParameters(location: BaseLocation, elevationDeg
  * Continuous diurnal solar orbital movement and celestial lighting updater.
  * Updates directional sunLight position, sunSphere celestial dome mesh, shadow bias,
  * and planetary atmospheric/contrast lighting.
+ * Guaranteed ZERO dynamic heap allocations per frame.
  */
 export function updateSolarCycle(
   dt: number,
@@ -202,7 +242,8 @@ export function updateSolarCycle(
   location: BaseLocation,
   scene?: THREE.Scene,
   ambientLight?: THREE.AmbientLight,
-  state?: BaseDynamicState
+  state?: BaseDynamicState,
+  targetState?: SolarCycleState
 ): SolarCycleState {
   const safeDt = Math.max(0, Math.min(dt, 0.1));
   const period = 120;
@@ -213,9 +254,11 @@ export function updateSolarCycle(
   sunLight.userData.solarTime = (sunLight.userData.solarTime + safeDt) % period;
   const timeSeconds = sunLight.userData.solarTime;
 
-  // 1. Orbital position
-  const sunPos = calculateSunPosition(timeSeconds, period, 150);
-  const [sx, sy, sz] = sunPos.position;
+  // 1. Orbital position (reusing scratch structure to prevent GC churn)
+  const sunPos = calculateSunPosition(timeSeconds, period, 150, _scratchSunPos);
+  const sx = sunPos.position[0];
+  const sy = sunPos.position[1];
+  const sz = sunPos.position[2];
 
   // Sun Directional Light position & target
   sunLight.position.set(sx, Math.max(0.1, sy), sz);
@@ -228,10 +271,18 @@ export function updateSolarCycle(
   sunSphere.position.set(sx * scale, sy * scale, sz * scale);
   sunSphere.visible = sy > -15;
 
-  // Locate ambient light if not provided directly
-  const ambient = ambientLight ?? (
-    sunLight.parent?.children.find((c) => (c as THREE.AmbientLight).isAmbientLight) as THREE.AmbientLight | undefined
-  );
+  // Locate ambient light if not provided directly (for-loop avoids per-frame closure)
+  let ambient = ambientLight;
+  if (!ambient && sunLight.parent) {
+    const children = sunLight.parent.children;
+    for (let i = 0; i < children.length; i++) {
+      const child = children[i] as THREE.AmbientLight;
+      if (child && child.isAmbientLight) {
+        ambient = child;
+        break;
+      }
+    }
+  }
 
   // 2. Planetary Lighting & Atmosphere
   if (location === 'moon') {
@@ -242,13 +293,17 @@ export function updateSolarCycle(
     // - When sun drops below horizon (lunar night): sunlight fades to 0, subtle cold Earthlight glow (0x0369a1, 0.08)
     if (scene) {
       scene.fog = null;
-      scene.background = new THREE.Color(0x000000);
+      if (scene.background instanceof THREE.Color) {
+        scene.background.setHex(0x000000);
+      } else {
+        scene.background = _scratchSceneBackground.setHex(0x000000);
+      }
     }
 
     const isNight = !sunPos.isAboveHorizon || sy <= 0 || !!(state?.isLunarNight);
     if (isNight) {
       if (ambient) {
-        ambient.color.setHex(0x0369a1);
+        ambient.color.copy(_scratchEarthlight);
       }
       if (safeDt === 0) {
         sunLight.intensity = 0.0;
@@ -291,11 +346,9 @@ export function updateSolarCycle(
     const isSunset = elev <= 18.0 && elev >= -5.0;
     const isNight = elev < -5.0;
 
-    const amberSun = new THREE.Color(0xfef08a);
-    const blueSun = new THREE.Color(0x4a90e2);
-    const rustSky = new THREE.Color(0x451a03);
-    const twilightSky = new THREE.Color(0x5a4050);
-    const nightSky = new THREE.Color(0x1e1b4b);
+    _scratchAmber.setHex(0xfef08a);
+    _scratchCyan.setHex(0x4a90e2);
+    _scratchTwilight.setHex(0x5a4050);
 
     if (isNight) {
       if (ambient) {
@@ -309,17 +362,21 @@ export function updateSolarCycle(
         if (ambient) ambient.intensity = THREE.MathUtils.lerp(ambient.intensity, 0.15, safeDt * 3.0);
       }
       if (scene) {
-        scene.background = nightSky;
+        if (scene.background instanceof THREE.Color) {
+          scene.background.setHex(0x1e1b4b);
+        } else {
+          scene.background = _scratchSceneBackground.setHex(0x1e1b4b);
+        }
         if (scene.fog && !state?.dustStormActive) {
-          (scene.fog as THREE.FogExp2).color.copy(nightSky);
+          (scene.fog as THREE.FogExp2).color.setHex(0x1e1b4b);
         }
       }
     } else if (isSunset) {
       // Transition ratio t in [0, 1] as sun drops from 18 deg to ~8 deg
       const t = Math.max(0, Math.min(1, (18.0 - elev) / 10.0));
 
-      const curSunColor = amberSun.clone().lerp(blueSun, t);
-      sunLight.color.copy(curSunColor);
+      _scratchSunColor.lerpColors(_scratchAmber, _scratchCyan, t);
+      sunLight.color.copy(_scratchSunColor);
 
       // Low sun angle light attenuation
       const sunsetIntensity = Math.max(0.05, 1.8 * Math.max(0, (elev + 5.0) / 23.0));
@@ -332,21 +389,29 @@ export function updateSolarCycle(
       }
 
       // Sky & fog color transition to twilight salmon-purple
-      const curSkyColor = rustSky.clone().lerp(twilightSky, t);
+      _scratchAmber.setHex(0x451a03);
+      _scratchTwilight.setHex(0x5a4050);
+      _scratchSkyColor.lerpColors(_scratchAmber, _scratchTwilight, t);
       if (scene) {
-        scene.background = curSkyColor;
+        if (scene.background instanceof THREE.Color) {
+          scene.background.copy(_scratchSkyColor);
+        } else {
+          scene.background = _scratchSceneBackground.copy(_scratchSkyColor);
+        }
         if (scene.fog && !state?.dustStormActive) {
-          (scene.fog as THREE.FogExp2).color.copy(curSkyColor);
+          (scene.fog as THREE.FogExp2).color.copy(_scratchSkyColor);
         }
       }
 
       if (ambient) {
-        const curAmbient = new THREE.Color(0x7c2d12).lerp(new THREE.Color(0x1e1b4b), t * 0.7);
-        ambient.color.copy(curAmbient);
+        _scratchAmber.setHex(0x7c2d12);
+        _scratchTwilight.setHex(0x1e1b4b);
+        _scratchAmbientColor.lerpColors(_scratchAmber, _scratchTwilight, t * 0.7);
+        ambient.color.copy(_scratchAmbientColor);
       }
 
       if (sunSphere.material instanceof THREE.MeshBasicMaterial) {
-        sunSphere.material.color.copy(blueSun);
+        sunSphere.material.color.setHex(0x4a90e2);
       }
       const halo = sunSphere.getObjectByName('mars_sun_halo') as THREE.Mesh | undefined;
       if (halo && halo.material instanceof THREE.MeshBasicMaterial) {
@@ -355,7 +420,7 @@ export function updateSolarCycle(
       }
     } else {
       // Mid-day Mars
-      sunLight.color.copy(amberSun);
+      sunLight.color.setHex(0xfef08a);
       if (ambient) {
         ambient.color.setHex(0x7c2d12);
       }
@@ -367,13 +432,17 @@ export function updateSolarCycle(
         if (ambient) ambient.intensity = THREE.MathUtils.lerp(ambient.intensity, 0.55, safeDt * 3.0);
       }
       if (scene) {
-        scene.background = rustSky;
+        if (scene.background instanceof THREE.Color) {
+          scene.background.setHex(0x451a03);
+        } else {
+          scene.background = _scratchSceneBackground.setHex(0x451a03);
+        }
         if (scene.fog && !state?.dustStormActive) {
-          (scene.fog as THREE.FogExp2).color.copy(rustSky);
+          (scene.fog as THREE.FogExp2).color.setHex(0x451a03);
         }
       }
       if (sunSphere.material instanceof THREE.MeshBasicMaterial) {
-        sunSphere.material.color.copy(amberSun);
+        sunSphere.material.color.setHex(0xfef08a);
       }
       const halo = sunSphere.getObjectByName('mars_sun_halo') as THREE.Mesh | undefined;
       if (halo && halo.material instanceof THREE.MeshBasicMaterial) {
@@ -383,14 +452,19 @@ export function updateSolarCycle(
     }
   }
 
-  return {
-    timeOfDaySeconds: timeSeconds,
-    diurnalPeriodSeconds: period,
-    solarAngleRad: (timeSeconds / period) * 2 * Math.PI,
-    sunElevationDeg: sunPos.elevationDeg,
-    sunAzimuthDeg: sunPos.azimuthDeg,
-    isDay: sunPos.isAboveHorizon,
-  };
+  let result = targetState;
+  if (!result) {
+    _scratchSolarCycleIndex = (_scratchSolarCycleIndex + 1) % SOLAR_CYCLE_RING_SIZE;
+    result = _scratchSolarCycleRing[_scratchSolarCycleIndex];
+  }
+  result.timeOfDaySeconds = timeSeconds;
+  result.diurnalPeriodSeconds = period;
+  result.solarAngleRad = (timeSeconds / period) * 2 * Math.PI;
+  result.sunElevationDeg = sunPos.elevationDeg;
+  result.sunAzimuthDeg = sunPos.azimuthDeg;
+  result.isDay = sunPos.isAboveHorizon;
+
+  return result;
 }
 
 export interface AstronautMeshResult {
@@ -864,8 +938,15 @@ export function buildSpaceBase3D(location: BaseLocation): Base3DSceneResult {
   sunLight.shadow.normalBias = 0.02;
   root.add(sunLight);
 
-  // Initial celestial positioning
-  let currentSolarCycle = updateSolarCycle(0, sunLight, sunSphere, location, undefined, ambientLight);
+  // Initial celestial positioning (pre-allocated ring buffer isolates snapshots across sequential update calls)
+  let instanceSolarCycleIndex = 0;
+  const instanceSolarCycleRing: SolarCycleState[] = [
+    { timeOfDaySeconds: 0, diurnalPeriodSeconds: 120, solarAngleRad: 0, sunElevationDeg: 0, sunAzimuthDeg: 0, isDay: false },
+    { timeOfDaySeconds: 0, diurnalPeriodSeconds: 120, solarAngleRad: 0, sunElevationDeg: 0, sunAzimuthDeg: 0, isDay: false },
+    { timeOfDaySeconds: 0, diurnalPeriodSeconds: 120, solarAngleRad: 0, sunElevationDeg: 0, sunAzimuthDeg: 0, isDay: false },
+    { timeOfDaySeconds: 0, diurnalPeriodSeconds: 120, solarAngleRad: 0, sunElevationDeg: 0, sunAzimuthDeg: 0, isDay: false },
+  ];
+  let currentSolarCycle = updateSolarCycle(0, sunLight, sunSphere, location, undefined, ambientLight, undefined, instanceSolarCycleRing[0]);
 
   // Point lights for modules
   const greenhouseLight = new THREE.PointLight(0xf43f5e, 2.4, 14);
@@ -1322,7 +1403,17 @@ export function buildSpaceBase3D(location: BaseLocation): Base3DSceneResult {
     totalTime += safeDt;
 
     // 0. Continuous Diurnal Solar Orbital Movement & Celestial Lighting
-    currentSolarCycle = updateSolarCycle(safeDt, sunLight, sunSphere, location, scene, ambientLight, state);
+    instanceSolarCycleIndex = (instanceSolarCycleIndex + 1) % 4;
+    currentSolarCycle = updateSolarCycle(
+      safeDt,
+      sunLight,
+      sunSphere,
+      location,
+      scene,
+      ambientLight,
+      state,
+      instanceSolarCycleRing[instanceSolarCycleIndex]
+    );
 
     // A. Earth slow axial rotation
     if (earthMesh) {

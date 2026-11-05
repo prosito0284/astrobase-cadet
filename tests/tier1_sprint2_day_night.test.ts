@@ -5,8 +5,6 @@ import {
   calculateSunPosition,
   calculateDynamicShadow,
   getPlanetLightingParameters,
-} from './helpers/sprintHarness';
-import {
   buildSpaceBase3D,
   updateSolarCycle,
 } from '../src/components/3d/base3DBuilder';
