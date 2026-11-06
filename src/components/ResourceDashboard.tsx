@@ -165,7 +165,9 @@ export const ResourceDashboard: React.FC<ResourceDashboardProps> = ({ resources,
         </div>
         <div className="flex items-center justify-between text-[10px] text-slate-400 mt-1">
           <span className="text-amber-400/90 font-medium">{resources.radiationExposure} mSv acum.</span>
-          <span>DONKI Safe</span>
+          <span title={lang === 'es' ? 'Datos reales de DONKI guardados en el juego (no en vivo)' : 'Real DONKI data stored in the game (not live)'}>
+            {lang === 'es' ? 'DONKI · dato guardado' : 'DONKI · stored data'}
+          </span>
         </div>
       </div>
 
