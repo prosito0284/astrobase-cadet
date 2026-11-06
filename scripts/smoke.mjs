@@ -113,6 +113,8 @@ try {
   await go(BASE + '?modo=cadete');
   await click('Guía para maestros'); await sleep(300);
   check('Guía para maestros', await has('Preguntas para conversar'));
+  await click('Misión en papel'); await sleep(300);
+  check('Misión en papel (reglas, registro y tarjetas)', (await has('Hoja de registro')) && (await ev(`document.querySelectorAll('.paper-card').length`)) >= 10);
 
   await go(BASE + '?mision=MF-31415');
   await click('Jugar esa misión'); await sleep(500);

@@ -101,3 +101,8 @@
 }
 .cadet-glow-red { --cadet-glow: #ef444480; animation: cadet-glow 1.6s ease-in-out infinite; }
 .cadet-glow-amber { --cadet-glow: #fbbf2480; animation: cadet-glow 1.6s ease-in-out infinite; }
+
+/* Misión en papel: no partir tarjetas ni tablas entre hojas. */
+@media print {
+  .paper-card, .paper-block { break-inside: avoid; }
+}

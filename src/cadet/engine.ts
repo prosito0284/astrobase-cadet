@@ -160,7 +160,9 @@ export function energyFactor(available: number, eff: Effects): number {
 
 /** Salud que quita una tormenta según lo fuerte que es y el escudo que tienes. */
 export function stormDamage(power: number, shield: number): number {
-  return Math.round(power * (1 - clamp(shield) / 100));
+  // Con enteros (no 1 − escudo/100) para evitar errores de punto flotante: 15 × 10 / 100 = 1.5 → 2,
+  // igual que lo calcula un niño a mano en la versión en papel.
+  return Math.round((power * (100 - clamp(shield))) / 100);
 }
 
 /** Dosis de radiación de fondo de un día, reducida por el escudo (máx. 70%). */
@@ -256,7 +258,7 @@ function cardById(id: string): DecisionCard {
   return card;
 }
 
-function optionEffects(opt: CardOption, site: Site): Effects {
+export function optionEffects(opt: CardOption, site: Site): Effects {
   return { ...opt.effects, ...(opt.effectsBySite?.[site] ?? {}) };
 }
 

@@ -23,6 +23,7 @@ import { earthMarsDistanceKm, marsDelayMinutes } from './orbit';
 import { addResult, parseRecords } from './records';
 import type { Records } from './records';
 import TeacherGuide from './TeacherGuide';
+import PaperMission from './PaperMission';
 import SunPanel from './SunPanel';
 import DoseChart from './DoseChart';
 import LaunchOverlay from './LaunchOverlay';
@@ -79,6 +80,7 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
   const [launching, setLaunching] = useState(false);
   const endLaunch = useCallback(() => setLaunching(false), []);
   const [teacherPage, setTeacherPage] = useState(false);
+  const [paperPage, setPaperPage] = useState(false);
   const [marsNow] = useState(() => {
     const t = Date.now();
     return { km: Math.round(earthMarsDistanceKm(t) / 1e6), min: marsDelayMinutes(t) };
@@ -208,7 +210,7 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
   };
 
   // Teclado: A / 1 elige la opción A y B / 2 la opción B en la tarjeta del día.
-  const cardOpen = !!card && !showReport && !modal && !teacherPage;
+  const cardOpen = !!card && !showReport && !modal && !teacherPage && !paperPage;
   useEffect(() => {
     if (!cardOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -345,6 +347,11 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
     </div>
   );
 
+  // ── Misión en papel ──
+  if (paperPage) {
+    return shell(<PaperMission lang={lang} onBack={() => setPaperPage(false)} />);
+  }
+
   // ── Guía para maestros ──
   if (teacherPage) {
     return shell(
@@ -352,6 +359,7 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
         lang={lang}
         marsKm={marsNow.km}
         onBack={() => setTeacherPage(false)}
+        onPaper={() => { setTeacherPage(false); setPaperPage(true); }}
         labels={{ title: tr(UI.teachers), print: tr(UI.print), back: tr(UI.back) }}
       />,
     );

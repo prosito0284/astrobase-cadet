@@ -60,10 +60,11 @@ const SECTIONS: Section[] = [
 
 const fillKm = (s: string, km: number) => s.replace(/\{km\}/g, String(km));
 
-export default function TeacherGuide({ lang, marsKm, onBack, labels }: {
+export default function TeacherGuide({ lang, marsKm, onBack, onPaper, labels }: {
   lang: Lang;
   marsKm: number;
   onBack: () => void;
+  onPaper: () => void;
   labels: { title: string; print: string; back: string };
 }) {
   return (
@@ -75,6 +76,7 @@ export default function TeacherGuide({ lang, marsKm, onBack, labels }: {
         </div>
         <div className="cadet-no-print flex gap-2">
           <button type="button" onClick={() => window.print()} className="px-3 py-2 rounded-xl text-sm font-black bg-amber-400 text-slate-950 hover:brightness-110">🖨️ {labels.print}</button>
+          <button type="button" onClick={onPaper} className="px-3 py-2 rounded-xl text-sm font-black bg-cyan-400 text-slate-950 hover:brightness-110">✂️ {lang === 'es' ? 'Misión en papel' : 'Paper mission'}</button>
           <button type="button" autoFocus onClick={onBack} className="px-3 py-2 rounded-xl text-sm font-bold bg-slate-800 border border-slate-600 text-white hover:bg-slate-700">← {labels.back}</button>
         </div>
       </div>

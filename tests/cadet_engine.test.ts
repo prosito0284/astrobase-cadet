@@ -187,3 +187,10 @@ test('Cadete: el historial guarda la radiación, la salud y el escudo de cada d�
   }
   assert.ok(Math.abs(total - s.doseMSv) < 0.05, `${total} vs ${s.doseMSv}`);
 });
+
+test('Cadete: el daño de tormenta se redondea igual que a mano (sin errores de punto flotante)', () => {
+  assert.equal(stormDamage(15, 90), 2);   // 15 × 10 / 100 = 1.5 → 2
+  assert.equal(stormDamage(25, 90), 3);   // 2.5 → 3
+  assert.equal(stormDamage(45, 0), 45);
+  assert.equal(stormDamage(45, 100), 0);
+});
