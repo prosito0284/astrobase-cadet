@@ -23,6 +23,7 @@ const SECTIONS: Section[] = [
     title: { es: '⏱️ Antes de jugar (5 min)', en: '⏱️ Before playing (5 min)' },
     items: [
       { es: 'Pregunten: "¿Qué necesitas para vivir un día?" Hagan una lista y luego vean cuáles de esas cosas hay en la Luna.', en: 'Ask: "What do you need to live for one day?" Make a list, then check which of those things exist on the Moon.' },
+      { es: 'Misma misión para toda la clase: jueguen una vez y copien el "Código de misión" que sale al final (por ejemplo LN-48213), o inventen uno con dos letras y 5 números (L = Luna, M = Marte; F = Fácil, N = Normal). Todos lo escriben en "¿Tu maestra o maestro te dio un código?" y juegan exactamente la misma misión. Al final comparen: ¿quién eligió distinto y qué pasó?', en: 'Same mission for the whole class: play once and copy the "Mission code" shown at the end (for example LN-48213), or make one up with two letters and 5 numbers (L = Moon, M = Mars; F = Easy, N = Normal). Everyone types it in "Did your teacher give you a mission code?" and plays exactly the same mission. Afterwards compare: who chose differently and what happened?' },
     ],
   },
   {

@@ -14,6 +14,7 @@ import {
   fetchLiveStorm,
   medal,
   previewStormDamage,
+  SHIELD_UP,
   STORM_DAYS,
   xrays,
 } from './engine';
@@ -28,6 +29,8 @@ import { fetchSunNow } from './spaceweather';
 import type { SunNow } from './spaceweather';
 import { awardBadges, awardManual, BADGES, parseBadges } from './badges';
 import { buildQuiz } from './quiz';
+import { formatMissionCode, MAX_SEED, MIN_SEED, parseMissionCode, randomSeed } from './missionCode';
+import type { MissionCode } from './missionCode';
 import { playSound } from './sound';
 import type { SoundKind } from './sound';
 import { DATA_SOURCES, GLOSSARY, REAL_STORMS, SITE_INFO } from './data';
@@ -203,6 +206,23 @@ const UI = {
   },
   recommended: { es: 'Recomendada', en: 'Recommended' },
   badges: { es: 'Tus insignias', en: 'Your badges' },
+  codeAsk: { es: '🎟️ ¿Tu maestra o maestro te dio un código de misión?', en: '🎟️ Did your teacher give you a mission code?' },
+  codePlaceholder: { es: 'Ej.: LN-48213', en: 'E.g. LN-48213' },
+  codePlay: { es: 'Jugar esa misión', en: 'Play that mission' },
+  codeBad: { es: 'Ese código no existe. Revisa: dos letras, guion y 5 números (ej.: LN-48213).', en: 'That code doesn\'t exist. Check it: two letters, a dash and 5 numbers (e.g. LN-48213).' },
+  codeThis: { es: 'Código de esta misión', en: 'This mission\'s code' },
+  codeShare: {
+    es: 'Compártelo: quien lo use jugará exactamente la misma misión (mismas tarjetas y tormentas) y podrán comparar sus decisiones.',
+    en: 'Share it: anyone who uses it will play exactly the same mission (same cards and storms) and you can compare decisions.',
+  },
+  codeNoLive: {
+    es: 'Con código se usan solo tormentas guardadas, para que todos tengan la misma misión.',
+    en: 'With a code only stored storms are used, so everyone gets the same mission.',
+  },
+  stormTomorrow: {
+    es: '⚠️ ¡Mañana llega una tormenta solar! Subir el escudo cuesta {c} de energía y tienes {e}. Piensa si te conviene gastar hoy.',
+    en: '⚠️ A solar storm arrives tomorrow! Raising the shield costs {c} energy and you have {e}. Think before spending today.',
+  },
   routine: {
     es: 'Cada día, pase lo que pase: 🫁 {a} de aire · ⚡ {e} de energía (paneles +{s}, máquinas −{m})',
     en: 'Every day, no matter what: 🫁 {a} air · ⚡ {e} energy (panels +{s}, machines −{m})',
@@ -267,15 +287,16 @@ function speak(text: string, lang: Lang) {
 
 // ── Piezas visuales ──
 
-function Bar({ icon, label, value, color, term, onTerm }: {
-  icon: string; label: string; value: number; color: string; term: string; onTerm: (k: string) => void;
+function Bar({ icon, label, value, color, term, onTerm, delta }: {
+  icon: string; label: string; value: number; color: string; term: string; onTerm: (k: string) => void; delta?: number;
 }) {
   const low = value < 25;
+  const showDelta = delta !== undefined && delta !== 0;
   return (
     <button
       type="button"
       onClick={() => onTerm(term)}
-      aria-label={`${label}: ${value} / 100${low ? ' ⚠️' : ''}`}
+      aria-label={`${label}: ${value} / 100${showDelta ? ` (${delta! > 0 ? '+' : '−'}${Math.abs(delta!)})` : ''}${low ? ' ⚠️' : ''}`}
       className={`text-left rounded-2xl border p-2.5 sm:p-3 bg-slate-900/80 transition-colors ${low ? 'border-red-500/70 cadet-glow-red' : 'border-slate-700/70 hover:border-slate-500'}`}
     >
       <div className="flex items-center justify-between gap-1">
@@ -283,7 +304,14 @@ function Bar({ icon, label, value, color, term, onTerm }: {
           <span aria-hidden className="mr-1">{icon}</span>{label}
           <span className="ml-1 text-[10px] text-slate-400 align-top">ⓘ</span>
         </span>
-        <span className={`font-black text-base sm:text-lg tabular-nums ${low ? 'text-red-400' : 'text-slate-100'}`}>{value}</span>
+        <span className="flex items-center gap-1.5">
+          {showDelta && (
+            <span className={`text-xs font-black tabular-nums px-1.5 rounded-md ${delta! > 0 ? 'bg-emerald-500/15 text-emerald-300' : 'bg-rose-500/15 text-rose-300'}`}>
+              {delta! > 0 ? '+' : '−'}{Math.abs(delta!)}
+            </span>
+          )}
+          <span className={`font-black text-base sm:text-lg tabular-nums ${low ? 'text-red-400' : 'text-slate-100'}`}>{value}</span>
+        </span>
       </div>
       <div className="mt-1.5 h-3 rounded-full bg-slate-800 overflow-hidden">
         <div aria-hidden className={`h-full rounded-full transition-all duration-700 ${color}`} style={{ width: `${value}%` }} />
@@ -472,6 +500,11 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
   const [sun, setSun] = useState<SunNow | undefined>(undefined);
   const [shareMsg, setShareMsg] = useState('');
   const [quizAnswers, setQuizAnswers] = useState<Record<number, number>>({});
+  const [prevStats, setPrevStats] = useState<{ air: number; energy: number; shield: number; health: number } | null>(null);
+  const [codeInput, setCodeInput] = useState(() => {
+    try { return (new URLSearchParams(window.location.search).get('mision') ?? '').toUpperCase(); } catch { return ''; }
+  });
+  const [codeError, setCodeError] = useState(false);
   const [teacherPage, setTeacherPage] = useState(false);
   const [marsNow] = useState(() => {
     const t = Date.now();
@@ -529,8 +562,10 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
     return () => { cancelled = true; };
   }, [cachedLive, liveAttempt]);
 
-  const startGame = (where: Site) => {
+  const startGame = (where: Site, code?: MissionCode) => {
     setSite(where);
+    setPrevStats(null);
+    setCodeError(false);
     setShowReport(false);
     setShowDiploma(false);
     setFreshBadges([]);
@@ -538,7 +573,13 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
     setQuizAnswers({});
     safeSet(LEVEL_KEY, level);
     setHintDay(null);
-    setGame(createGame(where, Math.floor(Math.random() * 2 ** 31), liveStatus === 'ok' ? liveStorm : undefined, level));
+    if (code) {
+      // Misma misión para toda la clase: sin tormenta en vivo (cambiaría según el día).
+      setLevel(code.level);
+      setGame(createGame(code.site, code.seed, undefined, code.level));
+      return;
+    }
+    setGame(createGame(where, randomSeed(), liveStatus === 'ok' ? liveStorm : undefined, level));
   };
 
   const card = useMemo(() => (game && game.status === 'playing' ? currentCard(game) : null), [game]);
@@ -567,6 +608,7 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
     if (!game) return;
     if (at - cardShownAt.current < 450) return;
     const next = choose(game, i);
+    setPrevStats({ air: game.air, energy: game.energy, shield: game.shield, health: game.health });
     if (next.status !== 'playing') {
       const updated = addResult(records, next);
       setRecords(updated);
@@ -780,6 +822,33 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
             </button>
           ))}
         </div>
+        <details className="rounded-2xl border border-slate-700 bg-slate-900/60 p-3" open={!!codeInput}>
+          <summary className="cursor-pointer text-sm font-bold text-slate-200">{tr(UI.codeAsk)}</summary>
+          <form
+            className="mt-2 flex gap-2 flex-wrap"
+            onSubmit={e => {
+              e.preventDefault();
+              const code = parseMissionCode(codeInput);
+              if (!code) { setCodeError(true); return; }
+              startGame(code.site, code);
+            }}
+          >
+            <input
+              type="text"
+              value={codeInput}
+              onChange={e => { setCodeInput(e.target.value.toUpperCase()); setCodeError(false); }}
+              placeholder={tr(UI.codePlaceholder)}
+              aria-label={tr(UI.codeAsk)}
+              aria-invalid={codeError}
+              autoComplete="off"
+              maxLength={12}
+              className="flex-1 min-w-0 rounded-xl bg-slate-950 border border-slate-600 px-3 py-2 text-lg font-black tracking-widest text-white uppercase"
+            />
+            <button type="submit" className="px-3 py-2 rounded-xl text-sm font-black bg-cyan-400 text-slate-950 hover:brightness-110">{tr(UI.codePlay)}</button>
+          </form>
+          {codeError && <p role="alert" className="mt-1 text-xs font-bold text-rose-300">{tr(UI.codeBad)}</p>}
+          <p className="mt-1 text-[11px] text-slate-400">{tr(UI.codeNoLive)}</p>
+        </details>
         {liveBanner}
         <button
           type="button"
@@ -831,10 +900,10 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
         })}
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <Bar icon="🫁" label={tr(UI.air)} value={game.air} color="bg-cyan-400" term="aire" onTerm={setModal} />
-        <Bar icon="⚡" label={tr(UI.energy)} value={game.energy} color="bg-amber-400" term="energia" onTerm={setModal} />
-        <Bar icon="🛡️" label={tr(UI.shield)} value={game.shield} color="bg-violet-400" term="escudo" onTerm={setModal} />
-        <Bar icon="❤️" label={tr(UI.health)} value={game.health} color="bg-rose-400" term="radiacion" onTerm={setModal} />
+        <Bar icon="🫁" label={tr(UI.air)} value={game.air} delta={showReport && prevStats ? game.air - prevStats.air : undefined} color="bg-cyan-400" term="aire" onTerm={setModal} />
+        <Bar icon="⚡" label={tr(UI.energy)} value={game.energy} delta={showReport && prevStats ? game.energy - prevStats.energy : undefined} color="bg-amber-400" term="energia" onTerm={setModal} />
+        <Bar icon="🛡️" label={tr(UI.shield)} value={game.shield} delta={showReport && prevStats ? game.shield - prevStats.shield : undefined} color="bg-violet-400" term="escudo" onTerm={setModal} />
+        <Bar icon="❤️" label={tr(UI.health)} value={game.health} delta={showReport && prevStats ? game.health - prevStats.health : undefined} color="bg-rose-400" term="radiacion" onTerm={setModal} />
       </div>
       {game.status === 'playing' && (() => {
         const r = dailyRoutine(game);
@@ -1011,6 +1080,15 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
               )}
             </div>
           )}
+          {game.seed >= MIN_SEED && game.seed <= MAX_SEED && (
+            <div className="rounded-2xl bg-slate-950/70 border border-cyan-500/40 p-3 text-left">
+              <p className="text-sm text-slate-300">🎟️ {tr(UI.codeThis)}:</p>
+              <p className="text-2xl font-black tracking-widest text-cyan-300 tabular-nums">
+                {formatMissionCode({ site: game.site, level: game.level ?? 'normal', seed: game.seed })}
+              </p>
+              <p className="text-xs text-slate-400 mt-1">{tr(UI.codeShare)}</p>
+            </div>
+          )}
           <RecordsTable records={records} lang={lang} />
           <div className="rounded-2xl bg-slate-950/70 border border-slate-800 p-3 text-left">
             <h3 className="font-black text-white mb-2">🏅 {tr(UI.badges)} <span className="text-slate-400 text-sm">{badges.length}/{BADGES.length}</span></h3>
@@ -1138,6 +1216,11 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
             {advice.canWin
               ? <>{fill(tr(UI.hintPick), { x: advice.option === 0 ? 'A' : 'B' })} {tr(c.storm ? UI.hintStorm : UI.hintPlan)}</>
               : tr(UI.hintHard)}
+          </p>
+        )}
+        {!c.storm && STORM_DAYS.includes(game.day + 1) && game.day < game.totalDays && (
+          <p className="rounded-2xl px-3 py-2 text-sm border border-amber-400/60 bg-amber-500/10 text-amber-100">
+            {fill(tr(UI.stormTomorrow), { c: -SHIELD_UP.energy, e: game.energy })}
           </p>
         )}
         <p className="text-sm font-bold text-slate-400">{tr(UI.choose)}:</p>
