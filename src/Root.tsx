@@ -1,7 +1,10 @@
 // Elige entre el Modo Cadete (7–12 años, por defecto) y el Modo Experto (juego completo).
-import { useEffect, useState } from 'react';
-import App from './App.tsx';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import CadetGame from './cadet/CadetGame.tsx';
+
+// El Modo Experto (Three.js, mapas, etc.) se descarga solo si alguien lo abre:
+// así el Modo Cadete carga rápido en computadoras escolares lentas.
+const App = lazy(() => import('./App.tsx'));
 
 type Mode = 'cadet' | 'expert';
 const MODE_KEY = 'astrobase_mode';
@@ -29,7 +32,15 @@ export default function Root() {
 
   return (
     <>
-      <App />
+      <Suspense
+        fallback={
+          <div className="min-h-screen bg-[#060913] text-slate-300 flex items-center justify-center text-lg font-bold">
+            🚀 Cargando Modo Experto…
+          </div>
+        }
+      >
+        <App />
+      </Suspense>
       <button
         type="button"
         onClick={() => setMode('cadet')}

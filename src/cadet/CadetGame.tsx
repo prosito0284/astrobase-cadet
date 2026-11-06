@@ -20,6 +20,8 @@ import type { Effects, Lang, Site, SolarStorm, T } from './data';
 const SAVE_KEY = 'astrobase_cadet_game_v1';
 const LANG_KEY = 'astrobase_cadet_lang';
 const LIVE_KEY = 'astrobase_cadet_live_storm_v1';
+const TUTORIAL_KEY = 'astrobase_cadet_tutorial_done';
+const NAME_KEY = 'astrobase_cadet_name';
 
 type LiveStatus = 'loading' | 'ok' | 'fail';
 
@@ -121,7 +123,45 @@ const UI = {
   newStorm: { es: 'Se acerca una tormenta solar', en: 'A solar storm is coming' },
   dose: { es: 'Dosis de hoy', en: 'Dose today' },
   xr: { es: 'radiografías', en: 'X-rays' },
+  howTo: { es: 'Cómo jugar', en: 'How to play' },
+  tipNext: { es: 'Siguiente', en: 'Next' },
+  tipDone: { es: '¡Entendido!', en: 'Got it!' },
+  tipSkip: { es: 'Saltar', en: 'Skip' },
+  diploma: { es: 'Mi diploma', en: 'My certificate' },
+  diplomaTitleWon: { es: 'Diploma de Cadete Espacial', en: 'Space Cadet Certificate' },
+  diplomaTitleLost: { es: 'Certificado de Entrenamiento Espacial', en: 'Space Training Certificate' },
+  diplomaWon: {
+    es: 'completó una misión de 10 días en {x} y mantuvo a salvo a 4 astronautas.',
+    en: 'completed a 10-day mission on {x} and kept 4 astronauts safe.',
+  },
+  diplomaLost: {
+    es: 'entrenó {n} días en {x} y aprendió a cuidar el aire, la energía y el escudo.',
+    en: 'trained for {n} days on {x} and learned to manage air, energy and shielding.',
+  },
+  yourName: { es: 'Tu nombre (opcional, solo se guarda en este equipo)', en: 'Your name (optional, only saved on this device)' },
+  namePlaceholder: { es: 'Cadete', en: 'Cadet' },
+  print: { es: 'Imprimir', en: 'Print' },
+  back: { es: 'Volver', en: 'Back' },
+  diplomaData: {
+    es: "Datos reales de NASA: DONKI (tormentas solares), Curiosity RAD y Chang'e 4 (radiación), OSDR y DSN.",
+    en: "Real NASA data: DONKI (solar storms), Curiosity RAD and Chang'e 4 (radiation), OSDR and DSN.",
+  },
 };
+
+const TIPS: T[] = [
+  {
+    es: '👋 Estas 4 barras son tu base. Si el aire o la salud llegan a 0, la misión termina. Toca una barra para saber qué significa.',
+    en: '👋 These 4 bars are your base. If air or health reaches 0, the mission ends. Tap a bar to learn what it means.',
+  },
+  {
+    es: '☀️ En el calendario, los días con sol traen una tormenta solar real. Guarda energía para subir el escudo ese día.',
+    en: '☀️ On the calendar, days with a sun bring a real solar storm. Save energy to raise the shield on those days.',
+  },
+  {
+    es: '🅰️🅱️ Cada opción muestra lo que cuesta: verde suma y rojo resta. Ninguna es gratis. ¡Elige con cuidado!',
+    en: '🅰️🅱️ Each option shows what it costs: green adds and red takes away. None is free. Choose carefully!',
+  },
+];
 
 const fill = (s: string, vars: Record<string, string | number>) =>
   s.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? ''));
@@ -147,6 +187,7 @@ function Bar({ icon, label, value, color, term, onTerm }: {
     <button
       type="button"
       onClick={() => onTerm(term)}
+      aria-label={`${label}: ${value} / 100${low ? ' ⚠️' : ''}`}
       className={`text-left rounded-2xl border p-2.5 sm:p-3 bg-slate-900/80 transition-colors ${low ? 'border-red-500/70 animate-pulse' : 'border-slate-700/70 hover:border-slate-500'}`}
     >
       <div className="flex items-center justify-between gap-1">
@@ -157,7 +198,7 @@ function Bar({ icon, label, value, color, term, onTerm }: {
         <span className={`font-black text-base sm:text-lg tabular-nums ${low ? 'text-red-400' : 'text-slate-100'}`}>{value}</span>
       </div>
       <div className="mt-1.5 h-3 rounded-full bg-slate-800 overflow-hidden">
-        <div className={`h-full rounded-full transition-all duration-700 ${color}`} style={{ width: `${value}%` }} />
+        <div aria-hidden className={`h-full rounded-full transition-all duration-700 ${color}`} style={{ width: `${value}%` }} />
       </div>
     </button>
   );
@@ -190,6 +231,11 @@ function EffectChips({ effects, stormHit, lang }: { effects: Effects; stormHit?:
 }
 
 function Modal({ title, onClose, closeLabel, children }: { title: string; onClose: () => void; closeLabel: string; children: React.ReactNode }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
   return (
     <div className="fixed inset-0 z-[200] bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-3" onClick={onClose}>
       <div
@@ -201,7 +247,7 @@ function Modal({ title, onClose, closeLabel, children }: { title: string; onClos
       >
         <div className="flex items-center justify-between gap-3 mb-3">
           <h2 className="text-lg font-black text-white">{title}</h2>
-          <button type="button" onClick={onClose} className="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-200 text-sm font-bold hover:bg-slate-700">
+          <button type="button" autoFocus onClick={onClose} className="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-200 text-sm font-bold hover:bg-slate-700">
             {closeLabel}
           </button>
         </div>
@@ -225,6 +271,10 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
   const [site, setSite] = useState<Site>(() => loadGame()?.site ?? 'moon');
   const [showReport, setShowReport] = useState(false);
   const [modal, setModal] = useState<null | 'sources' | 'words' | string>(null);
+  const [tip, setTip] = useState<number | null>(() => (safeGet(TUTORIAL_KEY) ? null : 0));
+  const [showDiploma, setShowDiploma] = useState(false);
+  const [diplomaTime, setDiplomaTime] = useState(0);
+  const [cadetName, setCadetName] = useState(() => safeGet(NAME_KEY) ?? '');
 
   const [cachedLive] = useState(readCachedLive);
   const [liveStatus, setLiveStatus] = useState<LiveStatus>(cachedLive ? cachedLive.status : 'loading');
@@ -232,6 +282,9 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
 
   useEffect(() => { safeSet(LANG_KEY, lang); }, [lang]);
   useEffect(() => { safeSet(SAVE_KEY, game ? JSON.stringify(game) : null); }, [game]);
+  useEffect(() => { safeSet(NAME_KEY, cadetName.trim() ? cadetName.slice(0, 40) : null); }, [cadetName]);
+
+  const endTips = () => { setTip(null); safeSet(TUTORIAL_KEY, '1'); };
 
   // Llamarada en vivo desde NASA DONKI (una vez por sesión del navegador).
   useEffect(() => {
@@ -249,6 +302,7 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
   const startGame = (where: Site) => {
     setSite(where);
     setShowReport(false);
+    setShowDiploma(false);
     setGame(createGame(where, Math.floor(Math.random() * 2 ** 31), liveStatus === 'ok' ? liveStorm : undefined));
   };
 
@@ -276,7 +330,12 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
         <button type="button" onClick={() => setModal('words')} className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-slate-800 border border-slate-600 text-slate-200 hover:bg-slate-700">
           📖 {tr(UI.words)}
         </button>
-        <button type="button" onClick={() => setLang(lang === 'es' ? 'en' : 'es')} className="px-2.5 py-1.5 rounded-xl text-xs font-black bg-slate-800 border border-slate-600 text-slate-200 hover:bg-slate-700" aria-label="Language">
+        {game && game.status === 'playing' && (
+          <button type="button" onClick={() => { setShowReport(false); setTip(0); }} className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-slate-800 border border-slate-600 text-slate-200 hover:bg-slate-700">
+            ❓ {tr(UI.howTo)}
+          </button>
+        )}
+        <button type="button" onClick={() => setLang(lang === 'es' ? 'en' : 'es')} className="px-2.5 py-1.5 rounded-xl text-xs font-black bg-slate-800 border border-slate-600 text-slate-200 hover:bg-slate-700" aria-label={lang === 'es' ? 'Switch to English' : 'Cambiar a español'}>
           {lang === 'es' ? 'EN' : 'ES'}
         </button>
         <button type="button" onClick={onExpert} className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-slate-900 border border-slate-700 text-slate-400 hover:text-white">
@@ -339,11 +398,11 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
   }
 
   const shell = (children: React.ReactNode) => (
-    <div className="min-h-screen bg-[#060913] text-slate-100 px-4 py-4 sm:py-6" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
-      <div className="max-w-2xl mx-auto space-y-4">
+    <div lang={lang} className="cadet-root min-h-screen bg-[#060913] text-slate-100 px-4 py-4 sm:py-6" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
+      <main className="max-w-2xl mx-auto space-y-4">
         {header}
         {children}
-      </div>
+      </main>
       {modalNode}
     </div>
   );
@@ -390,7 +449,7 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
         </span>
         <span className="font-black text-amber-300">⭐ {game.stars} <span className="text-xs text-slate-400 font-bold">{tr(UI.discoveries)}</span></span>
       </div>
-      <div className="flex gap-1" aria-label={tr(UI.stormDay)}>
+      <div className="flex gap-1" role="list" aria-label={`${tr(UI.day)} 1–${game.totalDays}. ☀️ = ${tr(UI.stormDay)}`}>
         {Array.from({ length: game.totalDays }, (_, i) => {
           const d = i + 1;
           const storm = STORM_DAYS.includes(d);
@@ -399,7 +458,10 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
           return (
             <div
               key={d}
+              role="listitem"
               title={storm ? tr(UI.stormDay) : `${tr(UI.day)} ${d}`}
+              aria-label={`${tr(UI.day)} ${d}${storm ? ` · ${tr(UI.stormDay)}` : ''}`}
+              aria-current={now ? 'step' : undefined}
               className={`flex-1 h-7 rounded-lg flex items-center justify-center text-xs font-black border ${now ? 'border-white bg-white/15' : done ? 'border-slate-700 bg-slate-800 text-slate-500' : 'border-slate-700 bg-slate-900'}`}
             >
               {storm ? '☀️' : d}
@@ -424,7 +486,7 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
     return shell(
       <>
         {stats}
-        <section className="rounded-3xl border border-slate-700 bg-slate-900/80 p-4 sm:p-5 space-y-3">
+        <section aria-live="polite" className="rounded-3xl border border-slate-700 bg-slate-900/80 p-4 sm:p-5 space-y-3">
           <div className="flex items-center justify-between gap-2">
             <h2 className="text-xl font-black text-white">{tr(UI.whatHappened)}</h2>
             <button type="button" onClick={() => speak(storyText, lang)} className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-slate-800 border border-slate-600 hover:bg-slate-700">🔊 {tr(UI.readAloud)}</button>
@@ -460,6 +522,54 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
     );
   }
 
+  // ── Diploma imprimible ──
+  if (game.status !== 'playing' && showDiploma) {
+    const won = game.status === 'won';
+    const m = medal(game);
+    const where = `${tr(SITE_INFO[game.site].name)} (${tr(SITE_INFO[game.site].place)})`;
+    const today = new Intl.DateTimeFormat(lang === 'es' ? 'es-MX' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' }).format(diplomaTime);
+    return shell(
+      <section className="space-y-3">
+        <label className="block text-sm text-slate-300">
+          {tr(UI.yourName)}
+          <input
+            type="text"
+            value={cadetName}
+            maxLength={40}
+            autoComplete="off"
+            onChange={e => setCadetName(e.target.value)}
+            placeholder={tr(UI.namePlaceholder)}
+            className="mt-1 w-full rounded-2xl bg-slate-900 border border-slate-600 px-3 py-2.5 text-lg text-white"
+          />
+        </label>
+        <div id="cadet-diploma" className="rounded-3xl border-4 border-double border-cyan-500/70 bg-gradient-to-b from-slate-900 to-slate-950 p-6 sm:p-8 text-center space-y-3">
+          <p className="text-xs font-black tracking-[0.3em] uppercase text-cyan-400">🚀 ASTROBASE CADET</p>
+          <h2 className="text-2xl sm:text-3xl font-black">{won ? tr(UI.diplomaTitleWon) : tr(UI.diplomaTitleLost)}</h2>
+          <p className="text-3xl sm:text-4xl font-black text-amber-300 break-words" style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif" }}>
+            {cadetName.trim() || tr(UI.namePlaceholder)}
+          </p>
+          <p className="text-base sm:text-lg">
+            {won
+              ? fill(tr(UI.diplomaWon), { x: where })
+              : fill(tr(UI.diplomaLost), { n: game.history.length, x: where })}
+          </p>
+          {won && <p className="text-4xl" aria-label={`${m} / 3`}>{'⭐'.repeat(m)}<span className="opacity-25">{'⭐'.repeat(3 - m)}</span></p>}
+          <p className="text-sm">⭐ {tr(UI.discoveries)}: {game.stars} · ☢️ {game.doseMSv.toFixed(2)} mSv</p>
+          <p className="text-xs opacity-70">{tr(UI.diplomaData)}</p>
+          <p className="text-xs opacity-70">{today} · Troncos Intergalácticos · NASA Space Apps Challenge</p>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" onClick={() => window.print()} className="py-3.5 rounded-2xl text-lg font-black bg-gradient-to-r from-amber-400 to-orange-400 text-slate-950 hover:brightness-110">
+            🖨️ {tr(UI.print)}
+          </button>
+          <button type="button" onClick={() => setShowDiploma(false)} className="py-3.5 rounded-2xl text-lg font-black bg-slate-800 border border-slate-600 text-white hover:bg-slate-700">
+            ← {tr(UI.back)}
+          </button>
+        </div>
+      </section>,
+    );
+  }
+
   // ── Final ──
   if (game.status !== 'playing') {
     const won = game.status === 'won';
@@ -492,6 +602,9 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
               ))}
             </ol>
           </div>
+          <button type="button" onClick={() => { setDiplomaTime(Date.now()); setShowDiploma(true); }} className="w-full py-3.5 rounded-2xl text-lg font-black bg-gradient-to-r from-amber-400 to-orange-400 text-slate-950 hover:brightness-110">
+            📜 {tr(UI.diploma)}
+          </button>
           <div className="grid sm:grid-cols-2 gap-2">
             <button type="button" onClick={() => startGame(game.site)} className="py-3.5 rounded-2xl text-lg font-black bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-950 hover:brightness-110">
               🔁 {tr(UI.again)}
@@ -508,8 +621,28 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
   // ── Tarjeta de decisión del día ──
   const c = card!;
   const cardText = `${tr(c.title)}. ${tr(c.text)} ${c.options.map(o => `${tr(o.label)}: ${tr(o.detail)}.`).join(' ')}`;
+  const tipBox = tip !== null && (
+    <div role="status" className="rounded-2xl border-2 border-emerald-400/70 bg-emerald-500/10 p-3 space-y-2">
+      <p className="text-base text-emerald-50">{tr(TIPS[tip])}</p>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-bold text-emerald-300">{tip + 1} / {TIPS.length}</span>
+        <div className="flex gap-2">
+          <button type="button" onClick={endTips} className="px-3 py-1.5 rounded-xl text-sm font-bold text-slate-300 hover:text-white">{tr(UI.tipSkip)}</button>
+          <button
+            type="button"
+            autoFocus
+            onClick={() => (tip + 1 < TIPS.length ? setTip(tip + 1) : endTips())}
+            className="px-3 py-1.5 rounded-xl text-sm font-black bg-emerald-400 text-slate-950 hover:brightness-110"
+          >
+            {tip + 1 < TIPS.length ? `${tr(UI.tipNext)} →` : tr(UI.tipDone)}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
   return shell(
     <>
+      {tipBox}
       {stats}
       <section className={`rounded-3xl border-2 p-4 sm:p-5 space-y-3 ${c.storm ? 'border-amber-400/70 bg-gradient-to-b from-amber-500/15 to-slate-900/80' : 'border-cyan-500/40 bg-slate-900/80'}`}>
         <div className="flex items-start justify-between gap-2">

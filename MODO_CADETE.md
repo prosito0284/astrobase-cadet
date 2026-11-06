@@ -13,6 +13,10 @@ Respuesta al reto **NASA Space Apps: Build a Junior Astronaut Mission Trainer**.
 - Después de cada día se explica qué cambió y por qué, con una línea de **"Esto pasó de verdad"** y su fuente.
 - El orden de las tarjetas cambia en cada partida. Perder no castiga: da una pista y permite volver a intentar.
 - Bilingüe (ES/EN), con lectura en voz alta y un glosario de palabras difíciles. No necesita cuenta ni descarga.
+- La primera partida empieza con un **tutorial guiado** de 3 pasos. Se puede repetir con el botón **❓ Cómo jugar**.
+- Al terminar, el niño puede escribir su nombre e **imprimir un diploma** con su medalla, sus descubrimientos y la radiación recibida. El nombre solo se guarda en ese equipo.
+- **Accesibilidad:** las barras y el calendario tienen etiquetas para lectores de pantalla y el foco del teclado se ve claramente. `Esc` cierra las ventanas, y si el sistema pide menos movimiento se quitan las animaciones.
+- **Carga rápida:** el Modo Cadete descarga unos 280 KB. El Modo Experto (Three.js, alrededor de 1 MB) solo se descarga si alguien lo abre.
 
 ## Datos de la NASA usados
 
