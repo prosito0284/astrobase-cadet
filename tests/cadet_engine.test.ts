@@ -155,3 +155,20 @@ test('Cadete: siempre existe una forma de ganar (juego perfecto, búsqueda compl
     for (let seed = 1; seed <= 15; seed++) assert.ok(canWin(createGame(site, seed)), `${site} semilla ${seed}`);
   }
 });
+
+test('Cadete: el pronóstico diario coincide con lo que de verdad pasa cada día', async () => {
+  const { dailyRoutine, LEVELS } = await import('../src/cadet/engine.ts');
+  const { SITE_INFO } = await import('../src/cadet/data.ts');
+  for (const site of ['moon', 'mars'] as const) {
+    for (const level of ['easy', 'normal'] as const) {
+      const g = createGame(site, 3, undefined, level);
+      const r = dailyRoutine(g);
+      assert.equal(r.air, -LEVELS[level].airUse);
+      assert.equal(r.energy, SITE_INFO[site].solarGain - 15);
+      // El reporte del día dice exactamente esos números.
+      const report = choose(g, 0).lastReport!;
+      assert.ok(report.lines.some(l => l.text.es.includes(`−${-r.air} de aire`)));
+      assert.ok(report.lines.some(l => l.text.es.includes(`+${r.solar}`) && l.text.es.includes(`−${r.machines}`)));
+    }
+  }
+});

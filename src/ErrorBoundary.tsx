@@ -19,8 +19,13 @@ export default class ErrorBoundary extends Component<{ children: ReactNode }, St
   }
 
   private restart = () => {
-    try { for (const k of SAVE_KEYS) localStorage.removeItem(k); } catch { /* ignorar */ }
-    window.location.reload();
+    try {
+      for (const k of SAVE_KEYS) localStorage.removeItem(k);
+      // Volver al Modo Cadete: si el error vino del Modo Experto (p. ej. sin internet
+      // la primera vez), no se queda atrapado en él.
+      localStorage.setItem('astrobase_mode', 'cadet');
+    } catch { /* ignorar */ }
+    window.location.assign(window.location.pathname); // sin ?modo=experto
   };
 
   render() {

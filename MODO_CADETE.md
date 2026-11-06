@@ -13,6 +13,8 @@ Respuesta al reto **NASA Space Apps: Build a Junior Astronaut Mission Trainer**.
 - Después de cada día se explica qué cambió y por qué, con una línea de **"Esto pasó de verdad"** y su fuente.
 - Hay **16 tarjetas** (11 para la Luna y 12 para Marte). Cada partida usa 6, en un orden distinto cada vez. Perder no castiga: da una pista y permite volver a intentar.
 - Bilingüe (ES/EN), con lectura en voz alta y un glosario de palabras difíciles. No necesita cuenta ni descarga.
+- Debajo de las barras se ve lo que pasa **cada día, pase lo que pase**: el aire que se respira y la energía que dan los paneles menos la que gastan las máquinas. Así el niño puede planear.
+- Un **doble toque** rápido en "Siguiente día" no elige sin querer la opción que aparece debajo del dedo.
 - **Dos niveles:**
   - **🌱 Fácil (7–9 años):** se empieza con un poco más de energía y escudo, y el botón **🎧 Pedir ayuda a Control de Misión** recomienda una opción. La pista sale de una búsqueda completa de todos los días que faltan, así que seguirla siempre gana (está probado en los tests).
   - **🚀 Normal (10–12 años):** sin pistas.
@@ -28,7 +30,7 @@ Respuesta al reto **NASA Space Apps: Build a Junior Astronaut Mission Trainer**.
 - **Simulador de señal:** en las tarjetas de comunicación el niño envía un mensaje y lo ve viajar a la velocidad de la luz: 1.3 s en tiempo real a la Luna, y acelerado (1 s = 1 min) a Marte, usando la distancia calculada para el día de hoy.
 - **Récords Luna vs Marte:** al terminar se ven partidas, victorias, mejor medalla y menor radiación en cada sitio, para que el niño quiera probar el otro.
 - **Guía para maestros y familias:** es imprimible e incluye objetivos, preguntas para conversar, una actividad sin pantalla ("Teléfono espacial") y un reto de matemáticas con la distancia a Marte de hoy.
-- **Funciona sin internet:** después de abrirlo una vez, un *service worker* guarda el juego en el navegador. Los datos en vivo nunca se guardan: si no hay red, el juego lo dice.
+- **Funciona sin internet:** después de abrirlo una vez, un *service worker* guarda el juego en el navegador, incluido el Modo Experto. Con cada visita con internet se actualiza y borra los archivos de versiones viejas. Los datos en vivo nunca se guardan: si no hay red, el juego lo dice.
 - **Sonidos** cortos generados en el navegador (sin archivos), con volumen bajo y botón 🔊/🔇.
 - **Compartir:** el botón 📣 comparte (o copia) el resultado y el enlace. No incluye el nombre ni otros datos personales. El enlace muestra una imagen de vista previa (`public/og.png`).
 - **A prueba de errores:**

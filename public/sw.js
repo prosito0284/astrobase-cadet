@@ -6,28 +6,58 @@
 // - Datos en vivo (NASA DONKI, NOAA SWPC) NUNCA se guardan: si no hay red, el juego
 //   lo dice y usa sus llamaradas guardadas.
 //
+// Cada vez que la página se descarga con internet, se guardan TODOS los archivos que
+// necesita esa versión (incluido el Modo Experto) y se borran los de versiones viejas.
+//
 // Todas las rutas son relativas a donde vive este archivo, así funciona igual en la
 // raíz de Vercel que dentro de una carpeta (vite.config usa base: './').
-const VERSION = 'astrobase-v1';
+const VERSION = 'astrobase-v2';
 const ROOT = new URL('./', self.location.href);          // p. ej. https://sitio/  o  https://sitio/carpeta/
 const PAGE = ROOT.href;
-const ASSETS_PATH = new URL('assets/', ROOT).pathname;
-const SHELL = ['favicon.svg', 'manifest.webmanifest'].map(p => new URL(p, ROOT).href);
+const ASSETS_URL = new URL('assets/', ROOT);
+const ASSETS_PATH = ASSETS_URL.pathname;
+const SHELL = ['favicon.svg', 'manifest.webmanifest', 'og.png'].map(p => new URL(p, ROOT).href);
 
-// Guarda la página y los archivos que ella pide (JS y CSS con hash), para que el
-// juego funcione sin internet desde la PRIMERA visita, no solo desde la segunda.
-async function precache() {
+/** Lee un archivo de la caché o, si no está, de la red. */
+async function readText(url) {
+  const hit = await caches.match(url);
+  return (hit || (await fetch(url))).text();
+}
+
+/**
+ * Guarda la página y todo lo que pide: los JS/CSS del HTML y los trozos que esos JS
+ * cargan con import() (p. ej. "./App-xxxx.js" del Modo Experto). Luego borra los
+ * archivos de versiones anteriores para no llenar el navegador.
+ */
+async function syncFromPage(pageResponse) {
   const cache = await caches.open(VERSION);
-  const page = await fetch(PAGE, { cache: 'no-cache' });
-  if (!page.ok) return;
-  const html = await page.clone().text();
-  const assets = [...new Set(html.match(/(?:\.\/|\/)?assets\/[^"'\s>]+/g) || [])].map(a => new URL(a, ROOT).href);
-  await cache.put(PAGE, page);
-  await cache.addAll([...SHELL, ...assets]);
+  const html = await pageResponse.clone().text();
+  const assets = new Set((html.match(/(?:\.\/|\/)?assets\/[^"'\s>]+/g) || []).map(a => new URL(a, ROOT).href));
+  for (const js of [...assets].filter(a => a.endsWith('.js'))) {
+    try {
+      const text = await readText(js);
+      for (const m of text.match(/["'`]\.\/[\w-]+\.(?:js|css)["'`]/g) || []) assets.add(new URL(m.slice(3, -1), ASSETS_URL).href);
+    } catch { /* ese trozo se guardará la primera vez que se use */ }
+  }
+
+  await cache.put(PAGE, pageResponse);
+  const have = new Set((await cache.keys()).map(r => r.url));
+  await Promise.all([...SHELL, ...assets].filter(u => !have.has(u)).map(u => cache.add(u).catch(() => undefined)));
+
+  for (const req of await cache.keys()) {
+    const url = new URL(req.url);
+    if (url.origin === self.location.origin && url.pathname.startsWith(ASSETS_PATH) && !assets.has(url.origin + url.pathname)) {
+      await cache.delete(req);
+    }
+  }
 }
 
 self.addEventListener('install', event => {
-  event.waitUntil(precache().catch(() => undefined));
+  event.waitUntil(
+    fetch(PAGE, { cache: 'no-cache' })
+      .then(r => (r.ok ? syncFromPage(r) : undefined))
+      .catch(() => undefined),
+  );
   self.skipWaiting();
 });
 
@@ -50,13 +80,13 @@ async function cacheFirst(request) {
   return response;
 }
 
-async function networkFirstPage(request) {
-  const cache = await caches.open(VERSION);
+async function networkFirstPage(event) {
   try {
-    const response = await fetch(request);
-    if (response.ok) cache.put(PAGE, response.clone());
+    const response = await fetch(event.request);
+    if (response.ok) event.waitUntil(syncFromPage(response.clone()).catch(() => undefined));
     return response;
   } catch {
+    const cache = await caches.open(VERSION);
     return (await cache.match(PAGE)) || Response.error();
   }
 }
@@ -68,7 +98,7 @@ self.addEventListener('fetch', event => {
   const sameOrigin = url.origin === self.location.origin;
 
   if (request.mode === 'navigate' && sameOrigin) {
-    event.respondWith(networkFirstPage(request));
+    event.respondWith(networkFirstPage(event));
     return;
   }
   if (sameOrigin && (url.pathname.startsWith(ASSETS_PATH) || SHELL.includes(url.origin + url.pathname))) {

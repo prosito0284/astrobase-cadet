@@ -1,12 +1,13 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // MODO CADETE (7–12 años) — Una decisión por día, tres barras, datos reales.
 // ─────────────────────────────────────────────────────────────────────────────
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   choose,
   createGame,
   currentCard,
   energyFactor,
+  dailyRoutine,
   hint,
   isValidSave,
   LEVELS,
@@ -202,6 +203,10 @@ const UI = {
   },
   recommended: { es: 'Recomendada', en: 'Recommended' },
   badges: { es: 'Tus insignias', en: 'Your badges' },
+  routine: {
+    es: 'Cada día, pase lo que pase: 🫁 {a} de aire · ⚡ {e} de energía (paneles +{s}, máquinas −{m})',
+    en: 'Every day, no matter what: 🫁 {a} air · ⚡ {e} energy (panels +{s}, machines −{m})',
+  },
   newBadge: { es: '¡Nueva!', en: 'New!' },
   share: { es: 'Compartir mi resultado', en: 'Share my result' },
   quizTitle: { es: 'Bitácora del cadete: ¿qué aprendiste?', en: 'Cadet log: what did you learn?' },
@@ -479,7 +484,20 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
   const [liveStorm, setLiveStorm] = useState<SolarStorm | undefined>(cachedLive?.storm);
   const [liveAttempt, setLiveAttempt] = useState(0);
 
-  useEffect(() => { safeSet(LANG_KEY, lang); }, [lang]);
+  useEffect(() => {
+    safeSet(LANG_KEY, lang);
+    document.documentElement.lang = lang; // lectores de pantalla y traductores usan el idioma correcto
+  }, [lang]);
+
+  // Al cambiar de pantalla, callar la lectura en voz alta de la pantalla anterior.
+  const screenKey = `${game?.day ?? 0}-${game?.status ?? 'none'}-${showReport}`;
+  useEffect(() => {
+    try { window.speechSynthesis?.cancel(); } catch { /* sin voz */ }
+  }, [screenKey]);
+
+  // Evita que un doble toque en "Siguiente día" elija sin querer la opción que aparece
+  // justo debajo del dedo: las opciones ignoran toques durante 450 ms.
+  const cardShownAt = useRef(0);
 
   // Rayos X del Sol de las últimas 24 h (NOAA GOES). Si falla, el panel no se muestra.
   useEffect(() => {
@@ -545,8 +563,9 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
   };
   const advice = useMemo(() => (game && hints && hintDay === game.day ? hint(game) : undefined), [game, hints, hintDay]);
 
-  const pick = (i: 0 | 1) => {
+  const pick = (i: 0 | 1, at: number) => {
     if (!game) return;
+    if (at - cardShownAt.current < 450) return;
     const next = choose(game, i);
     if (next.status !== 'playing') {
       const updated = addResult(records, next);
@@ -801,6 +820,11 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
         <Bar icon="🛡️" label={tr(UI.shield)} value={game.shield} color="bg-violet-400" term="escudo" onTerm={setModal} />
         <Bar icon="❤️" label={tr(UI.health)} value={game.health} color="bg-rose-400" term="radiacion" onTerm={setModal} />
       </div>
+      {game.status === 'playing' && (() => {
+        const r = dailyRoutine(game);
+        const sign = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : '0');
+        return <p className="text-xs text-slate-400">🔁 {fill(tr(UI.routine), { a: sign(r.air), e: sign(r.energy), s: r.solar, m: r.machines })}</p>;
+      })()}
     </section>
   );
 
@@ -838,7 +862,8 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
           </div>
           <button
             type="button"
-            onClick={() => {
+            onClick={e => {
+              cardShownAt.current = e.timeStamp;
               setShowReport(false);
               if (game.status === 'playing' && currentCard(game).storm) sfx('storm');
               else sfx('tap');
@@ -1110,7 +1135,7 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
               <button
                 key={i}
                 type="button"
-                onClick={() => pick(idx)}
+                onClick={e => pick(idx, e.timeStamp)}
                 className={`text-left rounded-2xl p-4 border-2 bg-slate-950/70 hover:border-cyan-400 hover:bg-slate-900 active:scale-[0.99] transition-all ${rec ? 'border-emerald-400 ring-2 ring-emerald-400/40' : 'border-slate-600'}`}
               >
                 {rec && <div className="mb-1 inline-block text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-emerald-400 text-slate-950">🎧 {tr(UI.recommended)}</div>}

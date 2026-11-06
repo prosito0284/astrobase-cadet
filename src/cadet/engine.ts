@@ -309,6 +309,15 @@ export function currentCard(state: CadetState): CardView {
 const levelOf = (state: CadetState) => LEVELS[state.level ?? 'normal'];
 const levelDamage = (state: CadetState, dmg: number) => Math.round(dmg * levelOf(state).stormFactor);
 
+/**
+ * Lo que pasa cada día pase lo que pase (para mostrarlo bajo las barras):
+ * el equipo respira y las máquinas gastan energía, los paneles recargan.
+ */
+export function dailyRoutine(state: CadetState): { air: number; energy: number; solar: number; machines: number } {
+  const solar = SITE_INFO[state.site].solarGain;
+  return { air: -levelOf(state).airUse, energy: solar - DAILY_LIFE_SUPPORT_ENERGY, solar, machines: DAILY_LIFE_SUPPORT_ENERGY };
+}
+
 /** Lo que el niño ve ANTES de elegir: cuánto le quitará la tormenta con cada opción. */
 export function previewStormDamage(state: CadetState, optionIndex: 0 | 1): number | undefined {
   const entry = state.deck[state.day - 1];
