@@ -125,7 +125,7 @@ export const SITE_INFO: Record<Site, {
       en: 'The ground on Mars gets about 0.64 mSv of radiation per day (measured by the Curiosity rover\'s RAD instrument). Its thin air protects a bit more than on the Moon.',
     },
     doseSource: { name: 'NASA/JPL — Curiosity RAD (Hassler et al., Science 2014)', url: 'https://doi.org/10.1126/science.1244797' },
-    commDelay: { es: 'de 4 a 24 minutos', en: '4 to 24 minutes' },
+    commDelay: { es: 'de 3 a 22 minutos', en: '3 to 22 minutes' },
     solarGain: 16,
   },
 };
@@ -225,7 +225,7 @@ export const DECISION_CARDS: DecisionCard[] = [
     },
     textBySite: {
       moon: { es: 'Una luz roja parpadea. Desde la Luna, un mensaje a la Tierra tarda solo 1.3 segundos.', en: 'A red light is blinking. From the Moon, a message to Earth takes only 1.3 seconds.' },
-      mars: { es: 'Una luz roja parpadea. Desde Marte, un mensaje a la Tierra tarda de 4 a 24 minutos… ¡y la respuesta tarda lo mismo de regreso!', en: 'A red light is blinking. From Mars, a message to Earth takes 4 to 24 minutes… and the answer takes just as long to come back!' },
+      mars: { es: 'Una luz roja parpadea. Desde Marte, un mensaje a la Tierra tarda de 3 a 22 minutos… ¡y la respuesta tarda lo mismo de regreso!', en: 'A red light is blinking. From Mars, a message to Earth takes 3 to 22 minutes… and the answer takes just as long to come back!' },
     },
     options: [
       {
@@ -236,7 +236,7 @@ export const DECISION_CARDS: DecisionCard[] = [
         outcome: { es: 'Houston respondió y lo arreglaste.', en: 'Houston answered and you fixed it.' },
         outcomeBySite: {
           moon: { es: 'Houston respondió en segundos y lo arreglaste casi sin perder aire.', en: 'Houston answered in seconds and you fixed it, losing almost no air.' },
-          mars: { es: 'La respuesta tardó casi una hora en ir y volver. Mientras esperabas, se perdió mucho aire.', en: 'The answer took almost an hour to go and come back. While you waited, a lot of air was lost.' },
+          mars: { es: 'La respuesta tardó muchos minutos en ir y volver (¡hasta 44!). Mientras esperabas, se perdió mucho aire.', en: 'The answer took many minutes to go and come back (up to 44!). While you waited, a lot of air was lost.' },
         },
       },
       {

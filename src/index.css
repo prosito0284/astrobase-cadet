@@ -82,10 +82,12 @@
   @page { size: landscape; margin: 12mm; }
   body { background: #fff !important; }
   body * { visibility: hidden !important; }
-  #cadet-diploma, #cadet-diploma * { visibility: visible !important; }
-  #cadet-diploma {
-    position: fixed; inset: 0; margin: 0 !important;
+  .cadet-print, .cadet-print * { visibility: visible !important; }
+  .cadet-print {
+    position: absolute; left: 0; top: 0; width: 100%; margin: 0 !important;
     background: #fff !important; color: #0f172a !important;
-    border: 6px double #0e7490 !important;
   }
+  .cadet-print * { color: #0f172a !important; background: transparent !important; border-color: #94a3b8 !important; }
+  #cadet-diploma { border: 6px double #0e7490 !important; }
+  .cadet-no-print { display: none !important; }
 }

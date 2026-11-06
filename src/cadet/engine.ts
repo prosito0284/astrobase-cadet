@@ -72,6 +72,7 @@ export interface CadetState {
 }
 
 export interface CardView {
+  id: string;
   icon: string;
   title: T;
   text: T;
@@ -205,6 +206,7 @@ function optionEffects(opt: CardOption, site: Site): Effects {
 
 export function stormCard(storm: SolarStorm): CardView {
   return {
+    id: `storm:${storm.id}`,
     icon: '☀️',
     title: {
       es: `¡Llamarada solar ${storm.classType}!`,
@@ -243,6 +245,7 @@ export function currentCard(state: CadetState): CardView {
   if (entry.kind === 'storm') return stormCard(entry.storm);
   const card = cardById(entry.cardId);
   return {
+    id: card.id,
     icon: card.icon,
     title: card.title,
     text: card.textBySite?.[state.site] ?? card.text,

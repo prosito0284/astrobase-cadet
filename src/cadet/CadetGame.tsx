@@ -14,6 +14,10 @@ import {
   xrays,
 } from './engine';
 import type { CadetState } from './engine';
+import { earthMarsDistanceKm, lightDelaySeconds, marsDelayMinutes, MOON_KM } from './orbit';
+import { addResult, parseRecords } from './records';
+import type { Records } from './records';
+import TeacherGuide from './TeacherGuide';
 import { DATA_SOURCES, GLOSSARY, REAL_STORMS, SITE_INFO } from './data';
 import type { Effects, Lang, Site, SolarStorm, T } from './data';
 
@@ -22,6 +26,8 @@ const LANG_KEY = 'astrobase_cadet_lang';
 const LIVE_KEY = 'astrobase_cadet_live_storm_v1';
 const TUTORIAL_KEY = 'astrobase_cadet_tutorial_done';
 const NAME_KEY = 'astrobase_cadet_name';
+const RECORDS_KEY = 'astrobase_cadet_records_v1';
+const COMM_CARDS = ['air_alarm', 'call_home'];
 
 type LiveStatus = 'loading' | 'ok' | 'fail';
 
@@ -142,6 +148,25 @@ const UI = {
   namePlaceholder: { es: 'Cadete', en: 'Cadet' },
   print: { es: 'Imprimir', en: 'Print' },
   back: { es: 'Volver', en: 'Back' },
+  signalTitle: { es: 'Prueba: envía un mensaje a la Tierra', en: 'Try it: send a message to Earth' },
+  signalSend: { es: '📡 Enviar mensaje', en: '📡 Send message' },
+  signalGoing: { es: 'El mensaje viaja a la velocidad de la luz…', en: 'The message travels at the speed of light…' },
+  signalBack: { es: 'La Tierra responde…', en: 'Earth is answering…' },
+  signalDone: { es: '¡Respuesta recibida! Ida y vuelta: {t}.', en: 'Answer received! Round trip: {t}.' },
+  signalFast: { es: 'Acelerado: aquí 1 segundo = 1 minuto real', en: 'Sped up: here 1 second = 1 real minute' },
+  signalReal: { es: 'Tiempo real', en: 'Real time' },
+  marsToday: {
+    es: 'Hoy Marte está a unos {km} millones de km: un mensaje tarda ~{m} min (cálculo con las órbitas de JPL, no es dato en vivo).',
+    en: 'Today Mars is about {km} million km away: a message takes ~{m} min (calculated from JPL orbits, not live data).',
+  },
+  today: { es: 'hoy', en: 'today' },
+  records: { es: 'Tus récords en este equipo', en: 'Your records on this device' },
+  plays: { es: 'Partidas', en: 'Games' },
+  wins: { es: 'Victorias', en: 'Wins' },
+  bestMedal: { es: 'Mejor medalla', en: 'Best medal' },
+  bestStars: { es: 'Más descubrimientos', en: 'Most discoveries' },
+  lowestDose: { es: 'Menor radiación (ganando)', en: 'Lowest radiation (winning)' },
+  teachers: { es: 'Guía para maestros y familias', en: 'Guide for teachers and families' },
   diplomaData: {
     es: "Datos reales de NASA: DONKI (tormentas solares), Curiosity RAD y Chang'e 4 (radiación), OSDR y DSN.",
     en: "Real NASA data: DONKI (solar storms), Curiosity RAD and Chang'e 4 (radiation), OSDR and DSN.",
@@ -257,6 +282,107 @@ function Modal({ title, onClose, closeLabel, children }: { title: string; onClos
   );
 }
 
+function SignalRace({ site, lang, marsMin }: { site: Site; lang: Lang; marsMin: number }) {
+  const [phase, setPhase] = useState<'idle' | 'go' | 'back' | 'done'>('idle');
+  const [progress, setProgress] = useState(0); // 0–1 dentro del tramo actual
+  const moonS = lightDelaySeconds(MOON_KM);
+  // Luna: tiempo real. Marte: acelerado, 1 segundo en pantalla = 1 minuto real.
+  const animS = site === 'moon' ? moonS : marsMin;
+
+  useEffect(() => {
+    if (phase !== 'go' && phase !== 'back') return;
+    const t0 = performance.now();
+    let raf = 0;
+    const tick = (now: number) => {
+      const f = Math.min(1, (now - t0) / (animS * 1000));
+      setProgress(f);
+      if (f < 1) raf = requestAnimationFrame(tick);
+      else {
+        setProgress(0);
+        setPhase(phase === 'go' ? 'back' : 'done');
+      }
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [phase, animS]);
+
+  const moving = phase === 'go' || phase === 'back';
+  const pos = phase === 'go' ? progress * 100 : phase === 'back' ? (1 - progress) * 100 : 0;
+  const legs = phase === 'back' ? 1 + progress : phase === 'go' ? progress : phase === 'done' ? 2 : 0;
+  const elapsed = site === 'moon' ? `${(legs * moonS).toFixed(1)} s` : `${Math.round(legs * marsMin)} min`;
+  const roundTrip = site === 'moon' ? `${(moonS * 2).toFixed(1)} s` : `${Math.round(marsMin * 2)} min`;
+  const status =
+    phase === 'go' ? UI.signalGoing[lang]
+      : phase === 'back' ? UI.signalBack[lang]
+        : phase === 'done' ? fill(UI.signalDone[lang], { t: roundTrip })
+          : '';
+  return (
+    <div className="rounded-2xl border border-cyan-500/30 bg-slate-950/60 p-3 space-y-2">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <span className="text-sm font-black text-cyan-200">{UI.signalTitle[lang]}</span>
+        <span className="text-[10px] font-bold uppercase text-slate-400">{site === 'moon' ? UI.signalReal[lang] : UI.signalFast[lang]}</span>
+      </div>
+      <div className="flex items-center gap-2" aria-hidden>
+        <span className="text-2xl">{site === 'moon' ? '🌕' : '🔴'}</span>
+        <div className="relative flex-1 h-1 rounded bg-slate-700">
+          <span
+            className="absolute -top-1.5 w-4 h-4 rounded-full bg-cyan-300 shadow-[0_0_12px_#67e8f9]"
+            style={{ left: `calc(${pos}% - 8px)`, opacity: phase === 'idle' ? 0.35 : 1 }}
+          />
+        </div>
+        <span className="text-2xl">🌍</span>
+      </div>
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <span className="text-sm text-slate-200">
+          {phase !== 'idle' && <b className="tabular-nums text-cyan-200 mr-2">⏱️ {elapsed}</b>}
+          <span aria-live="polite">{status}</span>
+        </span>
+        <button
+          type="button"
+          disabled={moving}
+          onClick={() => setPhase('go')}
+          className="px-3 py-1.5 rounded-xl text-sm font-black bg-cyan-400 text-slate-950 disabled:opacity-40 hover:brightness-110"
+        >
+          {UI.signalSend[lang]}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function RecordsTable({ records, lang }: { records: Records; lang: Lang }) {
+  const rows: { label: T; value: (site: Site) => string }[] = [
+    { label: UI.plays, value: s => String(records[s].plays) },
+    { label: UI.wins, value: s => String(records[s].wins) },
+    { label: UI.bestMedal, value: s => (records[s].bestMedal ? '⭐'.repeat(records[s].bestMedal) : '—') },
+    { label: UI.bestStars, value: s => String(records[s].bestStars) },
+    { label: UI.lowestDose, value: s => (records[s].lowestDose === null ? '—' : `${records[s].lowestDose!.toFixed(2)} mSv`) },
+  ];
+  return (
+    <div className="rounded-2xl bg-slate-950/70 border border-slate-800 p-3 text-left overflow-x-auto">
+      <h3 className="font-black text-white mb-2">🏆 {UI.records[lang]}</h3>
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-slate-400">
+            <th scope="col" className="text-left font-bold pb-1"><span className="sr-only">—</span></th>
+            <th scope="col" className="text-right font-bold pb-1">🌕 {SITE_INFO.moon.name[lang]}</th>
+            <th scope="col" className="text-right font-bold pb-1">🔴 {SITE_INFO.mars.name[lang]}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(r => (
+            <tr key={r.label.es} className="border-t border-slate-800">
+              <th scope="row" className="text-left font-normal text-slate-300 py-1">{r.label[lang]}</th>
+              <td className="text-right font-black tabular-nums text-slate-100">{r.value('moon')}</td>
+              <td className="text-right font-black tabular-nums text-slate-100">{r.value('mars')}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 // ── Juego ──
 
 export default function CadetGame({ onExpert }: { onExpert: () => void }) {
@@ -274,6 +400,12 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
   const [tip, setTip] = useState<number | null>(() => (safeGet(TUTORIAL_KEY) ? null : 0));
   const [showDiploma, setShowDiploma] = useState(false);
   const [diplomaTime, setDiplomaTime] = useState(0);
+  const [records, setRecords] = useState<Records>(() => parseRecords(safeGet(RECORDS_KEY)));
+  const [teacherPage, setTeacherPage] = useState(false);
+  const [marsNow] = useState(() => {
+    const t = Date.now();
+    return { km: Math.round(earthMarsDistanceKm(t) / 1e6), min: marsDelayMinutes(t) };
+  });
   const [cadetName, setCadetName] = useState(() => safeGet(NAME_KEY) ?? '');
 
   const [cachedLive] = useState(readCachedLive);
@@ -310,7 +442,13 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
 
   const pick = (i: 0 | 1) => {
     if (!game) return;
-    setGame(choose(game, i));
+    const next = choose(game, i);
+    if (next.status !== 'playing') {
+      const updated = addResult(records, next);
+      setRecords(updated);
+      safeSet(RECORDS_KEY, JSON.stringify(updated));
+    }
+    setGame(next);
     setShowReport(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -376,6 +514,13 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
             <p className="text-xs text-slate-400 mb-1">☀️ {lang === 'es' ? 'Llamaradas reales guardadas' : 'Real stored flares'}:</p>
             <p className="text-sm text-slate-200">{REAL_STORMS.map(s => `${s.classType} (${s.date})`).join(' · ')}</p>
           </div>
+          <div className="rounded-2xl border border-slate-700 p-3 bg-slate-950/60">
+            <p className="text-sm text-slate-200">🔴 {fill(tr(UI.marsToday), { km: marsNow.km, m: marsNow.min })}</p>
+            <a href="https://ssd.jpl.nasa.gov/planets/approx_pos.html" target="_blank" rel="noreferrer" className="text-xs text-cyan-300 underline decoration-dotted">{tr(UI.sourceLabel)}: NASA/JPL — Approximate Positions of the Planets</a>
+          </div>
+          <button type="button" onClick={() => { setModal(null); setTeacherPage(true); }} className="w-full py-2.5 rounded-2xl text-sm font-bold bg-slate-800 border border-slate-600 text-slate-200 hover:bg-slate-700">
+            👩‍🏫 {tr(UI.teachers)}
+          </button>
         </div>
       </Modal>
     );
@@ -407,6 +552,18 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
     </div>
   );
 
+  // ── Guía para maestros ──
+  if (teacherPage) {
+    return shell(
+      <TeacherGuide
+        lang={lang}
+        marsKm={marsNow.km}
+        onBack={() => setTeacherPage(false)}
+        labels={{ title: tr(UI.teachers), print: tr(UI.print), back: tr(UI.back) }}
+      />,
+    );
+  }
+
   // ── Pantalla de inicio ──
   if (!game) {
     return shell(
@@ -428,6 +585,11 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
             </button>
           ))}
         </div>
+        {site === 'mars' && (
+          <p className="text-sm text-slate-300 rounded-2xl px-3 py-2 border border-orange-500/30 bg-orange-500/10">
+            🔴 {fill(tr(UI.marsToday), { km: marsNow.km, m: marsNow.min })}
+          </p>
+        )}
         {liveBanner}
         <button
           type="button"
@@ -435,6 +597,9 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
           className="w-full py-4 rounded-3xl text-xl font-black bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-950 shadow-lg shadow-emerald-900/40 hover:brightness-110 active:scale-[0.99]"
         >
           {tr(UI.start)}
+        </button>
+        <button type="button" onClick={() => setTeacherPage(true)} className="w-full py-2.5 rounded-2xl text-sm font-bold bg-slate-900 border border-slate-700 text-slate-300 hover:text-white">
+          👩‍🏫 {tr(UI.teachers)}
         </button>
       </section>,
     );
@@ -542,7 +707,7 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
             className="mt-1 w-full rounded-2xl bg-slate-900 border border-slate-600 px-3 py-2.5 text-lg text-white"
           />
         </label>
-        <div id="cadet-diploma" className="rounded-3xl border-4 border-double border-cyan-500/70 bg-gradient-to-b from-slate-900 to-slate-950 p-6 sm:p-8 text-center space-y-3">
+        <div id="cadet-diploma" className="cadet-print rounded-3xl border-4 border-double border-cyan-500/70 bg-gradient-to-b from-slate-900 to-slate-950 p-6 sm:p-8 text-center space-y-3">
           <p className="text-xs font-black tracking-[0.3em] uppercase text-cyan-400">🚀 ASTROBASE CADET</p>
           <h2 className="text-2xl sm:text-3xl font-black">{won ? tr(UI.diplomaTitleWon) : tr(UI.diplomaTitleLost)}</h2>
           <p className="text-3xl sm:text-4xl font-black text-amber-300 break-words" style={{ fontFamily: "'Space Grotesk', system-ui, sans-serif" }}>
@@ -594,6 +759,7 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
             <p className="text-xs text-slate-400 mt-1">{tr(UI.earthCompare)}</p>
             <p className="text-xs text-slate-400 mt-1">{tr(SITE_INFO[game.site].doseFact)}</p>
           </div>
+          <RecordsTable records={records} lang={lang} />
           <div className="text-left">
             <h3 className="font-black text-white mb-1.5">{tr(UI.learned)}</h3>
             <ol className="space-y-1">
@@ -668,6 +834,7 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
             </>
           )}
         </p>
+        {COMM_CARDS.includes(c.id) && <SignalRace key={`${game.day}-${game.site}`} site={game.site} lang={lang} marsMin={marsNow.min} />}
         <p className="text-sm font-bold text-slate-400">{tr(UI.choose)}:</p>
         <div className="grid sm:grid-cols-2 gap-3">
           {c.options.map((o, i) => {

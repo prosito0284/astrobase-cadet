@@ -16,6 +16,9 @@ Respuesta al reto **NASA Space Apps: Build a Junior Astronaut Mission Trainer**.
 - La primera partida empieza con un **tutorial guiado** de 3 pasos. Se puede repetir con el botón **❓ Cómo jugar**.
 - Al terminar, el niño puede escribir su nombre e **imprimir un diploma** con su medalla, sus descubrimientos y la radiación recibida. El nombre solo se guarda en ese equipo.
 - **Accesibilidad:** las barras y el calendario tienen etiquetas para lectores de pantalla y el foco del teclado se ve claramente. `Esc` cierra las ventanas, y si el sistema pide menos movimiento se quitan las animaciones.
+- **Simulador de señal:** en las tarjetas de comunicación el niño envía un mensaje y lo ve viajar a la velocidad de la luz: 1.3 s en tiempo real a la Luna, y acelerado (1 s = 1 min) a Marte, usando la distancia calculada para el día de hoy.
+- **Récords Luna vs Marte:** al terminar se ven partidas, victorias, mejor medalla y menor radiación en cada sitio, para que el niño quiera probar el otro.
+- **Guía para maestros y familias:** es imprimible e incluye objetivos, preguntas para conversar, una actividad sin pantalla ("Teléfono espacial") y un reto de matemáticas con la distancia a Marte de hoy.
 - **Carga rápida:** el Modo Cadete descarga unos 280 KB. El Modo Experto (Three.js, alrededor de 1 MB) solo se descarga si alguien lo abre.
 
 ## Datos de la NASA usados
@@ -26,7 +29,8 @@ Respuesta al reto **NASA Space Apps: Build a Junior Astronaut Mission Trainer**.
 | 6 llamaradas clase X reales (2017 y 2024) | El resto de las tormentas. | Guardado |
 | Curiosity RAD (Marte 0.64 mSv/día) · Chang'e 4 LND (Luna 1.37 mSv/día) | La radiación diaria de fondo, reducida por el escudo, y su equivalente en radiografías. | Guardado |
 | OSDR · Veggie · Human Research Program | El costo de los experimentos, de las plantas y del ejercicio (pérdida ósea de 1–1.5 % al mes). | Guardado |
-| MOXIE · Opportunity · LCROSS · Artemis · DSN | Las tarjetas de oxígeno marciano, tormenta de polvo, hielo lunar, noche lunar y retraso de las comunicaciones (1.3 s a la Luna, de 4 a 24 min a Marte). | Guardado |
+| **JPL — elementos orbitales aproximados** | La distancia Tierra–Marte de hoy y el retraso del mensaje. Error menor al 5 % (probado contra los acercamientos de 2003, 2020 y 2025). | **Calculado** con la fecha de hoy. No es un dato en vivo, y el juego lo dice. |
+| MOXIE · Opportunity · LCROSS · Artemis · DSN | Las tarjetas de oxígeno marciano, tormenta de polvo, hielo lunar, noche lunar y retraso de las comunicaciones (1.3 s a la Luna, de 3 a 22 min a Marte según dónde esté). | Guardado |
 
 Dentro del juego, el botón **"¿De dónde salen los datos?"** muestra esta misma lista con sus enlaces.
 
@@ -34,7 +38,9 @@ Dentro del juego, el botón **"¿De dónde salen los datos?"** muestra esta mism
 
 - `src/cadet/engine.ts` — Motor puro y determinista (con semilla).
 - `src/cadet/data.ts` — Datos curados con sus fuentes.
-- `src/cadet/CadetGame.tsx` — Interfaz.
+- `src/cadet/orbit.ts` — Distancia Tierra–Marte (ecuación de Kepler).
+- `src/cadet/records.ts` — Récords locales.
+- `src/cadet/CadetGame.tsx` y `src/cadet/TeacherGuide.tsx` — Interfaz.
 - `tests/cadet_engine.test.ts` — Tests. Comprueban, entre otras cosas, que ninguna opción es gratis, que siempre existe una forma de ganar (búsqueda completa) y que ignorar todas las tormentas siempre termina mal.
 
 El juego completo anterior sigue disponible como **Modo Experto** (botón arriba, o `?modo=experto`).
