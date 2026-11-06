@@ -28,7 +28,8 @@ export interface SolarStorm {
   id: string;
   classType: string;   // Clase de rayos X de la llamarada, p. ej. "X9.0"
   date: string;        // Fecha (UTC) del pico de la llamarada
-  live?: boolean;      // true solo si se descargó de DONKI durante esta partida
+  live?: boolean;      // true solo si se descargó en vivo durante esta partida
+  liveSource?: 'donki' | 'swpc'; // de dónde vino el dato en vivo (DONKI por defecto)
   story: T;            // Qué pasó de verdad
 }
 
@@ -517,6 +518,19 @@ export const DATA_SOURCES: DataSourceEntry[] = [
     why: {
       es: 'Su fuerza decide cuánto daño hace la tormenta si no subes el escudo.',
       en: 'Its strength decides how much harm the storm does if you don\'t raise the shield.',
+    },
+    mode: 'live',
+  },
+  {
+    name: 'NOAA SWPC — GOES X-ray flares (respaldo)',
+    url: 'https://www.swpc.noaa.gov/products/goes-x-ray-flux',
+    what: {
+      es: 'Las llamaradas que midieron los satélites GOES (NOAA y NASA) en los últimos 7 días.',
+      en: 'The flares measured by the GOES satellites (NOAA and NASA) in the last 7 days.',
+    },
+    why: {
+      es: 'Si DONKI no responde, la primera tormenta usa la llamarada más fuerte de esta semana. Si fue pequeña, el juego lo dice: ¡el Sol estuvo tranquilo!',
+      en: 'If DONKI does not answer, the first storm uses this week\'s strongest flare. If it was small, the game says so: the Sun was calm!',
     },
     mode: 'live',
   },

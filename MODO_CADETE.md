@@ -19,13 +19,16 @@ Respuesta al reto **NASA Space Apps: Build a Junior Astronaut Mission Trainer**.
 - **Simulador de señal:** en las tarjetas de comunicación el niño envía un mensaje y lo ve viajar a la velocidad de la luz: 1.3 s en tiempo real a la Luna, y acelerado (1 s = 1 min) a Marte, usando la distancia calculada para el día de hoy.
 - **Récords Luna vs Marte:** al terminar se ven partidas, victorias, mejor medalla y menor radiación en cada sitio, para que el niño quiera probar el otro.
 - **Guía para maestros y familias:** es imprimible e incluye objetivos, preguntas para conversar, una actividad sin pantalla ("Teléfono espacial") y un reto de matemáticas con la distancia a Marte de hoy.
+- **Funciona sin internet:** después de abrirlo una vez, un *service worker* guarda el juego en el navegador. Los datos en vivo nunca se guardan: si no hay red, el juego lo dice.
+- **Sonidos** cortos generados en el navegador (sin archivos), con volumen bajo y botón 🔊/🔇.
 - **Carga rápida:** el Modo Cadete descarga unos 280 KB. El Modo Experto (Three.js, alrededor de 1 MB) solo se descarga si alguien lo abre.
 
 ## Datos de la NASA usados
 
 | Dato | Cómo se usa | En vivo o guardado |
 |---|---|---|
-| **DONKI — Solar Flares (FLR)** | La llamarada más fuerte de los últimos 30 días se convierte en la primera tormenta. Su clase (M, X…) decide cuánto daño hace. | **En vivo** (`api.nasa.gov/DONKI/FLR`). Si no responde en 7 s, el juego lo dice y usa datos guardados. |
+| **DONKI — Solar Flares (FLR)** | La llamarada más fuerte de los últimos 30 días se convierte en la primera tormenta. Su clase (M, X…) decide cuánto daño hace. | **En vivo** (`api.nasa.gov/DONKI/FLR`). Si no responde en 6 s, se pasa a NOAA SWPC. |
+| **NOAA SWPC — GOES X-ray flares** (respaldo) | Si DONKI falla, la llamarada más fuerte de los últimos 7 días medida por los satélites GOES. Si fue pequeña, el juego dice que el Sol estuvo tranquilo. | **En vivo** (`services.swpc.noaa.gov`). Si tampoco responde, el juego lo dice y usa datos guardados. |
 | 6 llamaradas clase X reales (2017 y 2024) | El resto de las tormentas. | Guardado |
 | Curiosity RAD (Marte 0.64 mSv/día) · Chang'e 4 LND (Luna 1.37 mSv/día) | La radiación diaria de fondo, reducida por el escudo, y su equivalente en radiografías. | Guardado |
 | OSDR · Veggie · Human Research Program | El costo de los experimentos, de las plantas y del ejercicio (pérdida ósea de 1–1.5 % al mes). | Guardado |

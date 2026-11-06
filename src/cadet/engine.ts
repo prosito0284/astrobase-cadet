@@ -520,29 +520,70 @@ export function stormFromDonki(flares: DonkiFlare[]): SolarStorm | undefined {
   };
 }
 
-function isoDate(d: Date): string {
-  return d.toISOString().slice(0, 10);
+/** Llamarada tal como la publica NOAA SWPC (satélites GOES). */
+export interface SwpcFlare {
+  max_class?: string;
+  max_time?: string;
+  begin_time?: string;
 }
 
-/**
- * Intenta traer la llamarada más fuerte de los últimos 30 días. Si DONKI no
- * responde, devuelve undefined y el juego usa solo llamaradas guardadas (y lo dice).
- */
-export async function fetchLiveStorm(timeoutMs = 7000): Promise<SolarStorm | undefined> {
-  const end = new Date();
-  const start = new Date(end.getTime() - 30 * 24 * 3600 * 1000);
-  const url = `https://api.nasa.gov/DONKI/FLR?startDate=${isoDate(start)}&endDate=${isoDate(end)}&api_key=DEMO_KEY`;
+const isWeak = (cls: string) => flareRank(cls) < CLASS_ORDER.M * 100;
+
+/** Respaldo en vivo: la llamarada más fuerte de los últimos 7 días según NOAA SWPC. */
+export function stormFromSwpc(flares: SwpcFlare[]): SolarStorm | undefined {
+  const valid = flares.filter(f => typeof f.max_class === 'string' && flareRank(f.max_class) >= 0);
+  if (valid.length === 0) return undefined;
+  const best = valid.reduce((a, b) => (flareRank(b.max_class!) > flareRank(a.max_class!) ? b : a));
+  const date = (best.max_time ?? best.begin_time ?? '').slice(0, 10);
+  const cls = best.max_class!;
+  const calm = isWeak(cls);
+  return {
+    id: `swpc-${cls}-${date}`,
+    classType: cls,
+    date,
+    live: true,
+    liveSource: 'swpc',
+    story: {
+      es: `Esta llamarada ${cls} es REAL: los satélites GOES la midieron el ${date}. Los datos llegaron en vivo desde NOAA SWPC al empezar tu partida.${calm ? ' Fue pequeña: esta semana el Sol estuvo bastante tranquilo.' : ''}`,
+      en: `This ${cls} flare is REAL: the GOES satellites measured it on ${date}. The data came live from NOAA SWPC when your game started.${calm ? ' It was small: the Sun was fairly calm this week.' : ''}`,
+    },
+  };
+}
+
+async function getJson(url: string, timeoutMs: number): Promise<unknown> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     const res = await fetch(url, { signal: ctrl.signal });
     if (!res.ok) return undefined;
-    const data: unknown = await res.json();
-    if (!Array.isArray(data)) return undefined;
-    return stormFromDonki(data as DonkiFlare[]);
+    return await res.json();
   } catch {
     return undefined;
   } finally {
     clearTimeout(timer);
   }
+}
+
+function isoDate(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+export const SWPC_FLARES_URL = 'https://services.swpc.noaa.gov/json/goes/primary/xray-flares-7-day.json';
+
+/**
+ * Intenta traer la llamarada más fuerte de los últimos 30 días desde NASA DONKI.
+ * Si DONKI no responde, prueba NOAA SWPC (últimos 7 días). Si ninguno responde,
+ * devuelve undefined y el juego usa solo llamaradas guardadas (y lo dice).
+ */
+export async function fetchLiveStorm(timeoutMs = 6000): Promise<SolarStorm | undefined> {
+  const end = new Date();
+  const start = new Date(end.getTime() - 30 * 24 * 3600 * 1000);
+  const donki = await getJson(
+    `https://api.nasa.gov/DONKI/FLR?startDate=${isoDate(start)}&endDate=${isoDate(end)}&api_key=DEMO_KEY`,
+    timeoutMs,
+  );
+  const fromDonki = Array.isArray(donki) ? stormFromDonki(donki as DonkiFlare[]) : undefined;
+  if (fromDonki) return fromDonki;
+  const swpc = await getJson(SWPC_FLARES_URL, timeoutMs);
+  return Array.isArray(swpc) ? stormFromSwpc(swpc as SwpcFlare[]) : undefined;
 }

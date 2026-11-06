@@ -79,7 +79,8 @@
 
 /* ── Modo Cadete: diploma imprimible ── */
 @media print {
-  @page { size: landscape; margin: 12mm; }
+  @page { margin: 12mm; }
+  @page diploma { size: landscape; margin: 12mm; }
   body { background: #fff !important; }
   body * { visibility: hidden !important; }
   .cadet-print, .cadet-print * { visibility: visible !important; }
@@ -88,6 +89,6 @@
     background: #fff !important; color: #0f172a !important;
   }
   .cadet-print * { color: #0f172a !important; background: transparent !important; border-color: #94a3b8 !important; }
-  #cadet-diploma { border: 6px double #0e7490 !important; }
+  #cadet-diploma { border: 6px double #0e7490 !important; page: diploma; }
   .cadet-no-print { display: none !important; }
 }

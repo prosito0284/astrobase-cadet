@@ -1,0 +1,15 @@
+{
+  "name": "ASTROBASE CADET — Entrenador de Misiones",
+  "short_name": "AstroBase",
+  "description": "Entrenador de misiones para jóvenes astronautas (7–12 años) con datos reales de la NASA. Troncos Intergalácticos — NASA Space Apps Challenge.",
+  "lang": "es",
+  "start_url": "./?modo=cadete",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#060913",
+  "theme_color": "#060913",
+  "icons": [
+    { "src": "./favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

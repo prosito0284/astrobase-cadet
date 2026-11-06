@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // MODO CADETE (7–12 años) — Una decisión por día, tres barras, datos reales.
 // ─────────────────────────────────────────────────────────────────────────────
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   choose,
   createGame,
@@ -18,6 +18,8 @@ import { earthMarsDistanceKm, lightDelaySeconds, marsDelayMinutes, MOON_KM } fro
 import { addResult, parseRecords } from './records';
 import type { Records } from './records';
 import TeacherGuide from './TeacherGuide';
+import { playSound } from './sound';
+import type { SoundKind } from './sound';
 import { DATA_SOURCES, GLOSSARY, REAL_STORMS, SITE_INFO } from './data';
 import type { Effects, Lang, Site, SolarStorm, T } from './data';
 
@@ -27,6 +29,7 @@ const LIVE_KEY = 'astrobase_cadet_live_storm_v1';
 const TUTORIAL_KEY = 'astrobase_cadet_tutorial_done';
 const NAME_KEY = 'astrobase_cadet_name';
 const RECORDS_KEY = 'astrobase_cadet_records_v1';
+const SOUND_KEY = 'astrobase_cadet_sound';
 const COMM_CARDS = ['air_alarm', 'call_home'];
 
 type LiveStatus = 'loading' | 'ok' | 'fail';
@@ -86,6 +89,7 @@ const UI = {
   yourChoice: { es: 'Tu decisión', en: 'Your choice' },
   realStory: { es: 'Esto pasó de verdad', en: 'This really happened' },
   live: { es: 'EN VIVO · NASA DONKI', en: 'LIVE · NASA DONKI' },
+  liveSwpc: { es: 'EN VIVO · NOAA/GOES', en: 'LIVE · NOAA/GOES' },
   stored: { es: 'Dato real guardado', en: 'Real stored data' },
   next: { es: 'Siguiente día', en: 'Next day' },
   finish: { es: 'Ver el final', en: 'See the ending' },
@@ -115,12 +119,16 @@ const UI = {
   switchSite: { es: 'Probar en {x}', en: 'Try on {x}' },
   liveLoading: { es: 'Preguntando a la NASA por el clima del Sol de hoy…', en: 'Asking NASA about today\'s space weather…' },
   liveOk: {
-    es: 'Conectado: tu primera tormenta será la llamarada REAL más fuerte del último mes ({c}, {d}).',
-    en: 'Connected: your first storm will be the strongest REAL flare of the last month ({c}, {d}).',
+    es: 'Conectado a NASA DONKI: tu primera tormenta será la llamarada REAL más fuerte del último mes ({c}, {d}).',
+    en: 'Connected to NASA DONKI: your first storm will be the strongest REAL flare of the last month ({c}, {d}).',
+  },
+  liveOkSwpc: {
+    es: 'DONKI no respondió, pero los satélites GOES (NOAA) sí: tu primera tormenta será la llamarada REAL más fuerte de esta semana ({c}, {d}).',
+    en: 'DONKI did not answer, but the GOES satellites (NOAA) did: your first storm will be this week\'s strongest REAL flare ({c}, {d}).',
   },
   liveFail: {
-    es: 'Sin conexión con DONKI ahora: usaremos 6 llamaradas reales guardadas (2017 y 2024).',
-    en: 'No connection to DONKI right now: we will use 6 real stored flares (2017 and 2024).',
+    es: 'Sin conexión con DONKI ni con NOAA ahora: usaremos 6 llamaradas reales guardadas (2017 y 2024).',
+    en: 'No connection to DONKI or NOAA right now: we will use 6 real stored flares (2017 and 2024).',
   },
   liveTag: { es: 'en vivo', en: 'live' },
   storedTag: { es: 'guardado', en: 'stored' },
@@ -167,6 +175,8 @@ const UI = {
   bestStars: { es: 'Más descubrimientos', en: 'Most discoveries' },
   lowestDose: { es: 'Menor radiación (ganando)', en: 'Lowest radiation (winning)' },
   teachers: { es: 'Guía para maestros y familias', en: 'Guide for teachers and families' },
+  soundOn: { es: 'Silenciar sonidos', en: 'Mute sounds' },
+  soundOff: { es: 'Activar sonidos', en: 'Turn sounds on' },
   diplomaData: {
     es: "Datos reales de NASA: DONKI (tormentas solares), Curiosity RAD y Chang'e 4 (radiación), OSDR y DSN.",
     en: "Real NASA data: DONKI (solar storms), Curiosity RAD and Chang'e 4 (radiation), OSDR and DSN.",
@@ -282,7 +292,7 @@ function Modal({ title, onClose, closeLabel, children }: { title: string; onClos
   );
 }
 
-function SignalRace({ site, lang, marsMin }: { site: Site; lang: Lang; marsMin: number }) {
+function SignalRace({ site, lang, marsMin, sfx }: { site: Site; lang: Lang; marsMin: number; sfx: (k: SoundKind) => void }) {
   const [phase, setPhase] = useState<'idle' | 'go' | 'back' | 'done'>('idle');
   const [progress, setProgress] = useState(0); // 0–1 dentro del tramo actual
   const moonS = lightDelaySeconds(MOON_KM);
@@ -300,11 +310,12 @@ function SignalRace({ site, lang, marsMin }: { site: Site; lang: Lang; marsMin: 
       else {
         setProgress(0);
         setPhase(phase === 'go' ? 'back' : 'done');
+        sfx('ping');
       }
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [phase, animS]);
+  }, [phase, animS, sfx]);
 
   const moving = phase === 'go' || phase === 'back';
   const pos = phase === 'go' ? progress * 100 : phase === 'back' ? (1 - progress) * 100 : 0;
@@ -340,7 +351,7 @@ function SignalRace({ site, lang, marsMin }: { site: Site; lang: Lang; marsMin: 
         <button
           type="button"
           disabled={moving}
-          onClick={() => setPhase('go')}
+          onClick={() => { sfx('tap'); setPhase('go'); }}
           className="px-3 py-1.5 rounded-xl text-sm font-black bg-cyan-400 text-slate-950 disabled:opacity-40 hover:brightness-110"
         >
           {UI.signalSend[lang]}
@@ -418,6 +429,10 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
 
   const endTips = () => { setTip(null); safeSet(TUTORIAL_KEY, '1'); };
 
+  const [soundOn, setSoundOn] = useState(() => safeGet(SOUND_KEY) !== '0');
+  useEffect(() => { safeSet(SOUND_KEY, soundOn ? null : '0'); }, [soundOn]);
+  const sfx = useCallback((k: SoundKind) => { if (soundOn) playSound(k); }, [soundOn]);
+
   // Llamarada en vivo desde NASA DONKI (una vez por sesión del navegador).
   useEffect(() => {
     if (cachedLive) return;
@@ -448,6 +463,14 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
       setRecords(updated);
       safeSet(RECORDS_KEY, JSON.stringify(updated));
     }
+    if (next.status === 'won') sfx('win');
+    else if (next.status === 'lost') sfx('lose');
+    else {
+      const lines = next.lastReport?.lines ?? [];
+      const bad = lines.filter(l => l.tone === 'bad').length;
+      const good = lines.filter(l => l.tone === 'good').length;
+      sfx(bad > good ? 'bad' : 'good');
+    }
     setGame(next);
     setShowReport(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -473,6 +496,16 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
             ❓ {tr(UI.howTo)}
           </button>
         )}
+        <button
+          type="button"
+          onClick={() => { setSoundOn(!soundOn); if (!soundOn) playSound('tap'); }}
+          aria-pressed={soundOn}
+          aria-label={soundOn ? tr(UI.soundOn) : tr(UI.soundOff)}
+          title={soundOn ? tr(UI.soundOn) : tr(UI.soundOff)}
+          className="px-2.5 py-1.5 rounded-xl text-xs font-black bg-slate-800 border border-slate-600 text-slate-200 hover:bg-slate-700"
+        >
+          {soundOn ? '🔊' : '🔇'}
+        </button>
         <button type="button" onClick={() => setLang(lang === 'es' ? 'en' : 'es')} className="px-2.5 py-1.5 rounded-xl text-xs font-black bg-slate-800 border border-slate-600 text-slate-200 hover:bg-slate-700" aria-label={lang === 'es' ? 'Switch to English' : 'Cambiar a español'}>
           {lang === 'es' ? 'EN' : 'ES'}
         </button>
@@ -486,7 +519,7 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
   const liveBanner = (
     <p className={`text-sm rounded-2xl px-3 py-2 border ${liveStatus === 'ok' ? 'bg-amber-500/10 border-amber-500/40 text-amber-200' : liveStatus === 'fail' ? 'bg-slate-800/60 border-slate-700 text-slate-300' : 'bg-slate-800/60 border-slate-700 text-slate-400'}`}>
       {liveStatus === 'loading' && <>⏳ {tr(UI.liveLoading)}</>}
-      {liveStatus === 'ok' && liveStorm && <>☀️ {fill(tr(UI.liveOk), { c: liveStorm.classType, d: liveStorm.date })}</>}
+      {liveStatus === 'ok' && liveStorm && <>☀️ {fill(tr(liveStorm.liveSource === 'swpc' ? UI.liveOkSwpc : UI.liveOk), { c: liveStorm.classType, d: liveStorm.date })}</>}
       {liveStatus === 'fail' && <>💾 {tr(UI.liveFail)}</>}
     </p>
   );
@@ -669,7 +702,7 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
             <div className="flex items-center justify-between gap-2 mb-1">
               <span className="text-xs font-black uppercase tracking-wide text-indigo-200">🛰️ {tr(UI.realStory)}</span>
               <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${r.storm?.live ? 'bg-amber-400 text-slate-950' : 'bg-slate-700 text-slate-200'}`}>
-                {r.storm?.live ? tr(UI.live) : tr(UI.stored)}
+                {r.storm?.live ? tr(r.storm.liveSource === 'swpc' ? UI.liveSwpc : UI.live) : tr(UI.stored)}
               </span>
             </div>
             <p className="text-sm sm:text-base text-slate-100">{tr(r.fact)}</p>
@@ -677,7 +710,11 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
           </div>
           <button
             type="button"
-            onClick={() => setShowReport(false)}
+            onClick={() => {
+              setShowReport(false);
+              if (game.status === 'playing' && currentCard(game).storm) sfx('storm');
+              else sfx('tap');
+            }}
             className="w-full py-3.5 rounded-2xl text-lg font-black bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 hover:brightness-110"
           >
             {ended ? tr(UI.finish) : `${tr(UI.next)} →`}
@@ -817,7 +854,7 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
             <div className="min-w-0">
               {c.storm && (
                 <span className={`inline-block mb-1 text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${c.storm.live ? 'bg-amber-400 text-slate-950' : 'bg-slate-700 text-slate-200'}`}>
-                  {c.storm.live ? tr(UI.live) : `${tr(UI.stored)} · DONKI ${c.storm.date}`}
+                  {c.storm.live ? tr(c.storm.liveSource === 'swpc' ? UI.liveSwpc : UI.live) : `${tr(UI.stored)} · DONKI ${c.storm.date}`}
                 </span>
               )}
               <h2 className="text-xl sm:text-2xl font-black text-white leading-tight">{tr(c.title)}</h2>
@@ -834,7 +871,7 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
             </>
           )}
         </p>
-        {COMM_CARDS.includes(c.id) && <SignalRace key={`${game.day}-${game.site}`} site={game.site} lang={lang} marsMin={marsNow.min} />}
+        {COMM_CARDS.includes(c.id) && <SignalRace key={`${game.day}-${game.site}`} site={game.site} lang={lang} marsMin={marsNow.min} sfx={sfx} />}
         <p className="text-sm font-bold text-slate-400">{tr(UI.choose)}:</p>
         <div className="grid sm:grid-cols-2 gap-3">
           {c.options.map((o, i) => {

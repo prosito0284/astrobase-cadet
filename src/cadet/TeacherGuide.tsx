@@ -8,7 +8,7 @@ const SECTIONS: Section[] = [
     title: { es: '👧🧒 Para quién', en: '👧🧒 Who it is for' },
     items: [
       { es: 'Niñas y niños de 7 a 12 años. Cada partida dura de 15 a 20 minutos.', en: 'Children aged 7 to 12. Each game takes 15 to 20 minutes.' },
-      { es: 'No necesita cuenta ni instalar nada. Funciona en celular, tableta o computadora, en español o inglés, y puede leer los textos en voz alta.', en: 'No account or install needed. Works on phone, tablet or computer, in Spanish or English, and can read texts aloud.' },
+      { es: 'No necesita cuenta ni instalar nada. Funciona en celular, tableta o computadora, en español o inglés, y puede leer los textos en voz alta. Después de abrirlo una vez, funciona sin internet.', en: 'No account or install needed. Works on phone, tablet or computer, in Spanish or English, and can read texts aloud. After opening it once, it works offline.' },
     ],
   },
   {
@@ -51,7 +51,7 @@ const SECTIONS: Section[] = [
   {
     title: { es: '🛰️ Datos reales usados', en: '🛰️ Real data used' },
     items: [
-      { es: 'NASA DONKI (llamaradas solares): el juego intenta traer la más fuerte del último mes. Si no hay conexión, avisa y usa llamaradas reales guardadas de 2017 y 2024.', en: 'NASA DONKI (solar flares): the game tries to fetch the strongest flare of the last month. With no connection, it says so and uses real stored flares from 2017 and 2024.' },
+      { es: 'NASA DONKI (llamaradas solares): el juego intenta traer la más fuerte del último mes. Si DONKI no responde, prueba con los satélites GOES de NOAA (últimos 7 días). Si no hay conexión, lo avisa y usa llamaradas reales guardadas de 2017 y 2024.', en: 'NASA DONKI (solar flares): the game tries to fetch the strongest flare of the last month. If DONKI does not answer, it tries the NOAA GOES satellites (last 7 days). With no connection, it says so and uses real stored flares from 2017 and 2024.' },
       { es: 'Radiación: Curiosity RAD en Marte (0.64 mSv/día) y Chang\'e 4 en la Luna (1.37 mSv/día). Comunicaciones: Deep Space Network de la NASA. Distancia a Marte: calculada con las órbitas aproximadas de JPL.', en: 'Radiation: Curiosity RAD on Mars (0.64 mSv/day) and Chang\'e 4 on the Moon (1.37 mSv/day). Communications: NASA Deep Space Network. Distance to Mars: calculated with JPL approximate orbits.' },
     ],
   },
