@@ -38,7 +38,7 @@ import { playSound } from './sound';
 import type { SoundKind } from './sound';
 import { DATA_SOURCES, GLOSSARY, REAL_STORMS, SITE_INFO } from './data';
 import type { Lang, Site, SolarStorm, T } from './data';
-import { AUTOREAD_KEY, BADGES_KEY, CLASS_KEY, LANG_KEY, LEVEL_KEY, LIVE_KEY, loadGame, NAME_KEY, readCachedLive, RECORDS_KEY, safeGet, safeSet, SAVE_KEY, SOUND_KEY, TUTORIAL_KEY } from './storage';
+import { AUTOREAD_KEY, THEME_KEY, BADGES_KEY, CLASS_KEY, LANG_KEY, LEVEL_KEY, LIVE_KEY, loadGame, NAME_KEY, readCachedLive, RECORDS_KEY, safeGet, safeSet, SAVE_KEY, SOUND_KEY, TUTORIAL_KEY } from './storage';
 import type { LiveStatus } from './storage';
 import { fill, SITE_IN, TIPS, UI } from './strings';
 import { Bar, EffectChips, Modal, RecordsTable, RichText, SignalRace } from './widgets';
@@ -123,6 +123,8 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
   const [classMode, setClassMode] = useState(() => safeGet(CLASS_KEY) === '1');
   // Lectura automática: para quienes todavía leen despacio (7–8 años).
   const [autoRead, setAutoRead] = useState(() => safeGet(AUTOREAD_KEY) === '1');
+  const [light, setLight] = useState(() => safeGet(THEME_KEY) === 'light');
+  useEffect(() => { safeSet(THEME_KEY, light ? 'light' : null); }, [light]);
   useEffect(() => { safeSet(AUTOREAD_KEY, autoRead ? '1' : null); }, [autoRead]);
   useEffect(() => {
     safeSet(CLASS_KEY, classMode ? '1' : null);
@@ -284,6 +286,16 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
         </button>
         <button
           type="button"
+          onClick={() => setLight(!light)}
+          aria-pressed={light}
+          aria-label={light ? tr(UI.lightOn) : tr(UI.lightOff)}
+          title={light ? tr(UI.lightOn) : tr(UI.lightOff)}
+          className={`px-2.5 py-1.5 rounded-xl text-xs font-black border ${light ? 'bg-cyan-400 text-slate-950 border-cyan-400' : 'bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700'}`}
+        >
+          {light ? '🌙' : '☀️'}
+        </button>
+        <button
+          type="button"
           onClick={() => setAutoRead(!autoRead)}
           aria-pressed={autoRead}
           aria-label={autoRead ? tr(UI.autoOn) : tr(UI.autoOff)}
@@ -384,7 +396,7 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
   }
 
   const shell = (children: React.ReactNode) => (
-    <div lang={lang} className="cadet-root min-h-screen bg-[#060913] text-slate-100 px-4 py-4 sm:py-6" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
+    <div lang={lang} className={`cadet-root${light ? ' cadet-light' : ''} min-h-screen bg-[#060913] text-slate-100 px-4 py-4 sm:py-6`} style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
       <main className="max-w-2xl mx-auto space-y-4">
         {header}
         {children}

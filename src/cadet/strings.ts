@@ -111,6 +111,8 @@ export const UI = {
   lowestDose: { es: 'Menor radiación (ganando)', en: 'Lowest radiation (winning)' },
   teachers: { es: 'Guía para maestros y familias', en: 'Guide for teachers and families' },
   soundOn: { es: 'Silenciar sonidos', en: 'Mute sounds' },
+  lightOn: { es: 'Tema claro para proyector: activado', en: 'Light theme for projectors: on' },
+  lightOff: { es: 'Tema claro para proyector', en: 'Light theme for projectors' },
   autoOn: { es: 'Leer todo en voz alta automáticamente: activado', en: 'Read everything aloud automatically: on' },
   autoOff: { es: 'Leer todo en voz alta automáticamente', en: 'Read everything aloud automatically' },
   classOn: { es: 'Modo clase (proyector y votación): activado', en: 'Class mode (projector and voting): on' },

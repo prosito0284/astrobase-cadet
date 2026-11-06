@@ -34,7 +34,7 @@ export default function LaunchOverlay({ site, lang, onDone }: { site: Site; lang
       role="dialog"
       aria-modal="true"
       aria-label={TXT.go[lang]}
-      className="fixed inset-0 z-[250] bg-[#060913]/95 flex flex-col items-center justify-center gap-6 p-6 text-center"
+      className="fixed inset-0 z-[250] bg-slate-950/95 flex flex-col items-center justify-center gap-6 p-6 text-center"
     >
       <div
         aria-hidden

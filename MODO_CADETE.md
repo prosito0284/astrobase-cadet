@@ -17,6 +17,7 @@ Respuesta al reto **NASA Space Apps: Build a Junior Astronaut Mission Trainer**.
 - Un **doble toque** rápido en "Siguiente día" no elige sin querer la opción que aparece debajo del dedo.
 - **🗣️ Lectura automática:** al activarla, el juego lee en voz alta cada tarjeta y cada reporte apenas aparecen. Pensado para niñas y niños de 7–8 años que todavía leen despacio.
 - **Palabras difíciles tocables:** dentro de las tarjetas y de "Esto pasó de verdad", palabras como *radiación*, *escudo*, *llamarada* o *mSv* aparecen subrayadas, y al tocarlas se abre su explicación.
+- **☀️ Tema claro para proyectores:** los proyectores "lavan" los fondos oscuros. Este tema reasigna los colores de Tailwind solo dentro del juego, y pasó la auditoría axe con 0 fallas de contraste, igual que el tema oscuro.
 - **🏫 Modo clase (proyector):** agranda toda la letra y agrega a cada tarjeta una votación A/B con "Decidir por mayoría". Si hay empate, pide que la clase lo discuta.
 - **Códigos de misión para clases:** cada partida tiene un código (por ejemplo `LN-48213`: Luna, Normal, número 48213). Quien lo escriba al inicio, o abra `?mision=LN-48213`, juega exactamente la misma misión, así la clase puede comparar decisiones. Con código no se usa la tormenta en vivo, para que todos tengan lo mismo.
 - **Aviso de tormenta:** el día anterior a cada ☀️ el juego avisa cuánta energía cuesta subir el escudo y cuánta tienes.

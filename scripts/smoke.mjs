@@ -142,6 +142,9 @@ try {
   check('Votación decide por mayoría', await has('Esto pasó de verdad'));
   await ev(`[...document.querySelectorAll('button')].find(b=>b.getAttribute('aria-label')?.startsWith('Modo clase'))?.click()`); await sleep(200);
   check('Apagar modo clase restaura la letra', (await ev('document.documentElement.style.fontSize')) === '');
+  await ev(`[...document.querySelectorAll('button')].find(b=>b.getAttribute('aria-label')?.startsWith('Tema claro'))?.click()`); await sleep(200);
+  check('Tema claro para proyector', (await ev(`getComputedStyle(document.querySelector('.cadet-root')).backgroundColor`)) === 'rgb(248, 250, 252)');
+  await ev(`[...document.querySelectorAll('button')].find(b=>b.getAttribute('aria-label')?.startsWith('Tema claro'))?.click()`); await sleep(200);
 
   // Sin internet (después de una visita con internet).
   await go(BASE + '?modo=cadete'); await sleep(2500);
