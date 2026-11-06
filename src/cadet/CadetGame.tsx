@@ -276,46 +276,10 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
         )}
         <button
           type="button"
-          onClick={() => { setSoundOn(!soundOn); if (!soundOn) playSound('tap'); }}
-          aria-pressed={soundOn}
-          aria-label={soundOn ? tr(UI.soundOn) : tr(UI.soundOff)}
-          title={soundOn ? tr(UI.soundOn) : tr(UI.soundOff)}
-          className="px-2.5 py-1.5 rounded-xl text-xs font-black bg-slate-800 border border-slate-600 text-slate-200 hover:bg-slate-700"
+          onClick={() => setModal('settings')}
+          className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-slate-800 border border-slate-600 text-slate-200 hover:bg-slate-700"
         >
-          {soundOn ? '🔊' : '🔇'}
-        </button>
-        <button
-          type="button"
-          onClick={() => setLight(!light)}
-          aria-pressed={light}
-          aria-label={light ? tr(UI.lightOn) : tr(UI.lightOff)}
-          title={light ? tr(UI.lightOn) : tr(UI.lightOff)}
-          className={`px-2.5 py-1.5 rounded-xl text-xs font-black border ${light ? 'bg-cyan-400 text-slate-950 border-cyan-400' : 'bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700'}`}
-        >
-          {light ? '🌙' : '☀️'}
-        </button>
-        <button
-          type="button"
-          onClick={() => setAutoRead(!autoRead)}
-          aria-pressed={autoRead}
-          aria-label={autoRead ? tr(UI.autoOn) : tr(UI.autoOff)}
-          title={autoRead ? tr(UI.autoOn) : tr(UI.autoOff)}
-          className={`px-2.5 py-1.5 rounded-xl text-xs font-black border ${autoRead ? 'bg-cyan-400 text-slate-950 border-cyan-400' : 'bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700'}`}
-        >
-          🗣️
-        </button>
-        <button
-          type="button"
-          onClick={() => setClassMode(!classMode)}
-          aria-pressed={classMode}
-          aria-label={classMode ? tr(UI.classOn) : tr(UI.classOff)}
-          title={classMode ? tr(UI.classOn) : tr(UI.classOff)}
-          className={`px-2.5 py-1.5 rounded-xl text-xs font-black border ${classMode ? 'bg-cyan-400 text-slate-950 border-cyan-400' : 'bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700'}`}
-        >
-          🏫
-        </button>
-        <button type="button" onClick={() => setLang(lang === 'es' ? 'en' : 'es')} className="px-2.5 py-1.5 rounded-xl text-xs font-black bg-slate-800 border border-slate-600 text-slate-200 hover:bg-slate-700" aria-label={lang === 'es' ? 'Switch to English' : 'Cambiar a español'}>
-          {lang === 'es' ? 'EN' : 'ES'}
+          ⚙️ {tr(UI.settings)}
         </button>
         <button type="button" onClick={onExpert} className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-slate-900 border border-slate-700 text-slate-400 hover:text-white">
           {tr(UI.expert)} →
@@ -345,7 +309,54 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
 
   // ── Modales ──
   let modalNode: React.ReactNode = null;
-  if (modal === 'sources') {
+  const settingRow = (icon: string, on: boolean, toggle: () => void, labelOn: T, labelOff: T, help: T) => (
+    <li className="flex items-center justify-between gap-3 rounded-2xl border border-slate-700 bg-slate-950/60 p-3">
+      <div className="min-w-0">
+        <p className="font-bold text-slate-100"><span aria-hidden>{icon}</span> {tr(labelOff)}</p>
+        <p className="text-xs text-slate-400">{tr(help)}</p>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={on}
+        aria-label={tr(labelOff)}
+        title={on ? tr(labelOn) : tr(labelOff)}
+        onClick={toggle}
+        className={`shrink-0 w-14 h-8 rounded-full border-2 relative transition-colors ${on ? 'bg-cyan-400 border-cyan-400' : 'bg-slate-800 border-slate-600'}`}
+      >
+        <span aria-hidden className={`absolute top-0.5 w-6 h-6 rounded-full bg-slate-100 shadow transition-all ${on ? 'left-6' : 'left-0.5'}`} />
+      </button>
+    </li>
+  );
+  if (modal === 'settings') {
+    modalNode = (
+      <Modal title={`⚙️ ${tr(UI.settings)}`} onClose={() => setModal(null)} closeLabel={tr(UI.close)}>
+        <ul className="space-y-2">
+          <li className="flex items-center justify-between gap-3 rounded-2xl border border-slate-700 bg-slate-950/60 p-3">
+            <p className="font-bold text-slate-100">🌐 {tr(UI.language)}</p>
+            <div className="flex gap-1.5" role="group" aria-label={tr(UI.language)}>
+              {(['es', 'en'] as Lang[]).map(l => (
+                <button
+                  key={l}
+                  type="button"
+                  aria-pressed={lang === l}
+                  lang={l}
+                  onClick={() => setLang(l)}
+                  className={`px-3 py-1.5 rounded-xl text-sm font-black border ${lang === l ? 'bg-cyan-400 text-slate-950 border-cyan-400' : 'bg-slate-800 border-slate-600 text-slate-200'}`}
+                >
+                  {l === 'es' ? 'Español' : 'English'}
+                </button>
+              ))}
+            </div>
+          </li>
+          {settingRow('🔊', soundOn, () => { setSoundOn(!soundOn); if (!soundOn) playSound('tap'); }, UI.soundOn, UI.soundLabel, UI.soundHelp)}
+          {settingRow('🗣️', autoRead, () => setAutoRead(!autoRead), UI.autoOn, UI.autoOff, UI.autoHelp)}
+          {settingRow('☀️', light, () => setLight(!light), UI.lightOn, UI.lightOff, UI.lightHelp)}
+          {settingRow('🏫', classMode, () => setClassMode(!classMode), UI.classOn, UI.classOff, UI.classHelp)}
+        </ul>
+      </Modal>
+    );
+  } else if (modal === 'sources') {
     modalNode = (
       <Modal title={tr(UI.sources)} onClose={() => setModal(null)} closeLabel={tr(UI.close)}>
         <div className="space-y-3">

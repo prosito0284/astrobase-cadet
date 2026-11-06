@@ -67,6 +67,13 @@ try {
   // innerText respeta CSS (p. ej. `uppercase`), así que se compara sin mayúsculas.
   const has = text => ev(`document.body.innerText.toLocaleLowerCase().includes(${JSON.stringify(text.toLocaleLowerCase())})`);
   const click = text => ev(`(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.textContent.includes(${JSON.stringify(text)}));if(b){b.click();return true}return false})()`);
+  // Los interruptores viven en ⚙️ Ajustes: abrir, cambiar y cerrar.
+  const toggleSetting = async prefix => {
+    await click('Ajustes'); await sleep(200);
+    await ev(`[...document.querySelectorAll('[role=switch]')].find(b=>b.getAttribute('aria-label')?.startsWith(${JSON.stringify(prefix)}))?.click()`);
+    await sleep(150);
+    await click('Cerrar'); await sleep(200);
+  };
   const noOverflow = () => ev('document.documentElement.scrollWidth <= document.documentElement.clientWidth');
 
   await go(BASE + '?modo=cadete');
@@ -83,9 +90,9 @@ try {
   check('Tarjeta del día con dos opciones', (await ev(`[...document.querySelectorAll('button')].filter(b=>/🅰️|🅱️/.test(b.textContent)).length`)) === 2);
   // Lectura automática (se simula la voz para poder comprobarla sin parlantes).
   await ev(`window.__spoken=[];try{window.speechSynthesis.speak=u=>window.__spoken.push(u.text);window.speechSynthesis.cancel=()=>{}}catch(e){}`);
-  await ev(`[...document.querySelectorAll('button')].find(b=>b.getAttribute('aria-label')?.startsWith('Leer todo'))?.click()`); await sleep(300);
+  await toggleSetting('Leer todo'); await sleep(300);
   check('Lectura automática lee la tarjeta', (await ev('window.__spoken.length')) >= 1, String(await ev('window.__spoken[0]?.slice(0,40)')));
-  await ev(`[...document.querySelectorAll('button')].find(b=>b.getAttribute('aria-label')?.startsWith('Leer todo'))?.click()`); await sleep(100);
+  await toggleSetting('Leer todo');
 
   let days = 0;
   for (let i = 0; i < 12; i++) {
@@ -130,7 +137,7 @@ try {
   check('Código de misión arranca Marte en Fácil', (await has('Fácil')) && (await ev(`!!document.querySelector('svg[aria-label*="Marte"]')`)));
   // Modo clase: letra grande + votación por mayoría.
   await sleep(5600); // espera la cuenta regresiva
-  await ev(`[...document.querySelectorAll('button')].find(b=>b.getAttribute('aria-label')?.startsWith('Modo clase'))?.click()`); await sleep(200);
+  await toggleSetting('Modo clase');
   check('Modo clase agranda la letra', (await ev('document.documentElement.style.fontSize')) === '125%');
   check('Modo clase: sin desborde horizontal en celular', await noOverflow());
   const vote = l => ev(`[...document.querySelectorAll('button')].find(b=>b.getAttribute('aria-label')===${JSON.stringify('Un voto más para ')}+${JSON.stringify(l)})?.click()`);
@@ -140,11 +147,11 @@ try {
   await vote('A'); await sleep(600);
   await click('Decidir por mayoría'); await sleep(400);
   check('Votación decide por mayoría', await has('Esto pasó de verdad'));
-  await ev(`[...document.querySelectorAll('button')].find(b=>b.getAttribute('aria-label')?.startsWith('Modo clase'))?.click()`); await sleep(200);
+  await toggleSetting('Modo clase');
   check('Apagar modo clase restaura la letra', (await ev('document.documentElement.style.fontSize')) === '');
-  await ev(`[...document.querySelectorAll('button')].find(b=>b.getAttribute('aria-label')?.startsWith('Tema claro'))?.click()`); await sleep(200);
+  await toggleSetting('Tema claro');
   check('Tema claro para proyector', (await ev(`getComputedStyle(document.querySelector('.cadet-root')).backgroundColor`)) === 'rgb(248, 250, 252)');
-  await ev(`[...document.querySelectorAll('button')].find(b=>b.getAttribute('aria-label')?.startsWith('Tema claro'))?.click()`); await sleep(200);
+  await toggleSetting('Tema claro');
 
   // Sin internet (después de una visita con internet).
   await go(BASE + '?modo=cadete'); await sleep(2500);
