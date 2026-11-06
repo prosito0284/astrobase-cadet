@@ -99,7 +99,7 @@ export const BaseView: React.FC<BaseViewProps> = ({
         </div>
 
         {/* Action Buttons: Base Building Modal & View Mode Toggle */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 min-w-0">
           {onOpenBuildingMenu && (
             <button
               onClick={() => {

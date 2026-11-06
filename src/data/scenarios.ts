@@ -31,13 +31,13 @@ export const SCENARIOS: MissionScenario[] = [
     },
     environmentalNotesEs: [
       'Gravedad Lunar: 1/6 de la Tierra (16.6% g). La tripulación debe ejercitarse 2 horas diarias.',
-      'Temperatura: Oscila entre +120 °C a la luz directa y -130 °C en sombra (hasta -246 °C en el fondo del cráter).',
+      'Temperatura: En el ecuador lunar supera +120 °C, pero en las crestas iluminadas del polo sur ronda -50 °C y baja a -130 °C en sombra (hasta -246 °C en el fondo del cráter).',
       'Polvo Lunar (Regolito): Muy abrasivo y electrostático, pero ideal para imprimir escudos de protección.',
       'Comunicación terrestre: 1.3 segundos de retraso por viaje de ida de las ondas de radio.',
     ],
     environmentalNotesEn: [
       'Lunar Gravity: 1/6th of Earth (16.6% g). Crew requires 2 hours of daily exercise.',
-      'Temperature: Swings from +120 °C in sunlight to -130 °C in shadow (-246 °C inside craters).',
+      'Temperature: The lunar equator exceeds +120 °C, but sunlit South Pole ridges sit near -50 °C, dropping to -130 °C in shadow (-246 °C inside craters).',
       'Lunar Regolith: Highly abrasive and electrostatic, but perfect for 3D radiation shielding.',
       'Earth Delay: 1.3 seconds round-trip radio latency.',
     ],

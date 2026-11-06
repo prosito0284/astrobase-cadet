@@ -242,7 +242,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Feature Tools Buttons */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5 min-w-0">
           {/* Botanical Lab Button */}
           <button
             onClick={() => {

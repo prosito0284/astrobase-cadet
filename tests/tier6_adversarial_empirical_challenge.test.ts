@@ -463,7 +463,7 @@ test('Vector 5: Storage Hardening - mergeColony schema fuzzing with 50 malicious
       radiationActive: Boolean(c?.radiationActive),
       dustStormActive: Boolean(c?.dustStormActive),
       isLunarNight: Boolean(c?.isLunarNight),
-      currentTemperatureCelsius: Number.isFinite(Number(c?.currentTemperatureCelsius)) ? Number(c.currentTemperatureCelsius) : (loc === 'moon' ? 120 : 15),
+      currentTemperatureCelsius: Number.isFinite(Number(c?.currentTemperatureCelsius)) ? Number(c.currentTemperatureCelsius) : (loc === 'moon' ? -50 : -20),
       isTemperatureExtreme: Boolean(c?.isTemperatureExtreme),
       isCommBlackout: Boolean(c?.isCommBlackout),
       solarFluctuation: Boolean(c?.solarFluctuation),

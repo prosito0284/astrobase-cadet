@@ -110,7 +110,7 @@ export class AstrobaseSimulation {
       radiationActive: false,
       dustStormActive: false,
       isLunarNight: false,
-      currentTemperatureCelsius: location === 'moon' ? 120 : 15,
+      currentTemperatureCelsius: location === 'moon' ? -50 : -20,
       isTemperatureExtreme: false,
       isCommBlackout: false,
       solarFluctuation: false,
@@ -172,10 +172,10 @@ export class AstrobaseSimulation {
     this.colony.isLunarNight = isNightNow;
 
     if (this.location === 'moon') {
-      this.colony.currentTemperatureCelsius = isNightNow ? -180 : 120;
-      this.colony.isTemperatureExtreme = isNightNow || this.colony.currentTemperatureCelsius > 100;
+      this.colony.currentTemperatureCelsius = isNightNow ? -180 : -50;
+      this.colony.isTemperatureExtreme = true;
     } else {
-      this.colony.currentTemperatureCelsius = (nextDay % 2 === 0) ? -85 : 20;
+      this.colony.currentTemperatureCelsius = (nextDay % 2 === 0) ? -85 : -20;
       this.colony.isTemperatureExtreme = this.colony.currentTemperatureCelsius < -50;
     }
 

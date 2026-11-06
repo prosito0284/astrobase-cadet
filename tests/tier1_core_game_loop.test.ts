@@ -57,8 +57,8 @@ test('Tier 1.1: Core Game Loop - Campaign victory threshold on Day 28 (Moon) and
 
 test('Tier 1.1: Core Game Loop - Temperature cycle transitions (Moon night -180C / Mars cold -85C)', () => {
   const moonSim = new AstrobaseSimulation('moon', 'normal');
-  // Day 1 to 9 is lunar day (+120°C)
-  assert.strictEqual(moonSim.colony.currentTemperatureCelsius, 120);
+  // Day 1 to 9 is lunar day on the sunlit Shackleton rim (-50°C)
+  assert.strictEqual(moonSim.colony.currentTemperatureCelsius, -50);
 
   // Advance to lunar night (starts around day 10 on normal)
   while (moonSim.colony.currentDay < 10) {

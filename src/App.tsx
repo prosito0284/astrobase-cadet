@@ -117,7 +117,7 @@ const createInitialColonyData = (loc: BaseLocation, diff: GameDifficulty = 'norm
     radiationActive: false,
     dustStormActive: false,
     isLunarNight: false,
-    currentTemperatureCelsius: loc === 'moon' ? 120 : 15,
+    currentTemperatureCelsius: loc === 'moon' ? -50 : -20,
     isTemperatureExtreme: false,
     isCommBlackout: false,
     solarFluctuation: false,
@@ -1034,10 +1034,13 @@ export function App() {
     let currentTemp = 0;
     let isExtreme = false;
     if (location === 'moon') {
-      currentTemp = isNightNow ? -180 : 120;
-      isExtreme = isNightNow || currentTemp > 100;
+      // Borde iluminado del cráter Shackleton (polo sur): ~-50 °C con sol rasante; -180 °C en la noche.
+      // El polo sur lunar siempre es un entorno térmico extremo (se conserva el balance de juego).
+      currentTemp = isNightNow ? -180 : -50;
+      isExtreme = true;
     } else {
-      currentTemp = (nextDay % 2 === 0) ? -85 : 20;
+      // Cráter Jezero según MEDA/Perseverance: máximas diurnas ~-20 °C, mínimas nocturnas ~-85 °C.
+      currentTemp = (nextDay % 2 === 0) ? -85 : -20;
       isExtreme = currentTemp < -50;
     }
 
