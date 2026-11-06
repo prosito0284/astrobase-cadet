@@ -172,3 +172,18 @@ test('Cadete: el pronóstico diario coincide con lo que de verdad pasa cada día
     }
   }
 });
+
+test('Cadete: el historial guarda la radiación, la salud y el escudo de cada día', () => {
+  let s = createGame('moon', 21);
+  let total = 0;
+  while (s.status === 'playing') {
+    s = choose(s, 0);
+    const h = s.history[s.history.length - 1];
+    assert.equal(h.doseMSv, s.lastReport!.doseTodayMSv);
+    assert.equal(h.health, s.health);
+    assert.equal(h.storm, STORM_DAYS.includes(h.day));
+    assert.ok(typeof h.shield === 'number' && h.shield >= 0 && h.shield <= 100);
+    total += h.doseMSv!;
+  }
+  assert.ok(Math.abs(total - s.doseMSv) < 0.05, `${total} vs ${s.doseMSv}`);
+});

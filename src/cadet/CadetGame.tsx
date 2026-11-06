@@ -24,6 +24,7 @@ import { addResult, parseRecords } from './records';
 import type { Records } from './records';
 import TeacherGuide from './TeacherGuide';
 import SunPanel from './SunPanel';
+import DoseChart from './DoseChart';
 import BaseScene from './BaseScene';
 import { fetchSunNow } from './spaceweather';
 import type { SunNow } from './spaceweather';
@@ -1034,6 +1035,7 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
             <p className="text-xs text-slate-400 mt-1">{tr(UI.earthCompare)}</p>
             <p className="text-xs text-slate-400 mt-1">{tr(SITE_INFO[game.site].doseFact)}</p>
           </div>
+          <DoseChart game={game} lang={lang} />
           {quiz.length > 0 && (
             <div className="rounded-2xl bg-indigo-950/40 border border-indigo-500/40 p-3 text-left space-y-3">
               <h3 className="font-black text-white">🧠 {tr(UI.quizTitle)}</h3>

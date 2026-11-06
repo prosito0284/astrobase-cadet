@@ -81,7 +81,15 @@ export interface CadetState {
   level?: Level;            // sin nivel (partidas guardadas antiguas) = 'normal'
   lostReason?: LostReason;
   lastReport?: DayReport;
-  history: { day: number; title: T; choice: T }[];
+  history: {
+    day: number;
+    title: T;
+    choice: T;
+    doseMSv?: number;   // radiación de ese día (partidas antiguas no lo tienen)
+    health?: number;    // salud al terminar el día
+    storm?: boolean;    // ¿fue día de tormenta?
+    shield?: number;    // escudo durante el día (antes del desgaste de la tormenta)
+  }[];
 }
 
 export interface CardView {
@@ -390,6 +398,8 @@ export function choose(state: CadetState, optionIndex: 0 | 1): CadetState {
       : { es: 'Guardaste la energía y esperaste la tormenta sin protección extra.', en: 'You kept the energy and waited for the storm with no extra protection.' };
   }
 
+  const shieldDuringDay = shield;
+
   // 2) Llega la tormenta (si la hay)
   let doseToday = 0;
   if (entry.kind === 'storm') {
@@ -531,7 +541,7 @@ export function choose(state: CadetState, optionIndex: 0 | 1): CadetState {
     status,
     lostReason,
     lastReport: report,
-    history: [...state.history, { day: state.day, title: view.title, choice: opt.label }],
+    history: [...state.history, { day: state.day, title: view.title, choice: opt.label, doseMSv: report.doseTodayMSv, health, storm: entry.kind === 'storm', shield: shieldDuringDay }],
   };
 }
 
