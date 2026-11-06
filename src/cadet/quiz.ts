@@ -15,6 +15,21 @@ export interface QuizItem {
 }
 
 export const CARD_QUIZ: Record<string, QuizItem> = {
+  moonquake: {
+    q: { es: '¿Por qué hay sismos en la Luna?', en: 'Why are there quakes on the Moon?' },
+    correct: { es: 'Porque la Luna se encoge poco a poco al enfriarse', en: 'Because the Moon slowly shrinks as it cools' },
+    wrong: [{ es: 'Porque los astronautas saltan mucho', en: 'Because astronauts jump a lot' }, { es: 'Porque la Tierra la empuja', en: 'Because Earth pushes it' }],
+  },
+  lro_map: {
+    q: { es: '¿Desde cuándo estudia la Luna el orbitador LRO?', en: 'Since when has the LRO orbiter studied the Moon?' },
+    correct: { es: 'Desde 2009', en: 'Since 2009' },
+    wrong: [{ es: 'Desde ayer', en: 'Since yesterday' }, { es: 'Desde la época de los dinosaurios', en: 'Since the time of the dinosaurs' }],
+  },
+  ingenuity: {
+    q: { es: '¿Qué logró el helicóptero Ingenuity en 2021?', en: 'What did the Ingenuity helicopter achieve in 2021?' },
+    correct: { es: 'El primer vuelo con motor en otro planeta', en: 'The first powered flight on another planet' },
+    wrong: [{ es: 'Llevar astronautas a Marte', en: 'Carry astronauts to Mars' }, { es: 'Volar hasta la Luna', en: 'Fly to the Moon' }],
+  },
   water_recycle: {
     q: { es: '¿Cuánta agua se recupera en la Estación Espacial?', en: 'How much water is recovered on the Space Station?' },
     correct: { es: 'El 98%, ¡hasta la del sudor!', en: '98%, even from sweat!' },

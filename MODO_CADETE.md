@@ -11,7 +11,7 @@ Respuesta al reto **NASA Space Apps: Build a Junior Astronaut Mission Trainer**.
 - **No se puede gastar energía que no hay**: si falta energía, la acción solo funciona en proporción.
 - Antes de elegir se muestra el costo de cada opción, incluido el daño que haría la tormenta.
 - Después de cada día se explica qué cambió y por qué, con una línea de **"Esto pasó de verdad"** y su fuente.
-- Hay **16 tarjetas** (11 para la Luna y 12 para Marte). Cada partida usa 6, en un orden distinto cada vez. Perder no castiga: da una pista y permite volver a intentar.
+- Hay **19 tarjetas** (13 para la Luna y 13 para Marte). Cada partida usa 6, en un orden distinto cada vez. Perder no castiga: da una pista y permite volver a intentar.
 - Bilingüe (ES/EN), con lectura en voz alta y un glosario de palabras difíciles. No necesita cuenta ni descarga.
 - Debajo de las barras se ve lo que pasa **cada día, pase lo que pase**: el aire que se respira y la energía que dan los paneles menos la que gastan las máquinas. Así el niño puede planear.
 - Un **doble toque** rápido en "Siguiente día" no elige sin querer la opción que aparece debajo del dedo.
@@ -56,6 +56,7 @@ Respuesta al reto **NASA Space Apps: Build a Junior Astronaut Mission Trainer**.
 | 6 llamaradas clase X reales (2017 y 2024) | El resto de las tormentas. | Guardado |
 | Curiosity RAD (Marte 0.64 mSv/día) · Chang'e 4 LND (Luna 1.37 mSv/día) | La radiación diaria de fondo, reducida por el escudo, y su equivalente en radiografías. | Guardado |
 | ISS ECLSS (98 % del agua recuperada) · Phoenix (percloratos) · InSight (polvo en los paneles) · Perseverance · Orbital Debris Program Office (escudos Whipple) | Las tarjetas nuevas de agua, polvo salado, paneles con polvo, viaje en rover y piedritas espaciales. | Guardado |
+| Sismos lunares de Apolo (hasta 5.5, más de 10 min) · LRO (estudia la Luna desde 2009) · Ingenuity (primer vuelo con motor en otro planeta, 72 vuelos) | Tarjetas de sismo lunar, mapas desde la órbita y helicóptero. | Guardado |
 | OSDR · Veggie · Human Research Program | El costo de los experimentos, de las plantas y del ejercicio (pérdida ósea de 1–1.5 % al mes). | Guardado |
 | **JPL — elementos orbitales aproximados** | La distancia Tierra–Marte de hoy y el retraso del mensaje. Error menor al 5 % (probado contra los acercamientos de 2003, 2020 y 2025). | **Calculado** con la fecha de hoy. No es un dato en vivo, y el juego lo dice. |
 | MOXIE · Opportunity · LCROSS · Artemis · DSN | Las tarjetas de oxígeno marciano, tormenta de polvo, hielo lunar, noche lunar y retraso de las comunicaciones (1.3 s a la Luna, de 3 a 22 min a Marte según dónde esté). | Guardado |

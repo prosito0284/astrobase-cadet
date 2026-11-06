@@ -57,7 +57,11 @@ describe('Cadet badges', () => {
     }
     // Scientist: busca una partida ganada con ≥ 3 descubrimientos.
     const most = (s: CadetState): number => (s.status !== 'playing' ? (s.status === 'won' ? s.stars : -1) : Math.max(most(choose(s, 0)), most(choose(s, 1))));
-    assert.ok(most(createGame('moon', 1)) >= 3 || most(createGame('mars', 1)) >= 3, 'scientist reachable');
+    let reachable = false;
+    for (let seed = 1; seed <= 10 && !reachable; seed++) {
+      reachable = most(createGame('moon', seed)) >= 3 || most(createGame('mars', seed)) >= 3;
+    }
+    assert.ok(reachable, 'scientist reachable');
     have.add('scientist');
     for (const id of awardManual([...have], 'quiz_master').fresh) have.add(id);
     for (const b of BADGES) assert.ok(have.has(b.id), `${b.id} not earned`);

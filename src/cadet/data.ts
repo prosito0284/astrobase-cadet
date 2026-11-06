@@ -158,6 +158,93 @@ export interface DecisionCard {
 
 export const DECISION_CARDS: DecisionCard[] = [
   {
+    id: 'moonquake',
+    sites: ['moon'],
+    icon: '📳',
+    title: { es: '¡La base está temblando!', en: 'The base is shaking!' },
+    text: {
+      es: 'Es un sismo lunar. Las paredes crujen y algunas piezas del escudo se aflojaron.',
+      en: 'It\'s a moonquake. The walls creak and some shield pieces came loose.',
+    },
+    options: [
+      {
+        label: { es: 'Revisar y reforzar todo', en: 'Check and reinforce everything' },
+        detail: { es: 'Las herramientas gastan energía, pero el escudo queda firme', en: 'The tools use energy, but the shield stays strong' },
+        effects: { energy: -12, shield: 6 },
+        outcome: { es: 'Apretaron cada tornillo: la base quedó más fuerte que antes.', en: 'They tightened every bolt: the base is stronger than before.' },
+      },
+      {
+        label: { es: 'Seguir trabajando', en: 'Keep working' },
+        detail: { es: 'Ahorras energía, pero el escudo queda flojo', en: 'Save energy, but the shield stays loose' },
+        effects: { shield: -12 },
+        outcome: { es: 'Siguieron trabajando, pero el escudo quedó más débil.', en: 'They kept working, but the shield got weaker.' },
+      },
+    ],
+    fact: {
+      es: 'Los sismómetros de las misiones Apolo descubrieron que hay sismos lunares de hasta 5.5 que pueden durar más de 10 minutos. Pasan porque la Luna se encoge poco a poco al enfriarse.',
+      en: 'The Apollo seismometers discovered moonquakes of up to magnitude 5.5 that can last more than 10 minutes. They happen because the Moon slowly shrinks as it cools.',
+    },
+    source: { name: 'NASA — Moonquakes', url: 'https://science.nasa.gov/moon/moonquakes/' },
+  },
+  {
+    id: 'lro_map',
+    sites: ['moon'],
+    icon: '🛰️',
+    title: { es: 'Llegan mapas desde la órbita', en: 'Maps arrive from orbit' },
+    text: {
+      es: 'Un satélite que da vueltas a la Luna mandó mapas nuevos. Revisarlos podría mostrar dónde hay hielo.',
+      en: 'A satellite circling the Moon sent new maps. Checking them could show where there is ice.',
+    },
+    options: [
+      {
+        label: { es: 'Descargar y estudiar los mapas', en: 'Download and study the maps' },
+        detail: { es: '+1 descubrimiento, pero las computadoras gastan energía', en: '+1 discovery, but the computers use energy' },
+        effects: { energy: -14, stars: 1 },
+        outcome: { es: '¡Encontraron una zona oscura donde podría haber hielo!', en: 'They found a dark area where there could be ice!' },
+      },
+      {
+        label: { es: 'Dejarlos para otro día', en: 'Leave them for another day' },
+        detail: { es: 'Ahorras energía, pero no hay descubrimiento', en: 'Save energy, but no discovery' },
+        effects: {},
+        outcome: { es: 'Guardaste energía. Los mapas esperarán.', en: 'You saved energy. The maps will wait.' },
+      },
+    ],
+    fact: {
+      es: 'El orbitador LRO de la NASA estudia la Luna desde 2009, más tiempo que ninguna otra nave en órbita lunar. Hace mapas muy detallados y mide la temperatura y la radiación.',
+      en: 'NASA\'s LRO orbiter has studied the Moon since 2009, longer than any other lunar orbiter. It makes very detailed maps and measures temperature and radiation.',
+    },
+    source: { name: 'NASA — Lunar Reconnaissance Orbiter', url: 'https://science.nasa.gov/mission/lro/' },
+  },
+  {
+    id: 'ingenuity',
+    sites: ['mars'],
+    icon: '🚁',
+    title: { es: '¿Volamos el helicóptero?', en: 'Shall we fly the helicopter?' },
+    text: {
+      es: 'El equipo tiene que cruzar un campo de rocas. Un pequeño helicóptero podría buscar el camino más seguro.',
+      en: 'The crew must cross a rocky field. A small helicopter could find the safest path.',
+    },
+    options: [
+      {
+        label: { es: 'Volar el helicóptero primero', en: 'Fly the helicopter first' },
+        detail: { es: 'Encuentra un camino seguro, pero gasta energía', en: 'Finds a safe path, but uses energy' },
+        effects: { energy: -15, health: 4 },
+        outcome: { es: 'El helicóptero encontró un camino fácil y nadie se lastimó.', en: 'The helicopter found an easy path and nobody got hurt.' },
+      },
+      {
+        label: { es: 'Ir caminando sin explorar', en: 'Walk without scouting' },
+        detail: { es: 'Ahorras energía, pero es fácil tropezar', en: 'Save energy, but it\'s easy to trip' },
+        effects: { health: -8 },
+        outcome: { es: 'Llegaron, pero varios se tropezaron con las rocas.', en: 'They made it, but several tripped on the rocks.' },
+      },
+    ],
+    fact: {
+      es: 'El 19 de abril de 2021 el helicóptero Ingenuity de la NASA hizo el primer vuelo con motor en otro planeta. En total voló 72 veces sobre Marte.',
+      en: 'On April 19, 2021, NASA\'s Ingenuity helicopter made the first powered flight on another planet. In total it flew 72 times over Mars.',
+    },
+    source: { name: 'NASA — Ingenuity Mars Helicopter', url: 'https://science.nasa.gov/mission/mars-2020-perseverance/ingenuity-mars-helicopter/' },
+  },
+  {
     id: 'water_recycle',
     sites: ['moon', 'mars'],
     icon: '💧',
