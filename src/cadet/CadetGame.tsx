@@ -20,6 +20,11 @@ import { earthMarsDistanceKm, lightDelaySeconds, marsDelayMinutes, MOON_KM } fro
 import { addResult, parseRecords } from './records';
 import type { Records } from './records';
 import TeacherGuide from './TeacherGuide';
+import SunPanel from './SunPanel';
+import BaseScene from './BaseScene';
+import { fetchSunNow } from './spaceweather';
+import type { SunNow } from './spaceweather';
+import { awardBadges, BADGES, parseBadges } from './badges';
 import { playSound } from './sound';
 import type { SoundKind } from './sound';
 import { DATA_SOURCES, GLOSSARY, REAL_STORMS, SITE_INFO } from './data';
@@ -33,6 +38,7 @@ const NAME_KEY = 'astrobase_cadet_name';
 const RECORDS_KEY = 'astrobase_cadet_records_v1';
 const SOUND_KEY = 'astrobase_cadet_sound';
 const LEVEL_KEY = 'astrobase_cadet_level';
+const BADGES_KEY = 'astrobase_cadet_badges_v1';
 const COMM_CARDS = ['air_alarm', 'call_home'];
 
 type LiveStatus = 'loading' | 'ok' | 'fail';
@@ -194,6 +200,8 @@ const UI = {
     en: '🎧 Mission Control: the mission is very hard now. Choose what you think is best and learn for next time!',
   },
   recommended: { es: 'Recomendada', en: 'Recommended' },
+  badges: { es: 'Tus insignias', en: 'Your badges' },
+  newBadge: { es: '¡Nueva!', en: 'New!' },
   soundOff: { es: 'Activar sonidos', en: 'Turn sounds on' },
   diplomaData: {
     es: "Datos reales de NASA: DONKI (tormentas solares), Curiosity RAD y Chang'e 4 (radiación), OSDR y DSN.",
@@ -432,6 +440,9 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
   const [showDiploma, setShowDiploma] = useState(false);
   const [diplomaTime, setDiplomaTime] = useState(0);
   const [records, setRecords] = useState<Records>(() => parseRecords(safeGet(RECORDS_KEY)));
+  const [badges, setBadges] = useState<string[]>(() => parseBadges(safeGet(BADGES_KEY)));
+  const [freshBadges, setFreshBadges] = useState<string[]>([]);
+  const [sun, setSun] = useState<SunNow | undefined>(undefined);
   const [teacherPage, setTeacherPage] = useState(false);
   const [marsNow] = useState(() => {
     const t = Date.now();
@@ -445,6 +456,13 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
   const [liveAttempt, setLiveAttempt] = useState(0);
 
   useEffect(() => { safeSet(LANG_KEY, lang); }, [lang]);
+
+  // Rayos X del Sol de las últimas 24 h (NOAA GOES). Si falla, el panel no se muestra.
+  useEffect(() => {
+    let cancelled = false;
+    fetchSunNow().then(s => { if (!cancelled) setSun(s); });
+    return () => { cancelled = true; };
+  }, []);
   useEffect(() => { safeSet(SAVE_KEY, game ? JSON.stringify(game) : null); }, [game]);
   useEffect(() => { safeSet(NAME_KEY, cadetName.trim() ? cadetName.slice(0, 40) : null); }, [cadetName]);
 
@@ -473,6 +491,7 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
     setSite(where);
     setShowReport(false);
     setShowDiploma(false);
+    setFreshBadges([]);
     safeSet(LEVEL_KEY, level);
     setHintDay(null);
     setGame(createGame(where, Math.floor(Math.random() * 2 ** 31), liveStatus === 'ok' ? liveStorm : undefined, level));
@@ -489,6 +508,10 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
       const updated = addResult(records, next);
       setRecords(updated);
       safeSet(RECORDS_KEY, JSON.stringify(updated));
+      const award = awardBadges(badges, next, updated);
+      setBadges(award.all);
+      setFreshBadges(award.fresh);
+      safeSet(BADGES_KEY, JSON.stringify(award.all));
     }
     if (next.status === 'won') sfx('win');
     else if (next.status === 'lost') sfx('lose');
@@ -569,6 +592,7 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
       <Modal title={tr(UI.sources)} onClose={() => setModal(null)} closeLabel={tr(UI.close)}>
         <div className="space-y-3">
           {liveBanner}
+          {sun && <SunPanel sun={sun} lang={lang} />}
           {DATA_SOURCES.map(src => (
             <div key={src.name} className="rounded-2xl border border-slate-700 p-3 bg-slate-950/60">
               <div className="flex items-start justify-between gap-2">
@@ -688,13 +712,16 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
         <button type="button" onClick={() => setTeacherPage(true)} className="w-full py-2.5 rounded-2xl text-sm font-bold bg-slate-900 border border-slate-700 text-slate-300 hover:text-white">
           👩‍🏫 {tr(UI.teachers)}
         </button>
+        {sun && <SunPanel sun={sun} lang={lang} />}
       </section>,
     );
   }
 
   // ── Barras y calendario (siempre visibles durante la partida) ──
+  const stormToday = game.status === 'playing' && !showReport && game.deck[game.day - 1]?.kind === 'storm';
   const stats = (
     <section className="space-y-2.5">
+      <BaseScene site={game.site} air={game.air} energy={game.energy} shield={game.shield} health={game.health} storm={stormToday} lang={lang} />
       <div className="flex items-center justify-between gap-2">
         <span className="font-black text-white">
           {game.site === 'moon' ? '🌕' : '🔴'} {tr(UI.day)} {Math.min(game.day, game.totalDays)} {tr(UI.of)} {game.totalDays}
@@ -854,6 +881,27 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
             <p className="text-xs text-slate-400 mt-1">{tr(SITE_INFO[game.site].doseFact)}</p>
           </div>
           <RecordsTable records={records} lang={lang} />
+          <div className="rounded-2xl bg-slate-950/70 border border-slate-800 p-3 text-left">
+            <h3 className="font-black text-white mb-2">🏅 {tr(UI.badges)} <span className="text-slate-400 text-sm">{badges.length}/{BADGES.length}</span></h3>
+            <ul className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {BADGES.map(b => {
+                const has = badges.includes(b.id);
+                const fresh = freshBadges.includes(b.id);
+                return (
+                  <li
+                    key={b.id}
+                    className={`rounded-xl p-2 border text-center ${fresh ? 'border-amber-400 bg-amber-500/15 animate-pulse' : has ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-slate-800 bg-slate-900/60'}`}
+                  >
+                    <div className={`text-2xl ${has ? '' : 'grayscale opacity-30'}`} aria-hidden>{b.icon}</div>
+                    <div className={`text-xs font-black ${has ? 'text-white' : 'text-slate-500'}`}>
+                      {tr(b.name)}{fresh && <span className="ml-1 text-amber-300">{tr(UI.newBadge)}</span>}
+                    </div>
+                    <div className="text-[10px] text-slate-400">{has ? '✅' : '🔒'} {tr(b.how)}</div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
           <div className="text-left">
             <h3 className="font-black text-white mb-1.5">{tr(UI.learned)}</h3>
             <ol className="space-y-1">

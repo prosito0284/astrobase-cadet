@@ -21,6 +21,9 @@ Respuesta al reto **NASA Space Apps: Build a Junior Astronaut Mission Trainer**.
 - La primera partida empieza con un **tutorial guiado** de 3 pasos. Se puede repetir con el botón **❓ Cómo jugar**.
 - Al terminar, el niño puede escribir su nombre e **imprimir un diploma** con su medalla, sus descubrimientos y la radiación recibida. El nombre solo se guarda en ese equipo.
 - **Accesibilidad:** las barras y el calendario tienen etiquetas para lectores de pantalla y el foco del teclado se ve claramente. `Esc` cierra las ventanas, y si el sistema pide menos movimiento se quitan las animaciones.
+- **"¿Cómo está el Sol ahora?":** una gráfica en vivo de los rayos X del Sol en las últimas 24 h, medidos por los satélites GOES, con las clases A, B, C, M y X. Se puede tocar para ver cada hora, y dice cuánta salud quitaría en tu base la llamarada más fuerte del día si no tuvieras escudo.
+- **Dibujo de la base:** cambia con tus barras. La cúpula se ve más fuerte con más escudo, el invernadero brilla con más aire, los paneles se iluminan con más energía y las caras de la tripulación muestran su salud. En los días de tormenta aparece el Sol con rayos.
+- **6 insignias coleccionables**, guardadas solo en ese equipo. Las que faltan dicen cómo ganarlas, y los tests comprueban que todas se pueden conseguir.
 - **Simulador de señal:** en las tarjetas de comunicación el niño envía un mensaje y lo ve viajar a la velocidad de la luz: 1.3 s en tiempo real a la Luna, y acelerado (1 s = 1 min) a Marte, usando la distancia calculada para el día de hoy.
 - **Récords Luna vs Marte:** al terminar se ven partidas, victorias, mejor medalla y menor radiación en cada sitio, para que el niño quiera probar el otro.
 - **Guía para maestros y familias:** es imprimible e incluye objetivos, preguntas para conversar, una actividad sin pantalla ("Teléfono espacial") y un reto de matemáticas con la distancia a Marte de hoy.
@@ -33,6 +36,7 @@ Respuesta al reto **NASA Space Apps: Build a Junior Astronaut Mission Trainer**.
 | Dato | Cómo se usa | En vivo o guardado |
 |---|---|---|
 | **DONKI — Solar Flares (FLR)** | La llamarada más fuerte de los últimos 30 días se convierte en la primera tormenta. Su clase (M, X…) decide cuánto daño hace. | **En vivo** (`api.nasa.gov/DONKI/FLR`). Si no responde en 6 s, se pasa a NOAA SWPC. |
+| **NOAA SWPC — GOES X-ray flux (24 h)** | La gráfica "¿Cómo está el Sol ahora?" y la clase de llamarada de cada momento. | **En vivo** (`xrays-1-day.json`). Si falla, el panel no aparece. |
 | **NOAA SWPC — GOES X-ray flares** (respaldo) | Si DONKI falla, la llamarada más fuerte de los últimos 7 días medida por los satélites GOES. Si fue pequeña, el juego dice que el Sol estuvo tranquilo. | **En vivo** (`services.swpc.noaa.gov`). Si tampoco responde, el juego lo dice y usa datos guardados. |
 | 6 llamaradas clase X reales (2017 y 2024) | El resto de las tormentas. | Guardado |
 | Curiosity RAD (Marte 0.64 mSv/día) · Chang'e 4 LND (Luna 1.37 mSv/día) | La radiación diaria de fondo, reducida por el escudo, y su equivalente en radiografías. | Guardado |
