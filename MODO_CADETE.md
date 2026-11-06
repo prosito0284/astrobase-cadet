@@ -71,7 +71,11 @@ Dentro del juego, el botón **"¿De dónde salen los datos?"** muestra esta mism
 - `src/cadet/data.ts` — Datos curados con sus fuentes.
 - `src/cadet/orbit.ts` — Distancia Tierra–Marte (ecuación de Kepler).
 - `src/cadet/records.ts` — Récords locales.
-- `src/cadet/CadetGame.tsx` y `src/cadet/TeacherGuide.tsx` — Interfaz.
+- `src/cadet/CadetGame.tsx` — Pantallas y estado del juego.
+- `src/cadet/widgets.tsx`, `BaseScene.tsx`, `SunPanel.tsx`, `DoseChart.tsx`, `LaunchOverlay.tsx`, `TeacherGuide.tsx` — Piezas visuales.
+- `src/cadet/strings.ts` — Todos los textos en español e inglés.
+- `src/cadet/storage.ts` y `speech.ts` — Guardado en el navegador y lectura en voz alta.
+- `src/cadet/quiz.ts`, `badges.ts`, `records.ts`, `missionCode.ts`, `spaceweather.ts` — Cuestionario, insignias, récords, códigos de misión y clima espacial (lógica pura, con tests).
 - `tests/cadet_engine.test.ts` — Tests. Comprueban, entre otras cosas, que ninguna opción es gratis, que siempre existe una forma de ganar (búsqueda completa) y que ignorar todas las tormentas siempre termina mal.
 
 El juego completo anterior sigue disponible como **Modo Experto** (botón arriba, o `?modo=experto`).

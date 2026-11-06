@@ -1,0 +1,218 @@
+// Textos de la interfaz del Modo Cadete (español / inglés) y ayudantes de texto.
+import type { Site, T } from './data';
+
+export const UI = {
+  subtitle: { es: 'Entrenador de Misiones para Jóvenes Astronautas', en: 'Junior Astronaut Mission Trainer' },
+  pickSite: { es: '¿Dónde quieres construir tu base?', en: 'Where do you want to build your base?' },
+  intro: {
+    es: 'Durante 10 días cuidarás a 4 astronautas. Cada día tendrás que tomar UNA decisión. Ninguna es gratis: todo cuesta aire, energía o escudo.',
+    en: 'For 10 days you will look after 4 astronauts. Each day you will make ONE decision. None of them is free: everything costs air, energy or shield.',
+  },
+  start: { es: '¡Empezar misión!', en: 'Start mission!' },
+  day: { es: 'Día', en: 'Day' },
+  of: { es: 'de', en: 'of' },
+  stormDay: { es: 'Día de tormenta solar', en: 'Solar storm day' },
+  air: { es: 'Aire', en: 'Air' },
+  energy: { es: 'Energía', en: 'Energy' },
+  shield: { es: 'Escudo', en: 'Shield' },
+  health: { es: 'Salud del equipo', en: 'Crew health' },
+  discoveries: { es: 'Descubrimientos', en: 'Discoveries' },
+  choose: { es: 'Elige una opción', en: 'Choose an option' },
+  stormHits: { es: 'tormenta', en: 'storm' },
+  halfWarn: { es: 'Solo tienes {n} de energía: funcionará a medias', en: 'You only have {n} energy: it will only half work' },
+  whatHappened: { es: '¿Qué pasó hoy?', en: 'What happened today?' },
+  yourChoice: { es: 'Tu decisión', en: 'Your choice' },
+  realStory: { es: 'Esto pasó de verdad', en: 'This really happened' },
+  live: { es: 'EN VIVO · NASA DONKI', en: 'LIVE · NASA DONKI' },
+  liveSwpc: { es: 'EN VIVO · NOAA/GOES', en: 'LIVE · NOAA/GOES' },
+  stored: { es: 'Dato real guardado', en: 'Real stored data' },
+  next: { es: 'Siguiente día', en: 'Next day' },
+  finish: { es: 'Ver el final', en: 'See the ending' },
+  readAloud: { es: 'Leer en voz alta', en: 'Read aloud' },
+  sources: { es: '¿De dónde salen los datos?', en: 'Where does the data come from?' },
+  words: { es: 'Palabras difíciles', en: 'Tricky words' },
+  expert: { es: 'Modo Experto', en: 'Expert Mode' },
+  close: { es: 'Cerrar', en: 'Close' },
+  won: { es: '¡Misión cumplida!', en: 'Mission accomplished!' },
+  wonText: { es: 'Tu equipo sobrevivió los 10 días.', en: 'Your crew survived all 10 days.' },
+  lost: { es: 'La misión volvió a casa antes de tiempo', en: 'The mission came home early' },
+  lostAir: {
+    es: 'Se acabó el aire. Pista: las plantas, el hielo y la máquina MOXIE dan aire, pero cuestan energía. ¡Planea antes de gastar!',
+    en: 'The air ran out. Tip: plants, ice and the MOXIE machine make air, but they cost energy. Plan before you spend!',
+  },
+  lostHealth: {
+    es: 'El equipo se enfermó por la radiación y el cansancio. Pista: guarda energía para subir el escudo en los días de tormenta (☀️).',
+    en: 'The crew got sick from radiation and tiredness. Tip: save energy to raise the shield on storm days (☀️).',
+  },
+  totalDose: { es: 'Radiación total del equipo', en: 'Total crew radiation' },
+  earthCompare: {
+    es: 'En la Tierra una persona recibe unos 2.4 mSv en todo un año.',
+    en: 'On Earth a person gets about 2.4 mSv in a whole year.',
+  },
+  learned: { es: 'Tus decisiones', en: 'Your decisions' },
+  again: { es: 'Jugar otra vez', en: 'Play again' },
+  switchSite: { es: 'Probar en {x}', en: 'Try on {x}' },
+  liveLoading: { es: 'Preguntando a la NASA por el clima del Sol de hoy…', en: 'Asking NASA about today\'s space weather…' },
+  liveOk: {
+    es: 'Conectado a NASA DONKI: tu primera tormenta será la llamarada REAL más fuerte del último mes ({c}, {d}).',
+    en: 'Connected to NASA DONKI: your first storm will be the strongest REAL flare of the last month ({c}, {d}).',
+  },
+  liveOkSwpc: {
+    es: 'DONKI no respondió, pero los satélites GOES (NOAA) sí: tu primera tormenta será la llamarada REAL más fuerte de esta semana ({c}, {d}).',
+    en: 'DONKI did not answer, but the GOES satellites (NOAA) did: your first storm will be this week\'s strongest REAL flare ({c}, {d}).',
+  },
+  liveFail: {
+    es: 'Sin conexión con DONKI ni con NOAA ahora: usaremos 6 llamaradas reales guardadas (2017 y 2024).',
+    en: 'No connection to DONKI or NOAA right now: we will use 6 real stored flares (2017 and 2024).',
+  },
+  liveTag: { es: 'en vivo', en: 'live' },
+  storedTag: { es: 'guardado', en: 'stored' },
+  why: { es: 'Para qué se usa', en: 'What it\'s for' },
+  sourceLabel: { es: 'Fuente', en: 'Source' },
+  newStorm: { es: 'Se acerca una tormenta solar', en: 'A solar storm is coming' },
+  dose: { es: 'Dosis de hoy', en: 'Dose today' },
+  xr: { es: 'radiografías', en: 'X-rays' },
+  howTo: { es: 'Cómo jugar', en: 'How to play' },
+  tipNext: { es: 'Siguiente', en: 'Next' },
+  tipDone: { es: '¡Entendido!', en: 'Got it!' },
+  tipSkip: { es: 'Saltar', en: 'Skip' },
+  diploma: { es: 'Mi diploma', en: 'My certificate' },
+  diplomaTitleWon: { es: 'Diploma de Cadete Espacial', en: 'Space Cadet Certificate' },
+  diplomaTitleLost: { es: 'Certificado de Entrenamiento Espacial', en: 'Space Training Certificate' },
+  diplomaWon: {
+    es: 'completó una misión de 10 días {x} y mantuvo a salvo a 4 astronautas.',
+    en: 'completed a 10-day mission {x} and kept 4 astronauts safe.',
+  },
+  diplomaLost: {
+    es: 'entrenó {n} días {x} y aprendió a cuidar el aire, la energía y el escudo.',
+    en: 'trained for {n} days {x} and learned to manage air, energy and shielding.',
+  },
+  yourName: { es: 'Tu nombre (opcional, solo se guarda en este equipo)', en: 'Your name (optional, only saved on this device)' },
+  namePlaceholder: { es: 'Cadete', en: 'Cadet' },
+  print: { es: 'Imprimir', en: 'Print' },
+  back: { es: 'Volver', en: 'Back' },
+  signalTitle: { es: 'Prueba: envía un mensaje a la Tierra', en: 'Try it: send a message to Earth' },
+  signalSend: { es: '📡 Enviar mensaje', en: '📡 Send message' },
+  signalGoing: { es: 'El mensaje viaja a la velocidad de la luz…', en: 'The message travels at the speed of light…' },
+  signalBack: { es: 'La Tierra responde…', en: 'Earth is answering…' },
+  signalDone: { es: '¡Respuesta recibida! Ida y vuelta: {t}.', en: 'Answer received! Round trip: {t}.' },
+  signalFast: { es: 'Acelerado: aquí 1 segundo = 1 minuto real', en: 'Sped up: here 1 second = 1 real minute' },
+  signalReal: { es: 'Tiempo real', en: 'Real time' },
+  marsToday: {
+    es: 'Hoy Marte está a unos {km} millones de km: un mensaje tarda ~{m} min (cálculo con las órbitas de JPL, no es dato en vivo).',
+    en: 'Today Mars is about {km} million km away: a message takes ~{m} min (calculated from JPL orbits, not live data).',
+  },
+  today: { es: 'hoy', en: 'today' },
+  records: { es: 'Tus récords en este equipo', en: 'Your records on this device' },
+  plays: { es: 'Partidas', en: 'Games' },
+  wins: { es: 'Victorias', en: 'Wins' },
+  bestMedal: { es: 'Mejor medalla', en: 'Best medal' },
+  bestStars: { es: 'Más descubrimientos', en: 'Most discoveries' },
+  lowestDose: { es: 'Menor radiación (ganando)', en: 'Lowest radiation (winning)' },
+  teachers: { es: 'Guía para maestros y familias', en: 'Guide for teachers and families' },
+  soundOn: { es: 'Silenciar sonidos', en: 'Mute sounds' },
+  pickLevel: { es: '¿Qué nivel quieres?', en: 'Which level do you want?' },
+  easy: { es: 'Fácil', en: 'Easy' },
+  easyAge: { es: '7 a 9 años · con ayuda de Control de Misión', en: 'Ages 7–9 · with help from Mission Control' },
+  normal: { es: 'Normal', en: 'Normal' },
+  normalAge: { es: '10 a 12 años · decides tú solo', en: 'Ages 10–12 · you decide on your own' },
+  askHint: { es: '🎧 Pedir ayuda a Control de Misión', en: '🎧 Ask Mission Control for help' },
+  hintPick: { es: '🎧 Control de Misión: te recomendamos la opción {x}.', en: '🎧 Mission Control: we recommend option {x}.' },
+  hintStorm: { es: 'Viene una tormenta: protege a tu equipo.', en: 'A storm is coming: protect your crew.' },
+  hintPlan: { es: 'Así todavía tendrás aire y energía para los próximos días.', en: 'That way you\'ll still have air and energy for the next days.' },
+  hintHard: {
+    es: '🎧 Control de Misión: la misión está muy difícil. ¡Elige lo que creas mejor y aprende para la próxima!',
+    en: '🎧 Mission Control: the mission is very hard now. Choose what you think is best and learn for next time!',
+  },
+  recommended: { es: 'Recomendada', en: 'Recommended' },
+  badges: { es: 'Tus insignias', en: 'Your badges' },
+  codeAsk: { es: '🎟️ ¿Tu maestra o maestro te dio un código de misión?', en: '🎟️ Did your teacher give you a mission code?' },
+  codePlaceholder: { es: 'Ej.: LN-48213', en: 'E.g. LN-48213' },
+  codePlay: { es: 'Jugar esa misión', en: 'Play that mission' },
+  codeBad: { es: 'Ese código no existe. Revisa: dos letras, guion y 5 números (ej.: LN-48213).', en: 'That code doesn\'t exist. Check it: two letters, a dash and 5 numbers (e.g. LN-48213).' },
+  codeThis: { es: 'Código de esta misión', en: 'This mission\'s code' },
+  codeShare: {
+    es: 'Compártelo: quien lo use jugará exactamente la misma misión (mismas tarjetas y tormentas) y podrán comparar sus decisiones.',
+    en: 'Share it: anyone who uses it will play exactly the same mission (same cards and storms) and you can compare decisions.',
+  },
+  codeNoLive: {
+    es: 'Con código se usan solo tormentas guardadas, para que todos tengan la misma misión.',
+    en: 'With a code only stored storms are used, so everyone gets the same mission.',
+  },
+  whatIfTitle: { es: '¿Y si hubieras elegido otra cosa?', en: 'What if you had chosen differently?' },
+  whatIfIntro: {
+    es: 'El Día {d} ({t}) elegiste «{a}». Si hubieras elegido «{o}» y todo lo demás igual,',
+    en: 'On Day {d} ({t}) you chose “{a}”. If you had chosen “{o}” and everything else the same,',
+  },
+  whatIfWin: { es: '¡habrías ganado la misión con {h} de salud!', en: 'you would have won the mission with {h} health!' },
+  whatIfBetter: {
+    es: 'habrías terminado con {h} de salud y {s} descubrimientos (en vez de {ha} y {sa}).',
+    en: 'you would have finished with {h} health and {s} discoveries (instead of {ha} and {sa}).',
+  },
+  whatIfLonger: {
+    es: 'tu equipo habría aguantado hasta el día {d} (en vez del día {da}).',
+    en: 'your crew would have lasted until day {d} (instead of day {da}).',
+  },
+  whatIfNone: {
+    es: '🏆 Cambiar una sola decisión no habría mejorado tu misión. ¡Excelente trabajo!',
+    en: '🏆 Changing a single decision would not have improved your mission. Excellent work!',
+  },
+  whatIfHow: {
+    es: 'Lo calculamos repitiendo tu misión exacta con una decisión distinta.',
+    en: 'We calculated it by replaying your exact mission with one different decision.',
+  },
+  stormTomorrow: {
+    es: '⚠️ ¡Mañana llega una tormenta solar! Subir el escudo cuesta {c} de energía y tienes {e}. Piensa si te conviene gastar hoy.',
+    en: '⚠️ A solar storm arrives tomorrow! Raising the shield costs {c} energy and you have {e}. Think before spending today.',
+  },
+  routine: {
+    es: 'Cada día, pase lo que pase: 🫁 {a} de aire · ⚡ {e} de energía (paneles +{s}, máquinas −{m})',
+    en: 'Every day, no matter what: 🫁 {a} air · ⚡ {e} energy (panels +{s}, machines −{m})',
+  },
+  newBadge: { es: '¡Nueva!', en: 'New!' },
+  share: { es: 'Compartir mi resultado', en: 'Share my result' },
+  quizTitle: { es: 'Bitácora del cadete: ¿qué aprendiste?', en: 'Cadet log: what did you learn?' },
+  quizRight: { es: '✅ ¡Correcto!', en: '✅ Correct!' },
+  quizWrong: { es: '❌ La respuesta era: {a}', en: '❌ The answer was: {a}' },
+  quizScore: { es: 'Acertaste {n} de {t}.', en: 'You got {n} out of {t}.' },
+  quizPerfect: { es: '¡Perfecto! Eres Sabelotodo espacial. 🧠', en: 'Perfect! You are a Space know-it-all. 🧠' },
+  copied: { es: '¡Copiado! Pégalo donde quieras.', en: 'Copied! Paste it anywhere.' },
+  shareWon: {
+    es: '¡Completé una misión de 10 días {x} en ASTROBASE CADET! {m} · Descubrimientos: {s} · Radiación: {d} mSv. ¿Puedes superarlo?',
+    en: 'I completed a 10-day mission {x} in ASTROBASE CADET! {m} · Discoveries: {s} · Radiation: {d} mSv. Can you beat it?',
+  },
+  shareLost: {
+    es: 'Entrené {n} días {x} en ASTROBASE CADET y aprendí a protegerme de las tormentas solares. ¿Lo intentas?',
+    en: 'I trained for {n} days {x} in ASTROBASE CADET and learned to protect myself from solar storms. Want to try?',
+  },
+  soundOff: { es: 'Activar sonidos', en: 'Turn sounds on' },
+  diplomaData: {
+    es: "Datos reales de NASA: DONKI (tormentas solares), Curiosity RAD y Chang'e 4 (radiación), OSDR y DSN.",
+    en: "Real NASA data: DONKI (solar storms), Curiosity RAD and Chang'e 4 (radiation), OSDR and DSN.",
+  },
+};
+
+export const TIPS: T[] = [
+  {
+    es: '👋 Estas 4 barras son tu base. Si el aire o la salud llegan a 0, la misión termina. Toca una barra para saber qué significa.',
+    en: '👋 These 4 bars are your base. If air or health reaches 0, the mission ends. Tap a bar to learn what it means.',
+  },
+  {
+    es: '☀️ En el calendario, los días con sol traen una tormenta solar real. Guarda energía para subir el escudo ese día.',
+    en: '☀️ On the calendar, days with a sun bring a real solar storm. Save energy to raise the shield on those days.',
+  },
+  {
+    es: '🅰️🅱️ Cada opción muestra lo que cuesta: verde suma y rojo resta. Ninguna es gratis. ¡Elige con cuidado!',
+    en: '🅰️🅱️ Each option shows what it costs: green adds and red takes away. None is free. Choose carefully!',
+  },
+];
+
+/** "en la Luna" / "en Marte" / "on the Moon" / "on Mars". */
+export const SITE_IN: Record<Site, T> = {
+  moon: { es: 'en la Luna', en: 'on the Moon' },
+  mars: { es: 'en Marte', en: 'on Mars' },
+};
+
+export const fill = (s: string, vars: Record<string, string | number>) =>
+  s.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? ''));
+
