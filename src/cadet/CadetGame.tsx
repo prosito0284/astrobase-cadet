@@ -38,10 +38,10 @@ import { playSound } from './sound';
 import type { SoundKind } from './sound';
 import { DATA_SOURCES, GLOSSARY, REAL_STORMS, SITE_INFO } from './data';
 import type { Lang, Site, SolarStorm, T } from './data';
-import { BADGES_KEY, CLASS_KEY, LANG_KEY, LEVEL_KEY, LIVE_KEY, loadGame, NAME_KEY, readCachedLive, RECORDS_KEY, safeGet, safeSet, SAVE_KEY, SOUND_KEY, TUTORIAL_KEY } from './storage';
+import { AUTOREAD_KEY, BADGES_KEY, CLASS_KEY, LANG_KEY, LEVEL_KEY, LIVE_KEY, loadGame, NAME_KEY, readCachedLive, RECORDS_KEY, safeGet, safeSet, SAVE_KEY, SOUND_KEY, TUTORIAL_KEY } from './storage';
 import type { LiveStatus } from './storage';
 import { fill, SITE_IN, TIPS, UI } from './strings';
-import { Bar, EffectChips, Modal, RecordsTable, SignalRace } from './widgets';
+import { Bar, EffectChips, Modal, RecordsTable, RichText, SignalRace } from './widgets';
 import { speak } from './speech';
 
 
@@ -121,6 +121,9 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
   const [soundOn, setSoundOn] = useState(() => safeGet(SOUND_KEY) !== '0');
   // Modo clase: letra más grande para proyectar y votación A/B de todo el grupo.
   const [classMode, setClassMode] = useState(() => safeGet(CLASS_KEY) === '1');
+  // Lectura automática: para quienes todavía leen despacio (7–8 años).
+  const [autoRead, setAutoRead] = useState(() => safeGet(AUTOREAD_KEY) === '1');
+  useEffect(() => { safeSet(AUTOREAD_KEY, autoRead ? '1' : null); }, [autoRead]);
   useEffect(() => {
     safeSet(CLASS_KEY, classMode ? '1' : null);
     document.documentElement.style.fontSize = classMode ? '125%' : '';
@@ -169,6 +172,21 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
   };
 
   const card = useMemo(() => (game && game.status === 'playing' ? currentCard(game) : null), [game]);
+  // Texto que se lee solo cuando la lectura automática está activada.
+  const autoText = useMemo(() => {
+    if (!game) return '';
+    const t = (x: T) => x[lang];
+    if (showReport && game.lastReport) {
+      const r = game.lastReport;
+      return `${t(r.outcome)} ${t(UI.realStory)}: ${t(r.fact)}`;
+    }
+    if (card) return `${t(card.title).replace(/[.!?¡¿]*$/, '')}. ${t(card.text)} ${card.options.map((o, i) => `${i === 0 ? 'A' : 'B'}: ${t(o.label)}.`).join(' ')}`;
+    return '';
+  }, [game, showReport, card, lang]);
+  useEffect(() => {
+    if (autoRead && !launching && autoText) speak(autoText, lang);
+  }, [autoText, autoRead, launching, lang]);
+
   const hints = !!game && LEVELS[game.level ?? 'normal'].hints;
   const quiz = useMemo(() => (game && game.status !== 'playing' ? buildQuiz(game) : []), [game]);
   const whatIf = useMemo(() => (game && game.status !== 'playing' ? bestWhatIf(game) : undefined), [game]);
@@ -263,6 +281,16 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
           className="px-2.5 py-1.5 rounded-xl text-xs font-black bg-slate-800 border border-slate-600 text-slate-200 hover:bg-slate-700"
         >
           {soundOn ? '🔊' : '🔇'}
+        </button>
+        <button
+          type="button"
+          onClick={() => setAutoRead(!autoRead)}
+          aria-pressed={autoRead}
+          aria-label={autoRead ? tr(UI.autoOn) : tr(UI.autoOff)}
+          title={autoRead ? tr(UI.autoOn) : tr(UI.autoOff)}
+          className={`px-2.5 py-1.5 rounded-xl text-xs font-black border ${autoRead ? 'bg-cyan-400 text-slate-950 border-cyan-400' : 'bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700'}`}
+        >
+          🗣️
         </button>
         <button
           type="button"
@@ -546,7 +574,7 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
                 {r.storm?.live ? tr(r.storm.liveSource === 'swpc' ? UI.liveSwpc : UI.live) : tr(UI.stored)}
               </span>
             </div>
-            <p className="text-sm sm:text-base text-slate-100">{tr(r.fact)}</p>
+            <p className="text-sm sm:text-base text-slate-100"><RichText text={tr(r.fact)} lang={lang} onTerm={setModal} /></p>
             <a href={r.source.url} target="_blank" rel="noreferrer" className="text-xs text-cyan-300 underline decoration-dotted mt-1 inline-block">{tr(UI.sourceLabel)}: {r.source.name}</a>
           </div>
           <button
@@ -822,7 +850,7 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
           <button type="button" onClick={() => speak(cardText, lang)} className="shrink-0 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-slate-800 border border-slate-600 hover:bg-slate-700" aria-label={tr(UI.readAloud)}>🔊</button>
         </div>
         <p className="text-base sm:text-lg text-slate-200 leading-relaxed">
-          {tr(c.text)}
+          <RichText text={tr(c.text)} lang={lang} onTerm={setModal} />
           {c.storm && (
             <>
               {' '}

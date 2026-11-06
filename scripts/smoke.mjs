@@ -81,6 +81,11 @@ try {
   check('Tutorial aparece en la primera partida', await has('Estas 4 barras son tu base'));
   await click('Saltar'); await sleep(200);
   check('Tarjeta del día con dos opciones', (await ev(`[...document.querySelectorAll('button')].filter(b=>/🅰️|🅱️/.test(b.textContent)).length`)) === 2);
+  // Lectura automática (se simula la voz para poder comprobarla sin parlantes).
+  await ev(`window.__spoken=[];try{window.speechSynthesis.speak=u=>window.__spoken.push(u.text);window.speechSynthesis.cancel=()=>{}}catch(e){}`);
+  await ev(`[...document.querySelectorAll('button')].find(b=>b.getAttribute('aria-label')?.startsWith('Leer todo'))?.click()`); await sleep(300);
+  check('Lectura automática lee la tarjeta', (await ev('window.__spoken.length')) >= 1, String(await ev('window.__spoken[0]?.slice(0,40)')));
+  await ev(`[...document.querySelectorAll('button')].find(b=>b.getAttribute('aria-label')?.startsWith('Leer todo'))?.click()`); await sleep(100);
 
   let days = 0;
   for (let i = 0; i < 12; i++) {
@@ -90,6 +95,10 @@ try {
     await sleep(300);
     if (i === 0) {
       check('Reporte del día con "Esto pasó de verdad"', await has('Esto pasó de verdad'));
+      const termBtn = await ev(`(()=>{const b=[...document.querySelectorAll('button')].find(b=>/qué significa/.test(b.getAttribute('aria-label')||''));if(!b)return null;b.click();return b.textContent})()`);
+      await sleep(200);
+      check('Palabra difícil tocable abre el glosario', !!termBtn && (await ev(`!!document.querySelector('[role=dialog]')`)), termBtn ?? 'no se encontró');
+      await click('Cerrar'); await sleep(200);
       check('Barras muestran el cambio del día', (await ev(`[...document.querySelectorAll('button[aria-label]')].some(b=>/\\([+−]\\d+\\)/.test(b.getAttribute('aria-label')))`)) === true);
     }
     (await click('Siguiente día')) || (await click('Ver el final'));

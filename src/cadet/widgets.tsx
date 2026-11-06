@@ -7,6 +7,7 @@ import { lightDelaySeconds, MOON_KM } from './orbit';
 import type { Records } from './records';
 import type { SoundKind } from './sound';
 import { fill, UI } from './strings';
+import { glossarySegments } from './glossaryText';
 
 
 
@@ -198,3 +199,26 @@ export function RecordsTable({ records, lang }: { records: Records; lang: Lang }
   );
 }
 
+
+/** Texto con las palabras difíciles subrayadas: al tocarlas se abre su explicación. */
+export function RichText({ text, lang, onTerm }: { text: string; lang: Lang; onTerm: (k: string) => void }) {
+  return (
+    <>
+      {glossarySegments(text, lang).map((seg, i) =>
+        seg.term ? (
+          <button
+            key={i}
+            type="button"
+            onClick={() => onTerm(seg.term!)}
+            aria-label={lang === 'es' ? `${seg.text}: ¿qué significa?` : `${seg.text}: what does it mean?`}
+            className="inline underline decoration-dotted decoration-2 underline-offset-4 decoration-amber-300/80 hover:text-amber-200"
+          >
+            {seg.text}
+          </button>
+        ) : (
+          <span key={i}>{seg.text}</span>
+        ),
+      )}
+    </>
+  );
+}

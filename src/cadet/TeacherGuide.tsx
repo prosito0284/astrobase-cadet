@@ -8,6 +8,7 @@ const SECTIONS: Section[] = [
     title: { es: '👧🧒 Para quién', en: '👧🧒 Who it is for' },
     items: [
       { es: 'Niñas y niños de 7 a 12 años. Cada partida dura de 15 a 20 minutos.', en: 'Children aged 7 to 12. Each game takes 15 to 20 minutes.' },
+      { es: 'Para quienes todavía leen despacio: el botón 🗣️ lee en voz alta cada tarjeta automáticamente, y las palabras subrayadas (radiación, escudo, llamarada…) se pueden tocar para ver qué significan.', en: 'For slower readers: the 🗣️ button reads every card aloud automatically, and underlined words (radiation, shield, flare…) can be tapped to see what they mean.' },
       { es: 'No necesita cuenta ni instalar nada. Funciona en celular, tableta o computadora, en español o inglés, y puede leer los textos en voz alta. Después de abrirlo una vez, funciona sin internet.', en: 'No account or install needed. Works on phone, tablet or computer, in Spanish or English, and can read texts aloud. After opening it once, it works offline.' },
     ],
   },
