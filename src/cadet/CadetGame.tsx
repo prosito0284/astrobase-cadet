@@ -25,7 +25,8 @@ import SunPanel from './SunPanel';
 import BaseScene from './BaseScene';
 import { fetchSunNow } from './spaceweather';
 import type { SunNow } from './spaceweather';
-import { awardBadges, BADGES, parseBadges } from './badges';
+import { awardBadges, awardManual, BADGES, parseBadges } from './badges';
+import { buildQuiz } from './quiz';
 import { playSound } from './sound';
 import type { SoundKind } from './sound';
 import { DATA_SOURCES, GLOSSARY, REAL_STORMS, SITE_INFO } from './data';
@@ -203,6 +204,11 @@ const UI = {
   badges: { es: 'Tus insignias', en: 'Your badges' },
   newBadge: { es: '¡Nueva!', en: 'New!' },
   share: { es: 'Compartir mi resultado', en: 'Share my result' },
+  quizTitle: { es: 'Bitácora del cadete: ¿qué aprendiste?', en: 'Cadet log: what did you learn?' },
+  quizRight: { es: '✅ ¡Correcto!', en: '✅ Correct!' },
+  quizWrong: { es: '❌ La respuesta era: {a}', en: '❌ The answer was: {a}' },
+  quizScore: { es: 'Acertaste {n} de {t}.', en: 'You got {n} out of {t}.' },
+  quizPerfect: { es: '¡Perfecto! Eres Sabelotodo espacial. 🧠', en: 'Perfect! You are a Space know-it-all. 🧠' },
   copied: { es: '¡Copiado! Pégalo donde quieras.', en: 'Copied! Paste it anywhere.' },
   shareWon: {
     es: '¡Completé una misión de 10 días {x} en ASTROBASE CADET! {m} · Descubrimientos: {s} · Radiación: {d} mSv. ¿Puedes superarlo?',
@@ -460,6 +466,7 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
   const [freshBadges, setFreshBadges] = useState<string[]>([]);
   const [sun, setSun] = useState<SunNow | undefined>(undefined);
   const [shareMsg, setShareMsg] = useState('');
+  const [quizAnswers, setQuizAnswers] = useState<Record<number, number>>({});
   const [teacherPage, setTeacherPage] = useState(false);
   const [marsNow] = useState(() => {
     const t = Date.now();
@@ -510,6 +517,7 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
     setShowDiploma(false);
     setFreshBadges([]);
     setShareMsg('');
+    setQuizAnswers({});
     safeSet(LEVEL_KEY, level);
     setHintDay(null);
     setGame(createGame(where, Math.floor(Math.random() * 2 ** 31), liveStatus === 'ok' ? liveStorm : undefined, level));
@@ -517,6 +525,24 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
 
   const card = useMemo(() => (game && game.status === 'playing' ? currentCard(game) : null), [game]);
   const hints = !!game && LEVELS[game.level ?? 'normal'].hints;
+  const quiz = useMemo(() => (game && game.status !== 'playing' ? buildQuiz(game) : []), [game]);
+
+  const answerQuiz = (qi: number, oi: number) => {
+    if (quizAnswers[qi] !== undefined) return;
+    const next = { ...quizAnswers, [qi]: oi };
+    setQuizAnswers(next);
+    sfx(oi === quiz[qi].answer ? 'good' : 'bad');
+    const done = quiz.every((_, i) => next[i] !== undefined);
+    if (done && quiz.every((q, i) => next[i] === q.answer)) {
+      const award = awardManual(badges, 'quiz_master');
+      if (award.fresh.length) {
+        setBadges(award.all);
+        setFreshBadges(f => [...f, ...award.fresh]);
+        safeSet(BADGES_KEY, JSON.stringify(award.all));
+        sfx('win');
+      }
+    }
+  };
   const advice = useMemo(() => (game && hints && hintDay === game.day ? hint(game) : undefined), [game, hints, hintDay]);
 
   const pick = (i: 0 | 1) => {
@@ -898,6 +924,52 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
             <p className="text-xs text-slate-400 mt-1">{tr(UI.earthCompare)}</p>
             <p className="text-xs text-slate-400 mt-1">{tr(SITE_INFO[game.site].doseFact)}</p>
           </div>
+          {quiz.length > 0 && (
+            <div className="rounded-2xl bg-indigo-950/40 border border-indigo-500/40 p-3 text-left space-y-3">
+              <h3 className="font-black text-white">🧠 {tr(UI.quizTitle)}</h3>
+              {quiz.map((q, qi) => {
+                const picked = quizAnswers[qi];
+                return (
+                  <fieldset key={qi} className="space-y-1.5">
+                    <legend className="text-sm font-bold text-slate-100 mb-1">{qi + 1}. {tr(q.q)}</legend>
+                    <div className="grid gap-1.5">
+                      {q.options.map((o, oi) => {
+                        const state = picked === undefined ? 'idle' : oi === q.answer ? 'right' : oi === picked ? 'wrong' : 'off';
+                        return (
+                          <button
+                            key={oi}
+                            type="button"
+                            disabled={picked !== undefined}
+                            aria-pressed={picked === oi}
+                            onClick={() => answerQuiz(qi, oi)}
+                            className={`text-left text-sm rounded-xl px-3 py-2 border transition-colors ${
+                              state === 'right' ? 'border-emerald-400 bg-emerald-500/15 text-emerald-100'
+                                : state === 'wrong' ? 'border-rose-400 bg-rose-500/15 text-rose-100'
+                                  : state === 'off' ? 'border-slate-800 text-slate-400'
+                                    : 'border-slate-600 bg-slate-900 text-slate-100 hover:border-cyan-400'
+                            }`}
+                          >
+                            {tr(o)}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {picked !== undefined && (
+                      <p role="status" className={`text-xs font-bold ${picked === q.answer ? 'text-emerald-300' : 'text-rose-300'}`}>
+                        {picked === q.answer ? tr(UI.quizRight) : fill(tr(UI.quizWrong), { a: tr(q.options[q.answer]) })}
+                      </p>
+                    )}
+                  </fieldset>
+                );
+              })}
+              {quiz.every((_, i) => quizAnswers[i] !== undefined) && (
+                <p className="text-sm font-black text-white">
+                  {fill(tr(UI.quizScore), { n: quiz.filter((q, i) => quizAnswers[i] === q.answer).length, t: quiz.length })}
+                  {quiz.every((q, i) => quizAnswers[i] === q.answer) && <span className="block text-amber-300">{tr(UI.quizPerfect)}</span>}
+                </p>
+              )}
+            </div>
+          )}
           <RecordsTable records={records} lang={lang} />
           <div className="rounded-2xl bg-slate-950/70 border border-slate-800 p-3 text-left">
             <h3 className="font-black text-white mb-2">🏅 {tr(UI.badges)} <span className="text-slate-400 text-sm">{badges.length}/{BADGES.length}</span></h3>

@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { awardBadges, BADGES, parseBadges } from '../src/cadet/badges.ts';
+import { awardBadges, awardManual, BADGES, parseBadges } from '../src/cadet/badges.ts';
 import { choose, createGame, hint } from '../src/cadet/engine.ts';
 import type { CadetState } from '../src/cadet/engine.ts';
 import { addResult, emptyRecords } from '../src/cadet/records.ts';
@@ -59,7 +59,17 @@ describe('Cadet badges', () => {
     const most = (s: CadetState): number => (s.status !== 'playing' ? (s.status === 'won' ? s.stars : -1) : Math.max(most(choose(s, 0)), most(choose(s, 1))));
     assert.ok(most(createGame('moon', 1)) >= 3 || most(createGame('mars', 1)) >= 3, 'scientist reachable');
     have.add('scientist');
+    for (const id of awardManual([...have], 'quiz_master').fresh) have.add(id);
     for (const b of BADGES) assert.ok(have.has(b.id), `${b.id} not earned`);
+  });
+
+  it('manual badges are only given on purpose, once, and only if they are manual', () => {
+    assert.deepEqual(awardManual([], 'quiz_master').fresh, ['quiz_master']);
+    assert.deepEqual(awardManual(['quiz_master'], 'quiz_master').fresh, []);
+    assert.deepEqual(awardManual([], 'first_mission').fresh, []);
+    assert.deepEqual(awardManual([], 'nope').fresh, []);
+    const g = end({ stars: 9 });
+    assert.ok(!awardBadges([], g, addResult(emptyRecords(), g)).fresh.includes('quiz_master'));
   });
 
   it('survives corrupted saved data', () => {

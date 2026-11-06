@@ -9,6 +9,7 @@ export interface Badge {
   name: T;
   how: T;            // cómo se gana (se muestra aunque no la tengas)
   earned: (game: CadetState, records: Records) => boolean;
+  manual?: boolean;  // se da con awardManual (p. ej. al terminar el cuestionario)
 }
 
 const won = (g: CadetState) => g.status === 'won';
@@ -56,7 +57,22 @@ export const BADGES: Badge[] = [
     how: { es: 'Juega 5 misiones.', en: 'Play 5 missions.' },
     earned: (_g, r) => r.moon.plays + r.mars.plays >= 5,
   },
+  {
+    id: 'quiz_master',
+    icon: '🧠',
+    name: { es: 'Sabelotodo espacial', en: 'Space know-it-all' },
+    how: { es: 'Contesta bien todo el cuestionario final.', en: 'Answer the whole final quiz correctly.' },
+    earned: () => false,
+    manual: true,
+  },
 ];
+
+/** Da una insignia "manual" (que no depende solo de la partida). */
+export function awardManual(have: string[], id: string): { all: string[]; fresh: string[] } {
+  const badge = BADGES.find(b => b.id === id);
+  if (!badge?.manual || have.includes(id)) return { all: have, fresh: [] };
+  return { all: [...have, id], fresh: [id] };
+}
 
 /** Lee las insignias guardadas de forma tolerante (solo ids conocidos). */
 export function parseBadges(raw: string | null): string[] {
@@ -77,6 +93,6 @@ export function parseBadges(raw: string | null): string[] {
  */
 export function awardBadges(have: string[], game: CadetState, records: Records): { all: string[]; fresh: string[] } {
   if (game.status === 'playing') return { all: have, fresh: [] };
-  const fresh = BADGES.filter(b => !have.includes(b.id) && b.earned(game, records)).map(b => b.id);
+  const fresh = BADGES.filter(b => !b.manual && !have.includes(b.id) && b.earned(game, records)).map(b => b.id);
   return { all: [...have, ...fresh], fresh };
 }
