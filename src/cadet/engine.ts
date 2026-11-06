@@ -206,6 +206,39 @@ export function createGame(site: Site, seed: number, liveStorm?: SolarStorm, lev
   };
 }
 
+// ── Validar una partida guardada ──
+
+const isNum = (v: unknown, lo: number, hi: number) => typeof v === 'number' && Number.isFinite(v) && v >= lo && v <= hi;
+
+/**
+ * Comprueba que una partida leída del navegador se puede jugar sin romper nada:
+ * números en rango, mazo de 10 días con tarjetas que existen y son de ese sitio.
+ * Si algo no cuadra (versión vieja, datos dañados o editados a mano) se descarta.
+ */
+export function isValidSave(x: unknown): x is CadetState {
+  if (!x || typeof x !== 'object') return false;
+  const s = x as Partial<CadetState>;
+  if (s.site !== 'moon' && s.site !== 'mars') return false;
+  if (s.totalDays !== TOTAL_DAYS || !isNum(s.day, 1, TOTAL_DAYS + 1)) return false;
+  for (const k of ['air', 'energy', 'shield', 'health'] as const) if (!isNum(s[k], 0, 100)) return false;
+  if (!isNum(s.stars, 0, 99) || !isNum(s.doseMSv, 0, 10_000) || !isNum(s.seed, 0, 2 ** 32)) return false;
+  if (s.status !== 'playing' && s.status !== 'won' && s.status !== 'lost') return false;
+  if (s.level !== undefined && s.level !== 'easy' && s.level !== 'normal') return false;
+  if (s.status === 'playing' && (s.day as number) > TOTAL_DAYS) return false;
+  if (!Array.isArray(s.history) || !Array.isArray(s.deck) || s.deck.length !== TOTAL_DAYS) return false;
+  return s.deck.every((e, i) => {
+    if (!e || typeof e !== 'object') return false;
+    if (e.kind === 'storm') {
+      return STORM_DAYS.includes(i + 1) && typeof e.storm?.classType === 'string' && typeof e.storm?.story?.es === 'string';
+    }
+    if (e.kind === 'card') {
+      const card = DECISION_CARDS.find(c => c.id === e.cardId);
+      return !!card && card.sites.includes(s.site!);
+    }
+    return false;
+  });
+}
+
 // ── Tarjeta del día ──
 
 function cardById(id: string): DecisionCard {

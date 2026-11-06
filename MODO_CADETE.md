@@ -29,6 +29,11 @@ Respuesta al reto **NASA Space Apps: Build a Junior Astronaut Mission Trainer**.
 - **Guía para maestros y familias:** es imprimible e incluye objetivos, preguntas para conversar, una actividad sin pantalla ("Teléfono espacial") y un reto de matemáticas con la distancia a Marte de hoy.
 - **Funciona sin internet:** después de abrirlo una vez, un *service worker* guarda el juego en el navegador. Los datos en vivo nunca se guardan: si no hay red, el juego lo dice.
 - **Sonidos** cortos generados en el navegador (sin archivos), con volumen bajo y botón 🔊/🔇.
+- **Compartir:** el botón 📣 comparte (o copia) el resultado y el enlace. No incluye el nombre ni otros datos personales. El enlace muestra una imagen de vista previa (`public/og.png`).
+- **A prueba de errores:**
+  - Una partida guardada dañada o de una versión vieja se descarta (`isValidSave`, con tests) en vez de romper el juego.
+  - Si algo falla al dibujar, aparece "¡Uy! Perdimos la señal" con un botón para empezar de nuevo, y los récords no se pierden.
+- **Contraste:** todos los textos cumplen WCAG AA (contraste de 4.5:1 o más sobre el fondo).
 - **Carga rápida:** el Modo Cadete descarga unos 280 KB. El Modo Experto (Three.js, alrededor de 1 MB) solo se descarga si alguien lo abre.
 
 ## Datos de la NASA usados

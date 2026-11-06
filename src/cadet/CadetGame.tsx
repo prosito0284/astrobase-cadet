@@ -8,6 +8,7 @@ import {
   currentCard,
   energyFactor,
   hint,
+  isValidSave,
   LEVELS,
   fetchLiveStorm,
   medal,
@@ -57,9 +58,8 @@ function loadGame(): CadetState | null {
   const raw = safeGet(SAVE_KEY);
   if (!raw) return null;
   try {
-    const s = JSON.parse(raw) as CadetState;
-    if (!s || !Array.isArray(s.deck) || s.deck.length === 0 || typeof s.day !== 'number') return null;
-    return s;
+    const s: unknown = JSON.parse(raw);
+    return isValidSave(s) ? s : null;
   } catch { return null; }
 }
 
@@ -155,12 +155,12 @@ const UI = {
   diplomaTitleWon: { es: 'Diploma de Cadete Espacial', en: 'Space Cadet Certificate' },
   diplomaTitleLost: { es: 'Certificado de Entrenamiento Espacial', en: 'Space Training Certificate' },
   diplomaWon: {
-    es: 'completó una misión de 10 días en {x} y mantuvo a salvo a 4 astronautas.',
-    en: 'completed a 10-day mission on {x} and kept 4 astronauts safe.',
+    es: 'completó una misión de 10 días {x} y mantuvo a salvo a 4 astronautas.',
+    en: 'completed a 10-day mission {x} and kept 4 astronauts safe.',
   },
   diplomaLost: {
-    es: 'entrenó {n} días en {x} y aprendió a cuidar el aire, la energía y el escudo.',
-    en: 'trained for {n} days on {x} and learned to manage air, energy and shielding.',
+    es: 'entrenó {n} días {x} y aprendió a cuidar el aire, la energía y el escudo.',
+    en: 'trained for {n} days {x} and learned to manage air, energy and shielding.',
   },
   yourName: { es: 'Tu nombre (opcional, solo se guarda en este equipo)', en: 'Your name (optional, only saved on this device)' },
   namePlaceholder: { es: 'Cadete', en: 'Cadet' },
@@ -202,6 +202,16 @@ const UI = {
   recommended: { es: 'Recomendada', en: 'Recommended' },
   badges: { es: 'Tus insignias', en: 'Your badges' },
   newBadge: { es: '¡Nueva!', en: 'New!' },
+  share: { es: 'Compartir mi resultado', en: 'Share my result' },
+  copied: { es: '¡Copiado! Pégalo donde quieras.', en: 'Copied! Paste it anywhere.' },
+  shareWon: {
+    es: '¡Completé una misión de 10 días {x} en ASTROBASE CADET! {m} · Descubrimientos: {s} · Radiación: {d} mSv. ¿Puedes superarlo?',
+    en: 'I completed a 10-day mission {x} in ASTROBASE CADET! {m} · Discoveries: {s} · Radiation: {d} mSv. Can you beat it?',
+  },
+  shareLost: {
+    es: 'Entrené {n} días {x} en ASTROBASE CADET y aprendí a protegerme de las tormentas solares. ¿Lo intentas?',
+    en: 'I trained for {n} days {x} in ASTROBASE CADET and learned to protect myself from solar storms. Want to try?',
+  },
   soundOff: { es: 'Activar sonidos', en: 'Turn sounds on' },
   diplomaData: {
     es: "Datos reales de NASA: DONKI (tormentas solares), Curiosity RAD y Chang'e 4 (radiación), OSDR y DSN.",
@@ -223,6 +233,12 @@ const TIPS: T[] = [
     en: '🅰️🅱️ Each option shows what it costs: green adds and red takes away. None is free. Choose carefully!',
   },
 ];
+
+/** "en la Luna" / "en Marte" / "on the Moon" / "on Mars". */
+const SITE_IN: Record<Site, T> = {
+  moon: { es: 'en la Luna', en: 'on the Moon' },
+  mars: { es: 'en Marte', en: 'on Mars' },
+};
 
 const fill = (s: string, vars: Record<string, string | number>) =>
   s.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? ''));
@@ -254,7 +270,7 @@ function Bar({ icon, label, value, color, term, onTerm }: {
       <div className="flex items-center justify-between gap-1">
         <span className="font-bold text-sm sm:text-base text-slate-100 truncate">
           <span aria-hidden className="mr-1">{icon}</span>{label}
-          <span className="ml-1 text-[10px] text-slate-500 align-top">ⓘ</span>
+          <span className="ml-1 text-[10px] text-slate-400 align-top">ⓘ</span>
         </span>
         <span className={`font-black text-base sm:text-lg tabular-nums ${low ? 'text-red-400' : 'text-slate-100'}`}>{value}</span>
       </div>
@@ -443,6 +459,7 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
   const [badges, setBadges] = useState<string[]>(() => parseBadges(safeGet(BADGES_KEY)));
   const [freshBadges, setFreshBadges] = useState<string[]>([]);
   const [sun, setSun] = useState<SunNow | undefined>(undefined);
+  const [shareMsg, setShareMsg] = useState('');
   const [teacherPage, setTeacherPage] = useState(false);
   const [marsNow] = useState(() => {
     const t = Date.now();
@@ -492,6 +509,7 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
     setShowReport(false);
     setShowDiploma(false);
     setFreshBadges([]);
+    setShareMsg('');
     safeSet(LEVEL_KEY, level);
     setHintDay(null);
     setGame(createGame(where, Math.floor(Math.random() * 2 ** 31), liveStatus === 'ok' ? liveStorm : undefined, level));
@@ -744,7 +762,7 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
               title={storm ? tr(UI.stormDay) : `${tr(UI.day)} ${d}`}
               aria-label={`${tr(UI.day)} ${d}${storm ? ` · ${tr(UI.stormDay)}` : ''}`}
               aria-current={now ? 'step' : undefined}
-              className={`flex-1 h-7 rounded-lg flex items-center justify-center text-xs font-black border ${now ? 'border-white bg-white/15' : done ? 'border-slate-700 bg-slate-800 text-slate-500' : 'border-slate-700 bg-slate-900'}`}
+              className={`flex-1 h-7 rounded-lg flex items-center justify-center text-xs font-black border ${now ? 'border-white bg-white/15' : done ? 'border-slate-700 bg-slate-800 text-slate-400' : 'border-slate-700 bg-slate-900'}`}
             >
               {storm ? '☀️' : d}
             </div>
@@ -812,7 +830,7 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
   if (game.status !== 'playing' && showDiploma) {
     const won = game.status === 'won';
     const m = medal(game);
-    const where = `${tr(SITE_INFO[game.site].name)} (${tr(SITE_INFO[game.site].place)})`;
+    const where = `${tr(SITE_IN[game.site])} (${tr(SITE_INFO[game.site].place)})`;
     const today = new Intl.DateTimeFormat(lang === 'es' ? 'es-MX' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' }).format(diplomaTime);
     return shell(
       <section className="space-y-3">
@@ -893,7 +911,7 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
                     className={`rounded-xl p-2 border text-center ${fresh ? 'border-amber-400 bg-amber-500/15 animate-pulse' : has ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-slate-800 bg-slate-900/60'}`}
                   >
                     <div className={`text-2xl ${has ? '' : 'grayscale opacity-30'}`} aria-hidden>{b.icon}</div>
-                    <div className={`text-xs font-black ${has ? 'text-white' : 'text-slate-500'}`}>
+                    <div className={`text-xs font-black ${has ? 'text-white' : 'text-slate-400'}`}>
                       {tr(b.name)}{fresh && <span className="ml-1 text-amber-300">{tr(UI.newBadge)}</span>}
                     </div>
                     <div className="text-[10px] text-slate-400">{has ? '✅' : '🔒'} {tr(b.how)}</div>
@@ -913,6 +931,26 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
           <button type="button" onClick={() => { setDiplomaTime(Date.now()); setShowDiploma(true); }} className="w-full py-3.5 rounded-2xl text-lg font-black bg-gradient-to-r from-amber-400 to-orange-400 text-slate-950 hover:brightness-110">
             📜 {tr(UI.diploma)}
           </button>
+          <button
+            type="button"
+            onClick={async () => {
+              // Sin nombre ni datos personales: solo el resultado de la misión y el enlace.
+              const where = tr(SITE_IN[game.site]);
+              const text = won
+                ? fill(tr(UI.shareWon), { x: where, m: '⭐'.repeat(m) || '—', s: game.stars, d: game.doseMSv.toFixed(2) })
+                : fill(tr(UI.shareLost), { n: game.history.length, x: where });
+              const url = `${window.location.origin}${window.location.pathname}`;
+              try {
+                if (navigator.share) { await navigator.share({ title: 'ASTROBASE CADET', text, url }); return; }
+                await navigator.clipboard.writeText(`${text} ${url}`);
+                setShareMsg(tr(UI.copied));
+              } catch { /* el niño canceló o el navegador no deja: no pasa nada */ }
+            }}
+            className="w-full py-3 rounded-2xl text-base font-black bg-slate-800 border border-slate-600 text-white hover:bg-slate-700"
+          >
+            📣 {tr(UI.share)}
+          </button>
+          {shareMsg && <p role="status" className="text-sm text-emerald-300">{shareMsg}</p>}
           <div className="grid sm:grid-cols-2 gap-2">
             <button type="button" onClick={() => startGame(game.site)} className="py-3.5 rounded-2xl text-lg font-black bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-950 hover:brightness-110">
               🔁 {tr(UI.again)}

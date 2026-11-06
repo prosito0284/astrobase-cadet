@@ -87,7 +87,7 @@ export default function TeacherGuide({ lang, marsKm, onBack, labels }: {
           </ul>
         </div>
       ))}
-      <p className="text-xs text-slate-500">Troncos Intergalácticos · NASA Space Apps Challenge · astrobase-cadet-y2hf.vercel.app</p>
+      <p className="text-xs text-slate-400">Troncos Intergalácticos · NASA Space Apps Challenge · astrobase-cadet-y2hf.vercel.app</p>
     </section>
   );
 }
