@@ -15,6 +15,7 @@ Respuesta al reto **NASA Space Apps: Build a Junior Astronaut Mission Trainer**.
 - Bilingüe (ES/EN), con lectura en voz alta y un glosario de palabras difíciles. No necesita cuenta ni descarga.
 - Debajo de las barras se ve lo que pasa **cada día, pase lo que pase**: el aire que se respira y la energía que dan los paneles menos la que gastan las máquinas. Así el niño puede planear.
 - Un **doble toque** rápido en "Siguiente día" no elige sin querer la opción que aparece debajo del dedo.
+- **🏫 Modo clase (proyector):** agranda toda la letra y agrega a cada tarjeta una votación A/B con "Decidir por mayoría". Si hay empate, pide que la clase lo discuta.
 - **Códigos de misión para clases:** cada partida tiene un código (por ejemplo `LN-48213`: Luna, Normal, número 48213). Quien lo escriba al inicio, o abra `?mision=LN-48213`, juega exactamente la misma misión, así la clase puede comparar decisiones. Con código no se usa la tormenta en vivo, para que todos tengan lo mismo.
 - **Aviso de tormenta:** el día anterior a cada ☀️ el juego avisa cuánta energía cuesta subir el escudo y cuánta tienes.
 - **Cambios visibles:** después de cada día, cada barra muestra cuánto subió o bajó (+14, −6…).

@@ -38,7 +38,7 @@ import { playSound } from './sound';
 import type { SoundKind } from './sound';
 import { DATA_SOURCES, GLOSSARY, REAL_STORMS, SITE_INFO } from './data';
 import type { Lang, Site, SolarStorm, T } from './data';
-import { BADGES_KEY, LANG_KEY, LEVEL_KEY, LIVE_KEY, loadGame, NAME_KEY, readCachedLive, RECORDS_KEY, safeGet, safeSet, SAVE_KEY, SOUND_KEY, TUTORIAL_KEY } from './storage';
+import { BADGES_KEY, CLASS_KEY, LANG_KEY, LEVEL_KEY, LIVE_KEY, loadGame, NAME_KEY, readCachedLive, RECORDS_KEY, safeGet, safeSet, SAVE_KEY, SOUND_KEY, TUTORIAL_KEY } from './storage';
 import type { LiveStatus } from './storage';
 import { fill, SITE_IN, TIPS, UI } from './strings';
 import { Bar, EffectChips, Modal, RecordsTable, SignalRace } from './widgets';
@@ -119,6 +119,15 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
   const endTips = () => { setTip(null); safeSet(TUTORIAL_KEY, '1'); };
 
   const [soundOn, setSoundOn] = useState(() => safeGet(SOUND_KEY) !== '0');
+  // Modo clase: letra más grande para proyectar y votación A/B de todo el grupo.
+  const [classMode, setClassMode] = useState(() => safeGet(CLASS_KEY) === '1');
+  useEffect(() => {
+    safeSet(CLASS_KEY, classMode ? '1' : null);
+    document.documentElement.style.fontSize = classMode ? '125%' : '';
+    return () => { document.documentElement.style.fontSize = ''; };
+  }, [classMode]);
+  const [votes, setVotes] = useState<{ day: number; a: number; b: number }>({ day: 0, a: 0, b: 0 });
+  const [voteMsg, setVoteMsg] = useState('');
   useEffect(() => { safeSet(SOUND_KEY, soundOn ? null : '0'); }, [soundOn]);
   const sfx = useCallback((k: SoundKind) => { if (soundOn) playSound(k); }, [soundOn]);
 
@@ -254,6 +263,16 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
           className="px-2.5 py-1.5 rounded-xl text-xs font-black bg-slate-800 border border-slate-600 text-slate-200 hover:bg-slate-700"
         >
           {soundOn ? '🔊' : '🔇'}
+        </button>
+        <button
+          type="button"
+          onClick={() => setClassMode(!classMode)}
+          aria-pressed={classMode}
+          aria-label={classMode ? tr(UI.classOn) : tr(UI.classOff)}
+          title={classMode ? tr(UI.classOn) : tr(UI.classOff)}
+          className={`px-2.5 py-1.5 rounded-xl text-xs font-black border ${classMode ? 'bg-cyan-400 text-slate-950 border-cyan-400' : 'bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700'}`}
+        >
+          🏫
         </button>
         <button type="button" onClick={() => setLang(lang === 'es' ? 'en' : 'es')} className="px-2.5 py-1.5 rounded-xl text-xs font-black bg-slate-800 border border-slate-600 text-slate-200 hover:bg-slate-700" aria-label={lang === 'es' ? 'Switch to English' : 'Cambiar a español'}>
           {lang === 'es' ? 'EN' : 'ES'}
@@ -858,6 +877,42 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
             );
           })}
         </div>
+        {classMode && (() => {
+          const v = votes.day === game.day ? votes : { day: game.day, a: 0, b: 0 };
+          const change = (k: 'a' | 'b', d: number) => { setVoteMsg(''); setVotes({ ...v, [k]: Math.max(0, v[k] + d) }); };
+          return (
+            <div className="rounded-2xl border-2 border-cyan-500/50 bg-slate-950/70 p-3 space-y-2">
+              <p className="font-black text-white">🙋 {tr(UI.votes)}</p>
+              <div className="grid grid-cols-2 gap-2">
+                {(['a', 'b'] as const).map(k => {
+                  const name = k === 'a' ? 'A' : 'B';
+                  return (
+                    <div key={k} className="flex items-center justify-between gap-2 rounded-xl bg-slate-900 border border-slate-700 px-2 py-1.5">
+                      <span className="text-lg font-black text-white">{k === 'a' ? '🅰️' : '🅱️'} <span className="tabular-nums" aria-live="polite">{v[k]}</span></span>
+                      <span className="flex gap-1">
+                        <button type="button" onClick={() => change(k, -1)} aria-label={fill(tr(UI.voteLess), { x: name })} className="w-9 h-9 rounded-lg bg-slate-800 border border-slate-600 text-white font-black">−</button>
+                        <button type="button" onClick={() => change(k, 1)} aria-label={fill(tr(UI.voteFor), { x: name })} className="w-9 h-9 rounded-lg bg-cyan-400 text-slate-950 font-black">+</button>
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                onClick={e => {
+                  if (v.a + v.b === 0) { setVoteMsg(tr(UI.noVotes)); return; }
+                  if (v.a === v.b) { setVoteMsg(tr(UI.tie)); return; }
+                  setVoteMsg('');
+                  pick(v.a > v.b ? 0 : 1, e.timeStamp);
+                }}
+                className="w-full py-2.5 rounded-xl text-base font-black bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-950 hover:brightness-110"
+              >
+                {tr(UI.decide)}
+              </button>
+              {voteMsg && <p role="status" className="text-sm font-bold text-amber-200">{voteMsg}</p>}
+            </div>
+          );
+        })()}
       </section>
     </>,
   );

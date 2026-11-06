@@ -119,6 +119,20 @@ try {
   await go(BASE + '?mision=MF-31415');
   await click('Jugar esa misión'); await sleep(500);
   check('Código de misión arranca Marte en Fácil', (await has('Fácil')) && (await ev(`!!document.querySelector('svg[aria-label*="Marte"]')`)));
+  // Modo clase: letra grande + votación por mayoría.
+  await sleep(5600); // espera la cuenta regresiva
+  await ev(`[...document.querySelectorAll('button')].find(b=>b.getAttribute('aria-label')?.startsWith('Modo clase'))?.click()`); await sleep(200);
+  check('Modo clase agranda la letra', (await ev('document.documentElement.style.fontSize')) === '125%');
+  check('Modo clase: sin desborde horizontal en celular', await noOverflow());
+  const vote = l => ev(`[...document.querySelectorAll('button')].find(b=>b.getAttribute('aria-label')===${JSON.stringify('Un voto más para ')}+${JSON.stringify(l)})?.click()`);
+  await vote('A'); await vote('B'); await sleep(100);
+  await click('Decidir por mayoría'); await sleep(200);
+  check('Votación detecta empate', await has('Empate'));
+  await vote('A'); await sleep(600);
+  await click('Decidir por mayoría'); await sleep(400);
+  check('Votación decide por mayoría', await has('Esto pasó de verdad'));
+  await ev(`[...document.querySelectorAll('button')].find(b=>b.getAttribute('aria-label')?.startsWith('Modo clase'))?.click()`); await sleep(200);
+  check('Apagar modo clase restaura la letra', (await ev('document.documentElement.style.fontSize')) === '');
 
   // Sin internet (después de una visita con internet).
   await go(BASE + '?modo=cadete'); await sleep(2500);

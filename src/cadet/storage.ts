@@ -10,6 +10,7 @@ export const TUTORIAL_KEY = 'astrobase_cadet_tutorial_done';
 export const NAME_KEY = 'astrobase_cadet_name';
 export const RECORDS_KEY = 'astrobase_cadet_records_v1';
 export const SOUND_KEY = 'astrobase_cadet_sound';
+export const CLASS_KEY = 'astrobase_cadet_class_mode';
 export const LEVEL_KEY = 'astrobase_cadet_level';
 export const BADGES_KEY = 'astrobase_cadet_badges_v1';
 export type LiveStatus = 'loading' | 'ok' | 'fail';
