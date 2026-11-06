@@ -276,7 +276,7 @@ function Bar({ icon, label, value, color, term, onTerm }: {
       type="button"
       onClick={() => onTerm(term)}
       aria-label={`${label}: ${value} / 100${low ? ' ⚠️' : ''}`}
-      className={`text-left rounded-2xl border p-2.5 sm:p-3 bg-slate-900/80 transition-colors ${low ? 'border-red-500/70 animate-pulse' : 'border-slate-700/70 hover:border-slate-500'}`}
+      className={`text-left rounded-2xl border p-2.5 sm:p-3 bg-slate-900/80 transition-colors ${low ? 'border-red-500/70 cadet-glow-red' : 'border-slate-700/70 hover:border-slate-500'}`}
     >
       <div className="flex items-center justify-between gap-1">
         <span className="font-bold text-sm sm:text-base text-slate-100 truncate">
@@ -588,6 +588,22 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
     setShowReport(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  // Teclado: A / 1 elige la opción A y B / 2 la opción B en la tarjeta del día.
+  const cardOpen = !!card && !showReport && !modal && !teacherPage;
+  useEffect(() => {
+    if (!cardOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+      const k = e.key.toLowerCase();
+      if (k === 'a' || k === '1') pick(0, e.timeStamp);
+      else if (k === 'b' || k === '2') pick(1, e.timeStamp);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
 
   const header = (
     <header className="flex items-center justify-between gap-2 flex-wrap">
@@ -1005,7 +1021,7 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
                 return (
                   <li
                     key={b.id}
-                    className={`rounded-xl p-2 border text-center ${fresh ? 'border-amber-400 bg-amber-500/15 animate-pulse' : has ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-slate-800 bg-slate-900/60'}`}
+                    className={`rounded-xl p-2 border text-center ${fresh ? 'border-amber-400 bg-amber-500/15 cadet-glow-amber' : has ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-slate-800 bg-slate-900/60'}`}
                   >
                     <div className={`text-2xl ${has ? '' : 'grayscale opacity-30'}`} aria-hidden>{b.icon}</div>
                     <div className={`text-xs font-black ${has ? 'text-white' : 'text-slate-400'}`}>
@@ -1136,10 +1152,14 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
                 key={i}
                 type="button"
                 onClick={e => pick(idx, e.timeStamp)}
+                aria-keyshortcuts={idx === 0 ? 'A' : 'B'}
                 className={`text-left rounded-2xl p-4 border-2 bg-slate-950/70 hover:border-cyan-400 hover:bg-slate-900 active:scale-[0.99] transition-all ${rec ? 'border-emerald-400 ring-2 ring-emerald-400/40' : 'border-slate-600'}`}
               >
                 {rec && <div className="mb-1 inline-block text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-emerald-400 text-slate-950">🎧 {tr(UI.recommended)}</div>}
-                <div className="text-lg font-black text-white">{i === 0 ? '🅰️' : '🅱️'} {tr(o.label)}</div>
+                <div className="text-lg font-black text-white">
+                  {i === 0 ? '🅰️' : '🅱️'} {tr(o.label)}
+                  <kbd className="hidden sm:inline ml-2 align-middle text-[10px] font-bold px-1.5 py-0.5 rounded border border-slate-600 text-slate-400">{i === 0 ? 'A' : 'B'}</kbd>
+                </div>
                 <div className="text-sm text-slate-300 mt-0.5">{tr(o.detail)}</div>
                 <EffectChips effects={o.effects} stormHit={hit} lang={lang} />
                 {factor < 1 && (

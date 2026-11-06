@@ -36,7 +36,8 @@ Respuesta al reto **NASA Space Apps: Build a Junior Astronaut Mission Trainer**.
 - **A prueba de errores:**
   - Una partida guardada dañada o de una versión vieja se descarta (`isValidSave`, con tests) en vez de romper el juego.
   - Si algo falla al dibujar, aparece "¡Uy! Perdimos la señal" con un botón para empezar de nuevo, y los récords no se pierden.
-- **Contraste:** todos los textos cumplen WCAG AA (contraste de 4.5:1 o más sobre el fondo).
+- **Accesibilidad verificada:** pasé la auditoría automática **axe-core** (WCAG 2.1 A/AA y buenas prácticas) por cada pantalla: inicio, tarjeta con tutorial, reporte, fuentes, final con cuestionario e insignias, diploma y guía. Dio **0 fallas**.
+- **Teclado:** **A**/**1** elige la opción A y **B**/**2** la opción B. `Esc` cierra ventanas.
 - **Carga rápida:** el Modo Cadete descarga unos 280 KB. El Modo Experto (Three.js, alrededor de 1 MB) solo se descarga si alguien lo abre.
 
 ## Datos de la NASA usados

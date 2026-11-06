@@ -92,3 +92,12 @@
   #cadet-diploma { border: 6px double #0e7490 !important; page: diploma; }
   .cadet-no-print { display: none !important; }
 }
+
+/* Modo Cadete: resplandor que llama la atención SIN bajar la opacidad del texto
+   (animate-pulse lo hacía y rompía el contraste mínimo WCAG mientras parpadeaba). */
+@keyframes cadet-glow {
+  0%, 100% { box-shadow: 0 0 0 0 var(--cadet-glow, #f87171); }
+  50% { box-shadow: 0 0 0 4px var(--cadet-glow, #f87171); }
+}
+.cadet-glow-red { --cadet-glow: #ef444480; animation: cadet-glow 1.6s ease-in-out infinite; }
+.cadet-glow-amber { --cadet-glow: #fbbf2480; animation: cadet-glow 1.6s ease-in-out infinite; }
