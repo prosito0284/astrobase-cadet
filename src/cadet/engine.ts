@@ -19,6 +19,18 @@ export const TOTAL_DAYS = 10;
 export const STORM_DAYS = [1, 4, 7, 10];
 export const START = { air: 75, energy: 70, shield: 40, health: 100 };
 
+/**
+ * Niveles: "Fácil" para 7–9 años y "Normal" para 10–12. Fácil empieza con un poco
+ * más de energía y escudo, y Control de Misión da una pista cada día (ver hint()).
+ * Las tormentas hacen el mismo daño: ignorarlas sigue terminando mal en los dos
+ * niveles, que es la lección principal.
+ */
+export type Level = 'easy' | 'normal';
+export const LEVELS: Record<Level, { start: typeof START; airUse: number; stormFactor: number; hints: boolean }> = {
+  easy: { start: { air: 75, energy: 80, shield: 45, health: 100 }, airUse: 6, stormFactor: 1, hints: true },
+  normal: { start: START, airUse: 6, stormFactor: 1, hints: false },
+};
+
 /** Aire que respira el equipo cada día (neto, con el reciclador funcionando). */
 export const DAILY_AIR_USE = 6;
 /** Energía que gastan cada día las máquinas que mantienen viva la base. */
@@ -66,6 +78,7 @@ export interface CadetState {
   seed: number;
   deck: DeckEntry[];
   status: Status;
+  level?: Level;            // sin nivel (partidas guardadas antiguas) = 'normal'
   lostReason?: LostReason;
   lastReport?: DayReport;
   history: { day: number; title: T; choice: T }[];
@@ -177,12 +190,13 @@ export function buildDeck(site: Site, seed: number, liveStorm?: SolarStorm): Dec
   return deck;
 }
 
-export function createGame(site: Site, seed: number, liveStorm?: SolarStorm): CadetState {
+export function createGame(site: Site, seed: number, liveStorm?: SolarStorm, level: Level = 'normal'): CadetState {
   return {
     site,
+    level,
     day: 1,
     totalDays: TOTAL_DAYS,
-    ...START,
+    ...LEVELS[level].start,
     stars: 0,
     doseMSv: 0,
     seed,
@@ -259,6 +273,9 @@ export function currentCard(state: CadetState): CardView {
   };
 }
 
+const levelOf = (state: CadetState) => LEVELS[state.level ?? 'normal'];
+const levelDamage = (state: CadetState, dmg: number) => Math.round(dmg * levelOf(state).stormFactor);
+
 /** Lo que el niño ve ANTES de elegir: cuánto le quitará la tormenta con cada opción. */
 export function previewStormDamage(state: CadetState, optionIndex: 0 | 1): number | undefined {
   const entry = state.deck[state.day - 1];
@@ -266,7 +283,7 @@ export function previewStormDamage(state: CadetState, optionIndex: 0 | 1): numbe
   const view = currentCard(state);
   const eff = view.options[optionIndex].effects;
   const shieldAfter = clamp(state.shield + (eff.shield ?? 0) * energyFactor(state.energy, eff));
-  return stormDamage(flarePower(entry.storm.classType), shieldAfter);
+  return levelDamage(state, stormDamage(flarePower(entry.storm.classType), shieldAfter));
 }
 
 // ── Elegir una opción y cerrar el día ──
@@ -335,7 +352,7 @@ export function choose(state: CadetState, optionIndex: 0 | 1): CadetState {
   let doseToday = 0;
   if (entry.kind === 'storm') {
     const power = flarePower(entry.storm.classType);
-    const dmg = stormDamage(power, shield);
+    const dmg = levelDamage(state, stormDamage(power, shield));
     const sDose = stormDose(power, shield);
     health = clamp(health - dmg);
     doseToday += sDose;
@@ -370,11 +387,12 @@ export function choose(state: CadetState, optionIndex: 0 | 1): CadetState {
   }
 
   // 3) La rutina de cada día
-  air = clamp(air - DAILY_AIR_USE);
+  const airUse = levelOf(state).airUse;
+  air = clamp(air - airUse);
   lines.push({
     icon: '🫁',
     tone: 'neutral',
-    text: { es: `El equipo respiró: −${DAILY_AIR_USE} de aire.`, en: `The crew breathed: −${DAILY_AIR_USE} air.` },
+    text: { es: `El equipo respiró: −${airUse} de aire.`, en: `The crew breathed: −${airUse} air.` },
   });
 
   const solar = SITE_INFO[state.site].solarGain;
@@ -476,6 +494,27 @@ export function choose(state: CadetState, optionIndex: 0 | 1): CadetState {
 }
 
 /** Medalla final: 1 a 3 estrellas según salud del equipo y descubrimientos. */
+// ── Pista de Control de Misión (nivel Fácil) ──
+
+/** Mejor resultado alcanzable desde aquí: salud final + 10 por descubrimiento; −1 si ya no se puede ganar. */
+export function bestScore(state: CadetState): number {
+  if (state.status === 'won') return state.health + 10 * state.stars;
+  if (state.status === 'lost') return -1;
+  return Math.max(bestScore(choose(state, 0)), bestScore(choose(state, 1)));
+}
+
+/**
+ * La opción que recomienda Control de Misión: la que todavía permite ganar con el
+ * mejor resultado. Mira todas las combinaciones de los días que faltan (como mucho
+ * 2^10 = 1024), así que es exacta y rápida. Devuelve undefined si la partida terminó.
+ */
+export function hint(state: CadetState): { option: 0 | 1; canWin: boolean } | undefined {
+  if (state.status !== 'playing') return undefined;
+  const a = bestScore(choose(state, 0));
+  const b = bestScore(choose(state, 1));
+  return { option: b > a ? 1 : 0, canWin: Math.max(a, b) >= 0 };
+}
+
 export function medal(state: CadetState): number {
   if (state.status !== 'won') return 0;
   let m = 1;

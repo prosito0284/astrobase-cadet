@@ -7,13 +7,15 @@ import {
   createGame,
   currentCard,
   energyFactor,
+  hint,
+  LEVELS,
   fetchLiveStorm,
   medal,
   previewStormDamage,
   STORM_DAYS,
   xrays,
 } from './engine';
-import type { CadetState } from './engine';
+import type { CadetState, Level } from './engine';
 import { earthMarsDistanceKm, lightDelaySeconds, marsDelayMinutes, MOON_KM } from './orbit';
 import { addResult, parseRecords } from './records';
 import type { Records } from './records';
@@ -30,6 +32,7 @@ const TUTORIAL_KEY = 'astrobase_cadet_tutorial_done';
 const NAME_KEY = 'astrobase_cadet_name';
 const RECORDS_KEY = 'astrobase_cadet_records_v1';
 const SOUND_KEY = 'astrobase_cadet_sound';
+const LEVEL_KEY = 'astrobase_cadet_level';
 const COMM_CARDS = ['air_alarm', 'call_home'];
 
 type LiveStatus = 'loading' | 'ok' | 'fail';
@@ -60,7 +63,8 @@ function readCachedLive(): { status: LiveStatus; storm?: SolarStorm } | null {
     const cached = sessionStorage.getItem(LIVE_KEY);
     if (!cached) return null;
     const parsed = JSON.parse(cached) as SolarStorm | null;
-    return parsed ? { status: 'ok', storm: parsed } : { status: 'fail' };
+    // Solo se guardan los éxitos: un fallo pasajero se vuelve a intentar al recargar.
+    return parsed ? { status: 'ok', storm: parsed } : null;
   } catch {
     return null;
   }
@@ -176,6 +180,20 @@ const UI = {
   lowestDose: { es: 'Menor radiación (ganando)', en: 'Lowest radiation (winning)' },
   teachers: { es: 'Guía para maestros y familias', en: 'Guide for teachers and families' },
   soundOn: { es: 'Silenciar sonidos', en: 'Mute sounds' },
+  pickLevel: { es: '¿Qué nivel quieres?', en: 'Which level do you want?' },
+  easy: { es: 'Fácil', en: 'Easy' },
+  easyAge: { es: '7 a 9 años · con ayuda de Control de Misión', en: 'Ages 7–9 · with help from Mission Control' },
+  normal: { es: 'Normal', en: 'Normal' },
+  normalAge: { es: '10 a 12 años · decides tú solo', en: 'Ages 10–12 · you decide on your own' },
+  askHint: { es: '🎧 Pedir ayuda a Control de Misión', en: '🎧 Ask Mission Control for help' },
+  hintPick: { es: '🎧 Control de Misión: te recomendamos la opción {x}.', en: '🎧 Mission Control: we recommend option {x}.' },
+  hintStorm: { es: 'Viene una tormenta: protege a tu equipo.', en: 'A storm is coming: protect your crew.' },
+  hintPlan: { es: 'Así todavía tendrás aire y energía para los próximos días.', en: 'That way you\'ll still have air and energy for the next days.' },
+  hintHard: {
+    es: '🎧 Control de Misión: la misión está muy difícil. ¡Elige lo que creas mejor y aprende para la próxima!',
+    en: '🎧 Mission Control: the mission is very hard now. Choose what you think is best and learn for next time!',
+  },
+  recommended: { es: 'Recomendada', en: 'Recommended' },
   soundOff: { es: 'Activar sonidos', en: 'Turn sounds on' },
   diplomaData: {
     es: "Datos reales de NASA: DONKI (tormentas solares), Curiosity RAD y Chang'e 4 (radiación), OSDR y DSN.",
@@ -409,6 +427,8 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
   const [showReport, setShowReport] = useState(false);
   const [modal, setModal] = useState<null | 'sources' | 'words' | string>(null);
   const [tip, setTip] = useState<number | null>(() => (safeGet(TUTORIAL_KEY) ? null : 0));
+  const [level, setLevel] = useState<Level>(() => (safeGet(LEVEL_KEY) === 'easy' ? 'easy' : 'normal'));
+  const [hintDay, setHintDay] = useState<number | null>(null);
   const [showDiploma, setShowDiploma] = useState(false);
   const [diplomaTime, setDiplomaTime] = useState(0);
   const [records, setRecords] = useState<Records>(() => parseRecords(safeGet(RECORDS_KEY)));
@@ -422,6 +442,7 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
   const [cachedLive] = useState(readCachedLive);
   const [liveStatus, setLiveStatus] = useState<LiveStatus>(cachedLive ? cachedLive.status : 'loading');
   const [liveStorm, setLiveStorm] = useState<SolarStorm | undefined>(cachedLive?.storm);
+  const [liveAttempt, setLiveAttempt] = useState(0);
 
   useEffect(() => { safeSet(LANG_KEY, lang); }, [lang]);
   useEffect(() => { safeSet(SAVE_KEY, game ? JSON.stringify(game) : null); }, [game]);
@@ -441,19 +462,25 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
       if (cancelled) return;
       setLiveStorm(storm);
       setLiveStatus(storm ? 'ok' : 'fail');
-      try { sessionStorage.setItem(LIVE_KEY, JSON.stringify(storm ?? null)); } catch { /* ignorar */ }
+      if (storm) {
+        try { sessionStorage.setItem(LIVE_KEY, JSON.stringify(storm)); } catch { /* ignorar */ }
+      }
     });
     return () => { cancelled = true; };
-  }, [cachedLive]);
+  }, [cachedLive, liveAttempt]);
 
   const startGame = (where: Site) => {
     setSite(where);
     setShowReport(false);
     setShowDiploma(false);
-    setGame(createGame(where, Math.floor(Math.random() * 2 ** 31), liveStatus === 'ok' ? liveStorm : undefined));
+    safeSet(LEVEL_KEY, level);
+    setHintDay(null);
+    setGame(createGame(where, Math.floor(Math.random() * 2 ** 31), liveStatus === 'ok' ? liveStorm : undefined, level));
   };
 
   const card = useMemo(() => (game && game.status === 'playing' ? currentCard(game) : null), [game]);
+  const hints = !!game && LEVELS[game.level ?? 'normal'].hints;
+  const advice = useMemo(() => (game && hints && hintDay === game.day ? hint(game) : undefined), [game, hints, hintDay]);
 
   const pick = (i: 0 | 1) => {
     if (!game) return;
@@ -520,7 +547,18 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
     <p className={`text-sm rounded-2xl px-3 py-2 border ${liveStatus === 'ok' ? 'bg-amber-500/10 border-amber-500/40 text-amber-200' : liveStatus === 'fail' ? 'bg-slate-800/60 border-slate-700 text-slate-300' : 'bg-slate-800/60 border-slate-700 text-slate-400'}`}>
       {liveStatus === 'loading' && <>⏳ {tr(UI.liveLoading)}</>}
       {liveStatus === 'ok' && liveStorm && <>☀️ {fill(tr(liveStorm.liveSource === 'swpc' ? UI.liveOkSwpc : UI.liveOk), { c: liveStorm.classType, d: liveStorm.date })}</>}
-      {liveStatus === 'fail' && <>💾 {tr(UI.liveFail)}</>}
+      {liveStatus === 'fail' && (
+        <>
+          💾 {tr(UI.liveFail)}{' '}
+          <button
+            type="button"
+            onClick={() => { setLiveStatus('loading'); setLiveAttempt(n => n + 1); }}
+            className="ml-1 px-2 py-0.5 rounded-lg text-xs font-black bg-slate-700 text-slate-100 hover:bg-slate-600"
+          >
+            🔄 {lang === 'es' ? 'Reintentar' : 'Retry'}
+          </button>
+        </>
+      )}
     </p>
   );
 
@@ -623,6 +661,22 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
             🔴 {fill(tr(UI.marsToday), { km: marsNow.km, m: marsNow.min })}
           </p>
         )}
+        <h2 className="text-xl font-black text-white">{tr(UI.pickLevel)}</h2>
+        <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label={tr(UI.pickLevel)}>
+          {(['easy', 'normal'] as Level[]).map(l => (
+            <button
+              key={l}
+              type="button"
+              role="radio"
+              aria-checked={level === l}
+              onClick={() => setLevel(l)}
+              className={`rounded-3xl p-3 border-2 text-left transition-all ${level === l ? 'border-emerald-400 bg-emerald-500/10' : 'border-slate-700 bg-slate-900/70 hover:border-slate-500'}`}
+            >
+              <div className="text-lg font-black">{l === 'easy' ? '🌱' : '🚀'} {tr(l === 'easy' ? UI.easy : UI.normal)}</div>
+              <div className="text-xs text-slate-400 mt-0.5">{tr(l === 'easy' ? UI.easyAge : UI.normalAge)}</div>
+            </button>
+          ))}
+        </div>
         {liveBanner}
         <button
           type="button"
@@ -644,6 +698,9 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
       <div className="flex items-center justify-between gap-2">
         <span className="font-black text-white">
           {game.site === 'moon' ? '🌕' : '🔴'} {tr(UI.day)} {Math.min(game.day, game.totalDays)} {tr(UI.of)} {game.totalDays}
+          <span className="ml-2 align-middle text-[10px] font-black uppercase px-1.5 py-0.5 rounded-md bg-slate-800 text-slate-300">
+            {(game.level ?? 'normal') === 'easy' ? `🌱 ${tr(UI.easy)}` : `🚀 ${tr(UI.normal)}`}
+          </span>
         </span>
         <span className="font-black text-amber-300">⭐ {game.stars} <span className="text-xs text-slate-400 font-bold">{tr(UI.discoveries)}</span></span>
       </div>
@@ -872,19 +929,33 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
           )}
         </p>
         {COMM_CARDS.includes(c.id) && <SignalRace key={`${game.day}-${game.site}`} site={game.site} lang={lang} marsMin={marsNow.min} sfx={sfx} />}
+        {hints && !advice && (
+          <button type="button" onClick={() => setHintDay(game.day)} className="w-full py-2.5 rounded-2xl text-sm font-black bg-emerald-500/15 border border-emerald-400/50 text-emerald-200 hover:bg-emerald-500/25">
+            {tr(UI.askHint)}
+          </button>
+        )}
+        {advice && (
+          <p role="status" className="rounded-2xl px-3 py-2.5 text-sm sm:text-base border border-emerald-400/60 bg-emerald-500/10 text-emerald-50">
+            {advice.canWin
+              ? <>{fill(tr(UI.hintPick), { x: advice.option === 0 ? 'A' : 'B' })} {tr(c.storm ? UI.hintStorm : UI.hintPlan)}</>
+              : tr(UI.hintHard)}
+          </p>
+        )}
         <p className="text-sm font-bold text-slate-400">{tr(UI.choose)}:</p>
         <div className="grid sm:grid-cols-2 gap-3">
           {c.options.map((o, i) => {
             const idx = i as 0 | 1;
             const factor = energyFactor(game.energy, o.effects);
             const hit = previewStormDamage(game, idx);
+            const rec = advice?.canWin && advice.option === idx;
             return (
               <button
                 key={i}
                 type="button"
                 onClick={() => pick(idx)}
-                className="text-left rounded-2xl p-4 border-2 border-slate-600 bg-slate-950/70 hover:border-cyan-400 hover:bg-slate-900 active:scale-[0.99] transition-all"
+                className={`text-left rounded-2xl p-4 border-2 bg-slate-950/70 hover:border-cyan-400 hover:bg-slate-900 active:scale-[0.99] transition-all ${rec ? 'border-emerald-400 ring-2 ring-emerald-400/40' : 'border-slate-600'}`}
               >
+                {rec && <div className="mb-1 inline-block text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-emerald-400 text-slate-950">🎧 {tr(UI.recommended)}</div>}
                 <div className="text-lg font-black text-white">{i === 0 ? '🅰️' : '🅱️'} {tr(o.label)}</div>
                 <div className="text-sm text-slate-300 mt-0.5">{tr(o.detail)}</div>
                 <EffectChips effects={o.effects} stormHit={hit} lang={lang} />

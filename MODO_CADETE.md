@@ -11,8 +11,13 @@ Respuesta al reto **NASA Space Apps: Build a Junior Astronaut Mission Trainer**.
 - **No se puede gastar energía que no hay**: si falta energía, la acción solo funciona en proporción.
 - Antes de elegir se muestra el costo de cada opción, incluido el daño que haría la tormenta.
 - Después de cada día se explica qué cambió y por qué, con una línea de **"Esto pasó de verdad"** y su fuente.
-- El orden de las tarjetas cambia en cada partida. Perder no castiga: da una pista y permite volver a intentar.
+- Hay **16 tarjetas** (11 para la Luna y 12 para Marte). Cada partida usa 6, en un orden distinto cada vez. Perder no castiga: da una pista y permite volver a intentar.
 - Bilingüe (ES/EN), con lectura en voz alta y un glosario de palabras difíciles. No necesita cuenta ni descarga.
+- **Dos niveles:**
+  - **🌱 Fácil (7–9 años):** se empieza con un poco más de energía y escudo, y el botón **🎧 Pedir ayuda a Control de Misión** recomienda una opción. La pista sale de una búsqueda completa de todos los días que faltan, así que seguirla siempre gana (está probado en los tests).
+  - **🚀 Normal (10–12 años):** sin pistas.
+
+  Las tormentas hacen el mismo daño en los dos niveles, así que ignorarlas siempre termina mal.
 - La primera partida empieza con un **tutorial guiado** de 3 pasos. Se puede repetir con el botón **❓ Cómo jugar**.
 - Al terminar, el niño puede escribir su nombre e **imprimir un diploma** con su medalla, sus descubrimientos y la radiación recibida. El nombre solo se guarda en ese equipo.
 - **Accesibilidad:** las barras y el calendario tienen etiquetas para lectores de pantalla y el foco del teclado se ve claramente. `Esc` cierra las ventanas, y si el sistema pide menos movimiento se quitan las animaciones.
@@ -31,6 +36,7 @@ Respuesta al reto **NASA Space Apps: Build a Junior Astronaut Mission Trainer**.
 | **NOAA SWPC — GOES X-ray flares** (respaldo) | Si DONKI falla, la llamarada más fuerte de los últimos 7 días medida por los satélites GOES. Si fue pequeña, el juego dice que el Sol estuvo tranquilo. | **En vivo** (`services.swpc.noaa.gov`). Si tampoco responde, el juego lo dice y usa datos guardados. |
 | 6 llamaradas clase X reales (2017 y 2024) | El resto de las tormentas. | Guardado |
 | Curiosity RAD (Marte 0.64 mSv/día) · Chang'e 4 LND (Luna 1.37 mSv/día) | La radiación diaria de fondo, reducida por el escudo, y su equivalente en radiografías. | Guardado |
+| ISS ECLSS (98 % del agua recuperada) · Phoenix (percloratos) · InSight (polvo en los paneles) · Perseverance · Orbital Debris Program Office (escudos Whipple) | Las tarjetas nuevas de agua, polvo salado, paneles con polvo, viaje en rover y piedritas espaciales. | Guardado |
 | OSDR · Veggie · Human Research Program | El costo de los experimentos, de las plantas y del ejercicio (pérdida ósea de 1–1.5 % al mes). | Guardado |
 | **JPL — elementos orbitales aproximados** | La distancia Tierra–Marte de hoy y el retraso del mensaje. Error menor al 5 % (probado contra los acercamientos de 2003, 2020 y 2025). | **Calculado** con la fecha de hoy. No es un dato en vivo, y el juego lo dice. |
 | MOXIE · Opportunity · LCROSS · Artemis · DSN | Las tarjetas de oxígeno marciano, tormenta de polvo, hielo lunar, noche lunar y retraso de las comunicaciones (1.3 s a la Luna, de 3 a 22 min a Marte según dónde esté). | Guardado |

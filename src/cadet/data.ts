@@ -158,6 +158,184 @@ export interface DecisionCard {
 
 export const DECISION_CARDS: DecisionCard[] = [
   {
+    id: 'water_recycle',
+    sites: ['moon', 'mars'],
+    icon: '💧',
+    title: { es: 'El reciclador de agua', en: 'The water recycler' },
+    text: {
+      es: 'El agua es muy pesada para traerla desde la Tierra. La máquina de reciclaje limpia el agua usada… pero gasta energía.',
+      en: 'Water is too heavy to bring from Earth. The recycling machine cleans used water… but it uses energy.',
+    },
+    options: [
+      {
+        label: { es: 'Encender el reciclador', en: 'Turn on the recycler' },
+        detail: { es: 'Agua limpia para todos, pero gasta energía', en: 'Clean water for everyone, but it uses energy' },
+        effects: { energy: -12, health: 6 },
+        outcome: { es: 'El reciclador limpió el agua y el equipo bebió y se aseó bien.', en: 'The recycler cleaned the water and the crew drank and washed well.' },
+      },
+      {
+        label: { es: 'Usar solo el agua guardada', en: 'Use only stored water' },
+        detail: { es: 'Ahorras energía, pero hay que racionar el agua', en: 'Save energy, but water must be rationed' },
+        effects: { health: -7 },
+        outcome: { es: 'Ahorraste energía, pero con poca agua el equipo se sintió cansado.', en: 'You saved energy, but with little water the crew felt tired.' },
+      },
+    ],
+    fact: {
+      es: 'En la Estación Espacial se recupera el 98% del agua, ¡incluso la del sudor y la orina! La máquina la limpia hasta dejarla más pura que el agua de la llave.',
+      en: 'On the Space Station 98% of the water is recovered, even from sweat and urine! The machine cleans it until it is purer than tap water.',
+    },
+    source: { name: 'NASA — Water recovery milestone on the ISS', url: 'https://www.nasa.gov/missions/station/iss-research/nasa-achieves-water-recovery-milestone-on-international-space-station/' },
+  },
+  {
+    id: 'sleep_lights',
+    sites: ['moon', 'mars'],
+    icon: '😴',
+    title: { es: 'El equipo no puede dormir', en: 'The crew can\'t sleep' },
+    text: {
+      es: 'Afuera el día y la noche no duran lo mismo que en la Tierra, y el equipo está confundido.',
+      en: 'Outside, day and night don\'t last as long as on Earth, and the crew is confused.',
+    },
+    textBySite: {
+      moon: { es: 'En la Luna un día dura casi un mes de la Tierra. El equipo está confundido y no puede dormir.', en: 'On the Moon one day lasts almost a month on Earth. The crew is confused and can\'t sleep.' },
+      mars: { es: 'En Marte un día (un "sol") dura 24 horas y 40 minutos. Los relojes se desfasan y el equipo duerme mal.', en: 'On Mars a day (a "sol") lasts 24 hours and 40 minutes. Clocks drift and the crew sleeps badly.' },
+    },
+    options: [
+      {
+        label: { es: 'Luces especiales para dormir', en: 'Special sleep lights' },
+        detail: { es: 'Luces que cambian de color como el cielo; gastan energía', en: 'Lights that change color like the sky; they use energy' },
+        effects: { energy: -8, health: 8 },
+        outcome: { es: 'Las luces imitaron el atardecer y todos durmieron profundo.', en: 'The lights copied the sunset and everyone slept deeply.' },
+      },
+      {
+        label: { es: 'Aprovechar para trabajar', en: 'Use the time to work' },
+        detail: { es: '+1 descubrimiento, pero el equipo queda agotado', en: '+1 discovery, but the crew gets exhausted' },
+        effects: { stars: 1, health: -10 },
+        outcome: { es: '¡Descubrimiento! Pero sin dormir, el equipo está agotado.', en: 'Discovery! But without sleep, the crew is exhausted.' },
+      },
+    ],
+    fact: {
+      es: 'Dormir bien en el espacio es difícil. La NASA estudia cómo la luz de distintos colores ayuda al cuerpo a saber cuándo es de día y cuándo es de noche.',
+      en: 'Sleeping well in space is hard. NASA studies how light of different colors helps the body know when it is day and when it is night.',
+    },
+    source: { name: 'NASA — Human Research Program', url: 'https://www.nasa.gov/hrp/' },
+  },
+  {
+    id: 'micrometeorite',
+    sites: ['moon'],
+    icon: '☄️',
+    title: { es: '¡Una piedrita espacial golpeó la base!', en: 'A tiny space rock hit the base!' },
+    text: {
+      es: 'La Luna no tiene aire que frene las piedritas del espacio. Una del tamaño de un grano de arena hizo un hoyito y se escapa un poco de aire.',
+      en: 'The Moon has no air to slow down space rocks. One the size of a grain of sand made a tiny hole and some air is leaking.',
+    },
+    options: [
+      {
+        label: { es: 'Salir a parcharlo', en: 'Go out and patch it' },
+        detail: { es: 'Caminata con traje espacial: cansa y da radiación', en: 'Spacewalk in a suit: tiring and you get radiation' },
+        effects: { health: -6, shield: 5 },
+        outcome: { es: 'Dos astronautas salieron, taparon el hoyo y reforzaron la pared.', en: 'Two astronauts went out, sealed the hole and reinforced the wall.' },
+      },
+      {
+        label: { es: 'Dejarlo para después', en: 'Leave it for later' },
+        detail: { es: 'Nadie sale, pero se escapa aire todo el día', en: 'Nobody goes out, but air leaks all day' },
+        effects: { air: -12 },
+        outcome: { es: 'Nadie salió, pero el hoyito dejó escapar mucho aire.', en: 'Nobody went out, but the tiny hole let a lot of air escape.' },
+      },
+    ],
+    fact: {
+      es: 'La Estación Espacial usa "escudos Whipple": una capa delgada separada de la pared que rompe las piedritas antes de que lleguen a la nave.',
+      en: 'The Space Station uses "Whipple shields": a thin layer set apart from the wall that breaks up tiny rocks before they reach the ship.',
+    },
+    source: { name: 'NASA — Orbital Debris Program Office', url: 'https://orbitaldebris.jsc.nasa.gov/' },
+  },
+  {
+    id: 'rover_trip',
+    sites: ['mars'],
+    icon: '🚙',
+    title: { es: 'Viaje en el rover', en: 'Rover trip' },
+    text: {
+      es: 'Muy cerca hay un antiguo delta de río con rocas que podrían guardar pistas de vida antigua.',
+      en: 'Nearby there is an ancient river delta with rocks that could hold clues of ancient life.',
+    },
+    options: [
+      {
+        label: { es: 'Ir a buscar rocas', en: 'Go look for rocks' },
+        detail: { es: '+1 descubrimiento, pero el rover gasta energía', en: '+1 discovery, but the rover uses energy' },
+        effects: { energy: -18, stars: 1 },
+        outcome: { es: '¡Encontraron una roca con capas como las de un río! Gran descubrimiento.', en: 'They found a rock with layers like a river\'s! Great discovery.' },
+      },
+      {
+        label: { es: 'Quedarse en la base', en: 'Stay at the base' },
+        detail: { es: 'Ahorras energía, pero no hay descubrimiento', en: 'Save energy, but no discovery' },
+        effects: {},
+        outcome: { es: 'Guardaste energía. Las rocas seguirán ahí otro día.', en: 'You saved energy. The rocks will still be there another day.' },
+      },
+    ],
+    fact: {
+      es: 'El rover Perseverance explora el cráter Jezero, donde hace mucho hubo un lago. Guarda muestras de rocas en tubos para que algún día se traigan a la Tierra.',
+      en: 'The Perseverance rover explores Jezero crater, where there was once a lake. It stores rock samples in tubes so they can someday be brought to Earth.',
+    },
+    source: { name: 'NASA — Mars 2020 Perseverance', url: 'https://science.nasa.gov/mission/mars-2020-perseverance/' },
+  },
+  {
+    id: 'perchlorate',
+    sites: ['mars'],
+    icon: '🧂',
+    title: { es: 'Polvo salado en los trajes', en: 'Salty dust on the suits' },
+    text: {
+      es: 'Los trajes regresaron llenos de polvo rojo. Tiene unas sales que no son buenas si se respiran.',
+      en: 'The suits came back covered in red dust. It has salts that are bad to breathe.',
+    },
+    options: [
+      {
+        label: { es: 'Limpiar los trajes afuera', en: 'Clean the suits outside' },
+        detail: { es: 'Las aspiradoras gastan energía', en: 'The vacuums use energy' },
+        effects: { energy: -10 },
+        outcome: { es: 'Limpiaron todo antes de entrar: la base quedó sin polvo.', en: 'They cleaned everything before coming in: the base stayed dust-free.' },
+      },
+      {
+        label: { es: 'Entrar así', en: 'Go in like that' },
+        detail: { es: 'Ahorras energía, pero el polvo entra a la base', en: 'Save energy, but the dust gets into the base' },
+        effects: { health: -10 },
+        outcome: { es: 'El polvo se metió en la base y a varios les dio tos.', en: 'The dust got into the base and several people started coughing.' },
+      },
+    ],
+    fact: {
+      es: 'En 2008 la sonda Phoenix de la NASA encontró percloratos en el suelo de Marte. Son sales que pueden dañar la salud, pero también podrían servir algún día para hacer oxígeno o combustible.',
+      en: 'In 2008 NASA\'s Phoenix lander found perchlorates in the Martian soil. These salts can harm health, but someday they might also help make oxygen or fuel.',
+    },
+    source: { name: 'NASA — Phoenix', url: 'https://science.nasa.gov/mission/phoenix/' },
+  },
+  {
+    id: 'insight_dust',
+    sites: ['mars'],
+    icon: '🔆',
+    title: { es: 'Paneles cubiertos de polvo', en: 'Dusty solar panels' },
+    text: {
+      es: 'El viento dejó una capa de polvo sobre los paneles solares y cada día dan menos energía.',
+      en: 'The wind left a layer of dust on the solar panels and they give less energy every day.',
+    },
+    options: [
+      {
+        label: { es: 'Limpiarlos con escobas', en: 'Sweep them clean' },
+        detail: { es: 'Recuperas energía, pero es trabajo cansado afuera', en: 'Get energy back, but it\'s tiring work outside' },
+        effects: { energy: 12, health: -6 },
+        outcome: { es: 'Los paneles quedaron brillantes y volvieron a dar energía.', en: 'The panels were shiny again and gave energy again.' },
+      },
+      {
+        label: { es: 'Dejarlos así', en: 'Leave them' },
+        detail: { es: 'Nadie se cansa, pero hoy hay menos energía', en: 'Nobody gets tired, but there is less energy today' },
+        effects: { energy: -10 },
+        outcome: { es: 'Nadie salió, pero el polvo tapó parte de la luz del Sol.', en: 'Nobody went out, but the dust blocked part of the sunlight.' },
+      },
+    ],
+    fact: {
+      es: 'El módulo InSight de la NASA midió terremotos en Marte durante 4 años. Su misión terminó en 2022, cuando el polvo cubrió tanto sus paneles que ya no tuvo energía.',
+      en: 'NASA\'s InSight lander measured marsquakes for 4 years. Its mission ended in 2022, when dust covered its panels so much that it ran out of power.',
+    },
+    source: { name: 'NASA — InSight', url: 'https://science.nasa.gov/mission/insight/' },
+  },
+  {
     id: 'greenhouse_light',
     sites: ['moon', 'mars'],
     icon: '🥬',
