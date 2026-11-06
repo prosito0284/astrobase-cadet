@@ -74,7 +74,10 @@ try {
   check('Inicio: sin desborde horizontal en celular', await noOverflow());
 
   await click('Normal');
-  await click('Empezar misión'); await sleep(600);
+  await click('Empezar misión'); await sleep(300);
+  check('Cuenta regresiva al despegar', (await ev(`!!document.querySelector('[role=dialog][aria-label="¡Despegue!"]')`)) === true);
+  await sleep(5600);
+  check('La cuenta regresiva se cierra sola', (await ev(`!document.querySelector('[role=dialog][aria-label="¡Despegue!"]')`)) === true);
   check('Tutorial aparece en la primera partida', await has('Estas 4 barras son tu base'));
   await click('Saltar'); await sleep(200);
   check('Tarjeta del día con dos opciones', (await ev(`[...document.querySelectorAll('button')].filter(b=>/🅰️|🅱️/.test(b.textContent)).length`)) === 2);
@@ -99,6 +102,7 @@ try {
   await ev(`(async()=>{for(const f of document.querySelectorAll('fieldset')){f.querySelector('button').click();await new Promise(r=>setTimeout(r,50))}})()`);
   check('Cuestionario muestra el puntaje', await has('Acertaste'));
   check('Final: insignias', await has('Tus insignias'));
+  check('Final: "¿Y si hubieras elegido otra cosa?"', await has('¿Y si hubieras elegido otra cosa?'));
   check('Final: sin desborde horizontal', await noOverflow());
 
   await click('Mi diploma'); await sleep(300);

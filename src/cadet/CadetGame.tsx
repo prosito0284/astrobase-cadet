@@ -7,6 +7,7 @@ import {
   createGame,
   currentCard,
   energyFactor,
+  bestWhatIf,
   dailyRoutine,
   hint,
   isValidSave,
@@ -25,6 +26,7 @@ import type { Records } from './records';
 import TeacherGuide from './TeacherGuide';
 import SunPanel from './SunPanel';
 import DoseChart from './DoseChart';
+import LaunchOverlay from './LaunchOverlay';
 import BaseScene from './BaseScene';
 import { fetchSunNow } from './spaceweather';
 import type { SunNow } from './spaceweather';
@@ -219,6 +221,28 @@ const UI = {
   codeNoLive: {
     es: 'Con código se usan solo tormentas guardadas, para que todos tengan la misma misión.',
     en: 'With a code only stored storms are used, so everyone gets the same mission.',
+  },
+  whatIfTitle: { es: '¿Y si hubieras elegido otra cosa?', en: 'What if you had chosen differently?' },
+  whatIfIntro: {
+    es: 'El Día {d} ({t}) elegiste «{a}». Si hubieras elegido «{o}» y todo lo demás igual,',
+    en: 'On Day {d} ({t}) you chose “{a}”. If you had chosen “{o}” and everything else the same,',
+  },
+  whatIfWin: { es: '¡habrías ganado la misión con {h} de salud!', en: 'you would have won the mission with {h} health!' },
+  whatIfBetter: {
+    es: 'habrías terminado con {h} de salud y {s} descubrimientos (en vez de {ha} y {sa}).',
+    en: 'you would have finished with {h} health and {s} discoveries (instead of {ha} and {sa}).',
+  },
+  whatIfLonger: {
+    es: 'tu equipo habría aguantado hasta el día {d} (en vez del día {da}).',
+    en: 'your crew would have lasted until day {d} (instead of day {da}).',
+  },
+  whatIfNone: {
+    es: '🏆 Cambiar una sola decisión no habría mejorado tu misión. ¡Excelente trabajo!',
+    en: '🏆 Changing a single decision would not have improved your mission. Excellent work!',
+  },
+  whatIfHow: {
+    es: 'Lo calculamos repitiendo tu misión exacta con una decisión distinta.',
+    en: 'We calculated it by replaying your exact mission with one different decision.',
   },
   stormTomorrow: {
     es: '⚠️ ¡Mañana llega una tormenta solar! Subir el escudo cuesta {c} de energía y tienes {e}. Piensa si te conviene gastar hoy.',
@@ -506,6 +530,8 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
     try { return (new URLSearchParams(window.location.search).get('mision') ?? '').toUpperCase(); } catch { return ''; }
   });
   const [codeError, setCodeError] = useState(false);
+  const [launching, setLaunching] = useState(false);
+  const endLaunch = useCallback(() => setLaunching(false), []);
   const [teacherPage, setTeacherPage] = useState(false);
   const [marsNow] = useState(() => {
     const t = Date.now();
@@ -578,14 +604,17 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
       // Misma misión para toda la clase: sin tormenta en vivo (cambiaría según el día).
       setLevel(code.level);
       setGame(createGame(code.site, code.seed, undefined, code.level));
+      setLaunching(true);
       return;
     }
     setGame(createGame(where, randomSeed(), liveStatus === 'ok' ? liveStorm : undefined, level));
+    setLaunching(true);
   };
 
   const card = useMemo(() => (game && game.status === 'playing' ? currentCard(game) : null), [game]);
   const hints = !!game && LEVELS[game.level ?? 'normal'].hints;
   const quiz = useMemo(() => (game && game.status !== 'playing' ? buildQuiz(game) : []), [game]);
+  const whatIf = useMemo(() => (game && game.status !== 'playing' ? bestWhatIf(game) : undefined), [game]);
 
   const answerQuiz = (qi: number, oi: number) => {
     if (quizAnswers[qi] !== undefined) return;
@@ -766,6 +795,7 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
         {children}
       </main>
       {modalNode}
+      {launching && game && <LaunchOverlay site={game.site} lang={lang} onDone={endLaunch} />}
     </div>
   );
 
@@ -1121,6 +1151,26 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
               ))}
             </ol>
           </div>
+          {(whatIf || (game.status === 'won' && game.history.every(h => h.pick !== undefined))) && (
+            <div className="rounded-2xl bg-slate-950/70 border border-violet-500/40 p-3 text-left space-y-1">
+              <h3 className="font-black text-white">🔁 {tr(UI.whatIfTitle)}</h3>
+              {whatIf ? (
+                <p className="text-sm text-slate-200">
+                  {fill(tr(UI.whatIfIntro), { d: whatIf.day, t: tr(whatIf.title), a: tr(whatIf.actual), o: tr(whatIf.other) })}{' '}
+                  <b className="text-white">
+                    {whatIf.otherEnd.status === 'won' && whatIf.actualEnd.status !== 'won'
+                      ? fill(tr(UI.whatIfWin), { h: whatIf.otherEnd.health })
+                      : whatIf.otherEnd.status === 'won'
+                        ? fill(tr(UI.whatIfBetter), { h: whatIf.otherEnd.health, s: whatIf.otherEnd.stars, ha: whatIf.actualEnd.health, sa: whatIf.actualEnd.stars })
+                        : fill(tr(UI.whatIfLonger), { d: whatIf.otherEnd.day, da: whatIf.actualEnd.day })}
+                  </b>
+                </p>
+              ) : (
+                <p className="text-sm text-emerald-200">{tr(UI.whatIfNone)}</p>
+              )}
+              <p className="text-[11px] text-slate-400">{tr(UI.whatIfHow)}</p>
+            </div>
+          )}
           <button type="button" onClick={() => { setDiplomaTime(Date.now()); setShowDiploma(true); }} className="w-full py-3.5 rounded-2xl text-lg font-black bg-gradient-to-r from-amber-400 to-orange-400 text-slate-950 hover:brightness-110">
             📜 {tr(UI.diploma)}
           </button>

@@ -89,6 +89,7 @@ export interface CadetState {
     health?: number;    // salud al terminar el día
     storm?: boolean;    // ¿fue día de tormenta?
     shield?: number;    // escudo durante el día (antes del desgaste de la tormenta)
+    pick?: 0 | 1;       // opción elegida (para el "¿Y si…?")
   }[];
 }
 
@@ -541,7 +542,7 @@ export function choose(state: CadetState, optionIndex: 0 | 1): CadetState {
     status,
     lostReason,
     lastReport: report,
-    history: [...state.history, { day: state.day, title: view.title, choice: opt.label, doseMSv: report.doseTodayMSv, health, storm: entry.kind === 'storm', shield: shieldDuringDay }],
+    history: [...state.history, { day: state.day, title: view.title, choice: opt.label, doseMSv: report.doseTodayMSv, health, storm: entry.kind === 'storm', shield: shieldDuringDay, pick: optionIndex }],
   };
 }
 
@@ -565,6 +566,63 @@ export function hint(state: CadetState): { option: 0 | 1; canWin: boolean } | un
   const a = bestScore(choose(state, 0));
   const b = bestScore(choose(state, 1));
   return { option: b > a ? 1 : 0, canWin: Math.max(a, b) >= 0 };
+}
+
+// ── "¿Y si hubieras elegido otra cosa?" ──
+
+export interface WhatIf {
+  day: number;
+  title: T;
+  actual: T;          // lo que eligió
+  other: T;           // lo que pudo elegir
+  actualEnd: { status: Status; health: number; day: number; stars: number };
+  otherEnd: { status: Status; health: number; day: number; stars: number };
+}
+
+// Mismo criterio que la pista de Control de Misión (bestScore): ganar, luego salud + 10 por descubrimiento.
+const outcomeScore = (s: CadetState) => (s.status === 'won' ? 1000 + s.health + 10 * s.stars : s.day * 50 + s.health);
+
+/**
+ * Repite la misión con las MISMAS decisiones, cambiando solo una, y devuelve el
+ * cambio que más habría mejorado el final (o undefined si ninguno mejora).
+ * Solo funciona con partidas que guardaron qué opción se eligió cada día.
+ */
+export function bestWhatIf(game: CadetState): WhatIf | undefined {
+  if (game.status === 'playing') return undefined;
+  const picks = game.history.map(h => h.pick);
+  if (picks.length === 0 || picks.some(p => p !== 0 && p !== 1)) return undefined;
+  const start: CadetState = { ...createGame(game.site, game.seed, undefined, game.level ?? 'normal'), deck: game.deck };
+
+  const replay = (flipDay: number) => {
+    let s = start;
+    let i = 0;
+    while (s.status === 'playing') {
+      const original = i < picks.length ? (picks[i] as 0 | 1) : 0;
+      const p = (i + 1 === flipDay ? 1 - original : original) as 0 | 1;
+      s = choose(s, p);
+      i++;
+    }
+    return s;
+  };
+
+  const actual = replay(0);
+  let best: { day: number; end: CadetState } | undefined;
+  for (let d = 1; d <= picks.length; d++) {
+    const end = replay(d);
+    if (outcomeScore(end) > outcomeScore(actual) && (!best || outcomeScore(end) > outcomeScore(best.end))) best = { day: d, end };
+  }
+  if (!best) return undefined;
+  const h = game.history[best.day - 1];
+  const day = { ...start, day: best.day };
+  const view = currentCard({ ...day, deck: game.deck });
+  return {
+    day: best.day,
+    title: h.title,
+    actual: h.choice,
+    other: view.options[1 - (picks[best.day - 1] as number)].label,
+    actualEnd: { status: actual.status, health: actual.health, day: Math.min(actual.day, actual.totalDays), stars: actual.stars },
+    otherEnd: { status: best.end.status, health: best.end.health, day: Math.min(best.end.day, best.end.totalDays), stars: best.end.stars },
+  };
 }
 
 export function medal(state: CadetState): number {
