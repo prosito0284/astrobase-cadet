@@ -1,0 +1,36 @@
+# En cada push y Pull Request: dependencias sin fallas conocidas, tipos, tests,
+# build y una partida completa en Chrome (smoke). Si algo falla, se ve en rojo
+# en GitHub antes de que llegue a los niños.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '0 12 * * 1' # cada lunes: avisa si aparece una vulnerabilidad nueva
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Dependencias sin vulnerabilidades altas
+        run: npm audit --audit-level=high
+      - name: Tests
+        run: npm test
+      - name: Build (incluye revisión de tipos)
+        run: npm run build
+      - name: Smoke (partida completa en Chrome)
+        run: npm run smoke
+        env:
+          CHROME_PATH: /usr/bin/google-chrome

@@ -2,7 +2,6 @@
 //
 // - Páginas (navegación): primero la red; si no hay conexión, la última copia guardada.
 // - assets/* (archivos con hash, nunca cambian): primero la copia guardada.
-// - Fuentes de Google: primero la copia guardada.
 // - Datos en vivo (NASA DONKI, NOAA SWPC) NUNCA se guardan: si no hay red, el juego
 //   lo dice y usa sus llamaradas guardadas.
 //
@@ -11,7 +10,7 @@
 //
 // Todas las rutas son relativas a donde vive este archivo, así funciona igual en la
 // raíz de Vercel que dentro de una carpeta (vite.config usa base: './').
-const VERSION = 'astrobase-v2';
+const VERSION = 'astrobase-v3';
 const ROOT = new URL('./', self.location.href);          // p. ej. https://sitio/  o  https://sitio/carpeta/
 const PAGE = ROOT.href;
 const ASSETS_URL = new URL('assets/', ROOT);
@@ -38,6 +37,13 @@ async function syncFromPage(pageResponse) {
       const text = await readText(js);
       for (const m of text.match(/["'`]\.\/[\w-]+\.(?:js|css)["'`]/g) || []) assets.add(new URL(m.slice(3, -1), ASSETS_URL).href);
     } catch { /* ese trozo se guardará la primera vez que se use */ }
+  }
+  // Las fuentes (woff2) las pide el CSS: también se guardan para jugar sin internet.
+  for (const css of [...assets].filter(a => a.endsWith('.css'))) {
+    try {
+      const text = await readText(css);
+      for (const m of text.match(/url\((?:\.\/)?[\w.-]+\.woff2\)/g) || []) assets.add(new URL(m.slice(4, -1), ASSETS_URL).href);
+    } catch { /* se guardarán al usarse */ }
   }
 
   await cache.put(PAGE, pageResponse);
@@ -104,9 +110,6 @@ self.addEventListener('fetch', event => {
   if (sameOrigin && (url.pathname.startsWith(ASSETS_PATH) || SHELL.includes(url.origin + url.pathname))) {
     event.respondWith(cacheFirst(request));
     return;
-  }
-  if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {
-    event.respondWith(cacheFirst(request));
   }
   // Todo lo demás (incluidas las APIs de NASA y NOAA) va directo a la red.
 });

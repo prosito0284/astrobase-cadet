@@ -70,6 +70,13 @@ Respuesta al reto **NASA Space Apps: Build a Junior Astronaut Mission Trainer**.
 
 Dentro del juego, el botón **"¿De dónde salen los datos?"** muestra esta misma lista con sus enlaces.
 
+## Seguridad
+
+- **Cabeceras** (en `vercel.json` y `server.cjs`): CSP estricta (solo el propio sitio, NASA y NOAA; sin `unsafe-inline`), `X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy` y COOP. HSTS lo pone Vercel.
+- **Privacidad:** las fuentes se guardan dentro del sitio (`@fontsource`), así que Google no recibe la IP de quien juega. No hay cookies, analíticas, login ni base de datos. El nombre del diploma solo se guarda en el navegador.
+- **Automático en GitHub:** `.github/workflows/ci.yml` corre `npm audit`, los tests, el build y el smoke en cada push y cada lunes. `.github/dependabot.yml` propone actualizaciones semanales.
+- **Reportar fallas:** `/.well-known/security.txt` apunta a los avisos privados de GitHub. Para que funcione, activa *Settings → Code security → Private vulnerability reporting*.
+
 ## Llave de la API de NASA (importante para el día del evento)
 
 El juego usa `DEMO_KEY` de api.nasa.gov, que solo permite unas **30 consultas por hora por red**. En un salón o una sala de jueces con muchas computadoras en el mismo wifi se agota, y entonces el juego usa NOAA o los datos guardados (y lo dice). Para que no pase:

@@ -31,7 +31,7 @@ const results = [];
 const check = (name, ok, extra = '') => { results.push({ name, ok }); console.log(`${ok ? '✔' : '✖'} ${name}${extra ? ` — ${extra}` : ''}`); };
 
 const preview = spawn(process.execPath, [join('node_modules', 'vite', 'bin', 'vite.js'), 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore' });
-const chrome = spawn(CHROME, ['--headless=new', '--remote-debugging-port=9336', '--no-first-run', '--no-default-browser-check',
+const chrome = spawn(CHROME, [...(process.env.CI ? ['--no-sandbox', '--disable-dev-shm-usage'] : []), '--headless=new', '--remote-debugging-port=9336', '--no-first-run', '--no-default-browser-check',
   `--user-data-dir=${mkdtempSync(join(tmpdir(), 'astrobase-smoke-'))}`, 'about:blank'], { stdio: 'ignore' });
 
 let ws, id = 0;
