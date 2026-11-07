@@ -351,7 +351,7 @@ export const BotanicalLabModal: React.FC<BotanicalLabModalProps> = ({
             <div>
               <h2 className="text-base sm:text-lg font-black text-slate-100 flex items-center gap-2">
                 <span>{lang === 'es' ? 'Laboratorio Botánico Espacial VEGGIE' : 'VEGGIE Space Botanical Chamber'}</span>
-                <span className="text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-black uppercase tracking-wider">
+                <span className="text-[10px] bg-emerald-700 text-white px-2 py-0.5 rounded-full font-black uppercase tracking-wider">
                   NASA OSDR OSD-379
                 </span>
               </h2>
@@ -363,7 +363,7 @@ export const BotanicalLabModal: React.FC<BotanicalLabModalProps> = ({
             </div>
           </div>
 
-          <button
+          <button aria-label={lang === 'en' ? 'Close' : 'Cerrar'}
             onClick={() => {
               soundFx.playClick();
               onClose();

@@ -2353,7 +2353,7 @@ export function App() {
               <Thermometer className="w-3.5 h-3.5 text-amber-400" />
               <span>Temp: {currentColony.currentTemperatureCelsius}°C</span>
               {currentColony.isTemperatureExtreme && (
-                <span className="text-[9px] uppercase font-black bg-red-600 text-white px-1 rounded ml-1">
+                <span className="text-[9px] uppercase font-black bg-red-700 text-white px-1 rounded ml-1">
                   ESTRÉS TÉRMICO
                 </span>
               )}
@@ -2702,7 +2702,7 @@ export function App() {
       />
 
       {/* Footer */}
-      <footer className="bg-slate-950 border-t border-slate-900 py-3 px-4 text-center text-xs text-slate-500">
+      <footer className="bg-slate-950 border-t border-slate-900 py-3 px-4 text-center text-xs text-slate-400">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 font-medium">
             <span>🚀</span>
@@ -2712,7 +2712,7 @@ export function App() {
             <span className="text-emerald-400 font-black">
               Troncos Intergalácticos
             </span>
-            <span className="text-slate-500">• NASA STEM Challenge</span>
+            <span className="text-slate-400">• NASA STEM Challenge</span>
           </div>
           <div className="flex items-center gap-2">
             <button 

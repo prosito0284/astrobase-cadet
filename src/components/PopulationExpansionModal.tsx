@@ -90,7 +90,7 @@ export const PopulationExpansionModal: React.FC<PopulationExpansionModalProps> =
             <div className="text-left">
               <h3 className="text-sm sm:text-base font-black text-slate-100 flex items-center gap-2">
                 <span>{lang === 'es' ? 'Protocolo de Expansión de Tripulación (Día 15)' : 'Crew Expansion Protocol (Day 15)'}</span>
-                <span className="text-[10px] bg-emerald-600 text-white font-black px-1.5 py-0.2 rounded uppercase">
+                <span className="text-[10px] bg-emerald-700 text-white font-black px-1.5 py-0.2 rounded uppercase">
                   DÍA 15
                 </span>
               </h3>
@@ -102,7 +102,7 @@ export const PopulationExpansionModal: React.FC<PopulationExpansionModalProps> =
             </div>
           </div>
 
-          <button
+          <button aria-label={lang === 'en' ? 'Close' : 'Cerrar'}
             onClick={() => {
               soundFx.playClick();
               onClose();
@@ -202,7 +202,7 @@ export const PopulationExpansionModal: React.FC<PopulationExpansionModalProps> =
             disabled={!canConfirm || isSubmitting}
             className={`flex-1 py-2.5 rounded-xl font-black text-xs shadow-lg border transition-all ${
               !canConfirm || isSubmitting
-                ? 'bg-slate-800 border-slate-700 text-slate-500 opacity-50 cursor-not-allowed'
+                ? 'bg-slate-800 border-slate-700 text-slate-400 opacity-50 cursor-not-allowed'
                 : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-emerald-950/50 border-emerald-400/40 transform hover:scale-[1.02] active:scale-[0.98]'
             }`}
           >

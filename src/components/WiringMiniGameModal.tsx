@@ -252,7 +252,7 @@ export const WiringMiniGameModal: React.FC<WiringMiniGameModalProps> = ({
             <div className="text-left">
               <h3 className="text-sm sm:text-base font-black text-slate-100 flex items-center gap-2">
                 <span>{lang === 'es' ? '¡Cortocircuito en el Banco de Baterías!' : 'Battery Bank Short Circuit!'}</span>
-                <span className="text-[10px] bg-red-600 text-white font-black px-1.5 py-0.2 rounded uppercase animate-ping">
+                <span className="text-[10px] bg-red-700 text-white font-black px-1.5 py-0.2 rounded uppercase animate-ping">
                   ERROR BMS
                 </span>
               </h3>
@@ -265,7 +265,7 @@ export const WiringMiniGameModal: React.FC<WiringMiniGameModalProps> = ({
           </div>
 
           {onClose && (
-            <button
+            <button aria-label={lang === 'en' ? 'Close' : 'Cerrar'}
               onClick={handleClose}
               className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all"
             >

@@ -153,7 +153,6 @@ export const RoverMissionModal: React.FC<RoverMissionModalProps> = ({
     };
   }, [isOpen]);
 
-  if (!isOpen) return null;
 
   const moonTargets: SortieTarget[] = [
     {
@@ -370,6 +369,9 @@ export const RoverMissionModal: React.FC<RoverMissionModalProps> = ({
     onClose();
   }, [activeTarget, location, onCompleteSortie, onClose, hasRoverHangar, onDiscoverSample]);
 
+  // Debe ir DESPUÉS de todos los hooks (antes rompía las reglas de hooks de React).
+  if (!isOpen) return null;
+
   const getRewardIcon = (type: string) => {
     switch (type) {
       case 'water':
@@ -412,7 +414,7 @@ export const RoverMissionModal: React.FC<RoverMissionModalProps> = ({
                 <h2 className="text-base sm:text-lg font-black text-slate-100">
                   {lang === 'es' ? 'Centro de Operaciones de Rovers de la NASA' : 'NASA Planetary Rover Sortie Command'}
                 </h2>
-                <span className="text-[10px] bg-cyan-600 text-white px-2 py-0.5 rounded-full font-black uppercase tracking-wider">
+                <span className="text-[10px] bg-cyan-700 text-white px-2 py-0.5 rounded-full font-black uppercase tracking-wider">
                   {location === 'moon' ? 'ROVER VIPER' : 'ROVER PERSEVERANCE'}
                 </span>
               </div>
@@ -425,7 +427,7 @@ export const RoverMissionModal: React.FC<RoverMissionModalProps> = ({
           </div>
 
           {/* Close button - strictly disabled during active flight to prevent race conditions */}
-          <button
+          <button aria-label={lang === 'en' ? 'Close' : 'Cerrar'}
             disabled={isDeploying}
             onClick={() => {
               if (isDeploying) return;

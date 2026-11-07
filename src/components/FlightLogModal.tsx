@@ -117,7 +117,7 @@ export const FlightLogModal: React.FC<FlightLogModalProps> = ({
             </div>
           </div>
 
-          <button
+          <button aria-label={lang === 'en' ? 'Close' : 'Cerrar'}
             onClick={() => {
               soundFx.playClick();
               onClose();
@@ -184,7 +184,7 @@ export const FlightLogModal: React.FC<FlightLogModalProps> = ({
         {/* Entries List */}
         <div className="flex-1 overflow-y-auto pr-1 space-y-2 scrollbar-thin">
           {filtered.length === 0 ? (
-            <div className="p-8 text-center text-slate-500 text-xs italic">
+            <div className="p-8 text-center text-slate-400 text-xs italic">
               {lang === 'es' ? 'No hay registros en esta categoría.' : 'No log entries recorded yet.'}
             </div>
           ) : (

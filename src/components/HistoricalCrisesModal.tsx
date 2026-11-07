@@ -41,7 +41,7 @@ export const HistoricalCrisesModal: React.FC<HistoricalCrisesModalProps> = ({
             <div>
               <h2 className="text-base sm:text-lg font-black text-slate-100 flex items-center gap-2">
                 <span>{lang === 'es' ? 'Simulador de Crisis Históricas de la NASA' : 'NASA Historical Crisis Simulator'}</span>
-                <span className="text-[10px] bg-red-600 text-white px-2 py-0.5 rounded-full font-black uppercase tracking-wider">
+                <span className="text-[10px] bg-red-700 text-white px-2 py-0.5 rounded-full font-black uppercase tracking-wider">
                   REAL EVENTS
                 </span>
               </h2>
@@ -53,7 +53,7 @@ export const HistoricalCrisesModal: React.FC<HistoricalCrisesModalProps> = ({
             </div>
           </div>
 
-          <button
+          <button aria-label={lang === 'en' ? 'Close' : 'Cerrar'}
             onClick={() => {
               soundFx.playClick();
               onClose();
@@ -125,7 +125,7 @@ export const HistoricalCrisesModal: React.FC<HistoricalCrisesModalProps> = ({
                     }}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all ${
                       isActive
-                        ? 'bg-emerald-600 text-white'
+                        ? 'bg-emerald-700 text-white'
                         : 'bg-red-600 hover:bg-red-500 text-white shadow-md shadow-red-950/40'
                     }`}
                   >

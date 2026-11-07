@@ -205,7 +205,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               {location === 'mars' ? 'Sol' : (lang === 'es' ? 'Día' : 'Day')}
             </div>
             <div className="text-xs sm:text-sm font-black text-amber-300">
-              {currentDay} <span className="text-[10px] text-slate-500 font-semibold">/ {totalDays}</span>
+              {currentDay} <span className="text-[10px] text-slate-400 font-semibold">/ {totalDays}</span>
             </div>
           </div>
 
@@ -432,7 +432,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               className={`p-1.5 rounded-lg border transition-all ${
                 isMusicPlaying
                   ? 'bg-indigo-950/90 border-indigo-400 text-indigo-200 shadow-sm shadow-indigo-500/50 animate-pulse'
-                  : 'bg-slate-800 border-slate-700 text-slate-500 hover:text-slate-300'
+                  : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-300'
               }`}
               title={isMusicPlaying ? 'Música Espacial Activa (Clic para pausar)' : 'Activar Música Ambiental Espacial'}
             >
@@ -446,7 +446,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             className={`p-1.5 rounded-lg border transition-all ${
               isVoiceEnabled 
                 ? 'bg-cyan-950/80 border-cyan-400 text-cyan-300 shadow-sm shadow-cyan-500/30' 
-                : 'bg-slate-800 border-slate-700 text-slate-500'
+                : 'bg-slate-800 border-slate-700 text-slate-400'
             }`}
             title={isVoiceEnabled ? 'Voz Natural de Capcom NOVA Activa' : 'Activar Voz Natural de Capcom NOVA'}
           >

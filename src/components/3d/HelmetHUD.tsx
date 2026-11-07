@@ -342,7 +342,7 @@ export const HelmetHUD: React.FC<HelmetHUDProps> = ({
               {lang === 'es' ? 'Presión' : 'Pressure'}
             </span>
             <span className="font-bold text-white">
-              {suitPressureKPa.toFixed(1)} kPa <span className="text-slate-500 text-[9px]">(4.3 psi)</span>
+              {suitPressureKPa.toFixed(1)} kPa <span className="text-slate-400 text-[9px]">(4.3 psi)</span>
             </span>
           </div>
 
@@ -365,7 +365,7 @@ export const HelmetHUD: React.FC<HelmetHUDProps> = ({
             </span>
             <span className="font-bold text-white flex items-center gap-1">
               <span>{heartRateBpm}</span>
-              <span className="text-[9px] text-slate-500">BPM</span>
+              <span className="text-[9px] text-slate-400">BPM</span>
             </span>
           </div>
 

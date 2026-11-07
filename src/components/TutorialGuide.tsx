@@ -74,7 +74,7 @@ export const TutorialGuide: React.FC<TutorialGuideProps> = ({ isOpen, onClose, l
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-fadeIn">
       <div className="bg-slate-900 border-2 border-emerald-400 rounded-3xl max-w-xl w-full p-4 sm:p-6 shadow-[0_0_50px_rgba(16,185,129,0.35)] relative">
         {/* Close Button */}
-        <button
+        <button aria-label={lang === 'en' ? 'Close' : 'Cerrar'}
           onClick={() => {
             soundFx.playClick();
             onClose();
@@ -157,7 +157,7 @@ export const TutorialGuide: React.FC<TutorialGuideProps> = ({ isOpen, onClose, l
                 soundFx.playClick();
                 setCurrentStep(p => Math.min(steps.length - 1, p + 1));
               }}
-              className="flex items-center gap-1 px-4 py-2 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-900/40 transition-all"
+              className="flex items-center gap-1 px-4 py-2 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-900/40 transition-all"
             >
               <span>{lang === 'es' ? 'Siguiente' : 'Next'}</span>
               <ChevronRight className="w-4 h-4" />

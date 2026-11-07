@@ -85,4 +85,6 @@ Dentro del juego, el botón **"¿De dónde salen los datos?"** muestra esta mism
 - `src/cadet/quiz.ts`, `badges.ts`, `records.ts`, `missionCode.ts`, `spaceweather.ts` — Cuestionario, insignias, récords, códigos de misión y clima espacial (lógica pura, con tests).
 - `tests/cadet_engine.test.ts` — Tests. Comprueban, entre otras cosas, que ninguna opción es gratis, que siempre existe una forma de ganar (búsqueda completa) y que ignorar todas las tormentas siempre termina mal.
 
+El Modo Experto también se auditó con axe en 8 pantallas: inicio, quiz, logros, datos NASA, gabinete, expansión, vista 2D y siguiente día. Se corrigieron 16 botones de cerrar sin nombre, 2 controles deslizantes sin etiqueta, textos con poco contraste y un hook de React condicional en la ventana del rover. Ahora da 0 fallas.
+
 El juego completo anterior sigue disponible como **Modo Experto** (botón arriba, o `?modo=experto`).

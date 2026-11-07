@@ -79,7 +79,7 @@ export const CommanderProfileModal: React.FC<CommanderProfileModalProps> = ({
             </div>
           </div>
 
-          <button
+          <button aria-label={lang === 'en' ? 'Close' : 'Cerrar'}
             onClick={() => {
               soundFx.playClick();
               onClose();

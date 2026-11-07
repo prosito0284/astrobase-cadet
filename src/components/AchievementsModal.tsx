@@ -53,7 +53,7 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
             </div>
           </div>
 
-          <button
+          <button aria-label={lang === 'en' ? 'Close' : 'Cerrar'}
             onClick={() => {
               soundFx.playClick();
               onClose();
@@ -91,16 +91,16 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
                   className={`p-3 rounded-2xl border transition-all flex items-start gap-3 relative overflow-hidden ${
                     ach.unlocked
                       ? 'bg-gradient-to-br from-amber-950/40 via-slate-900 to-slate-950 border-amber-500/60 shadow-lg shadow-amber-950/40 ring-1 ring-amber-500/30'
-                      : 'bg-slate-950/60 border-slate-800/80 opacity-60'
+                      : 'bg-slate-950/60 border-slate-800/80 grayscale'
                   }`}
                 >
                   {/* Icon */}
                   <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0 border shadow-inner ${
                     ach.unlocked
                       ? 'bg-gradient-to-tr from-amber-500/20 to-yellow-500/10 border-amber-400/50 shadow-amber-500/20'
-                      : 'bg-slate-900 border-slate-800 text-slate-600 grayscale'
+                      : 'bg-slate-900 border-slate-800 text-slate-400 grayscale'
                   }`}>
-                    {ach.unlocked ? ach.icon : <Lock className="w-5 h-5 text-slate-600" />}
+                    {ach.unlocked ? ach.icon : <Lock className="w-5 h-5 text-slate-400" />}
                   </div>
 
                   {/* Info */}
@@ -117,7 +117,7 @@ export const AchievementsModal: React.FC<AchievementsModalProps> = ({
                           {ach.unlockedAtDay ? `DÍA ${ach.unlockedAtDay}` : 'OK'}
                         </span>
                       ) : (
-                        <span className="text-[9px] bg-slate-800 text-slate-500 px-1.5 py-0.2 rounded font-bold">
+                        <span className="text-[9px] bg-slate-800 text-slate-400 px-1.5 py-0.2 rounded font-bold">
                           BLOQUEADO
                         </span>
                       )}

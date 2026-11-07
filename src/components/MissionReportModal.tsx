@@ -119,7 +119,7 @@ export const MissionReportModal: React.FC<MissionReportModalProps> = ({
               <Printer className="w-4 h-4" />
               <span>{lang === 'es' ? 'Imprimir' : 'Print'}</span>
             </button>
-            <button
+            <button aria-label={lang === 'en' ? 'Close' : 'Cerrar'}
               onClick={() => {
                 soundFx.playClick();
                 onClose();

@@ -125,7 +125,7 @@ export const IceMineModal: React.FC<IceMineModalProps> = ({
             </div>
           </div>
 
-          <button
+          <button aria-label={lang === 'en' ? 'Close' : 'Cerrar'}
             onClick={() => {
               soundFx.playClick();
               onClose();
@@ -218,7 +218,7 @@ export const IceMineModal: React.FC<IceMineModalProps> = ({
                       ? 'bg-red-600/30 hover:bg-red-600/40 text-red-300 border border-red-500/50'
                       : canToggleOn
                       ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-md'
-                      : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                      : 'bg-slate-800 text-slate-400 cursor-not-allowed border border-slate-700'
                   } ${isToggling ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   {isAssigned 

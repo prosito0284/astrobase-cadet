@@ -79,7 +79,7 @@ export const CommMiniGameModal: React.FC<CommMiniGameModalProps> = ({
             <div className="text-left">
               <h3 className="text-sm sm:text-base font-black text-slate-100 flex items-center gap-2">
                 <span>{lang === 'es' ? '¡Pérdida de Comunicación DSN!' : 'DSN Radio Blackout!'}</span>
-                <span className="text-[10px] bg-red-600 text-white font-black px-1.5 py-0.2 rounded uppercase animate-ping">
+                <span className="text-[10px] bg-red-700 text-white font-black px-1.5 py-0.2 rounded uppercase animate-ping">
                   OFFLINE
                 </span>
               </h3>

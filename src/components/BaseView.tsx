@@ -334,7 +334,7 @@ export const BaseView: React.FC<BaseViewProps> = ({
             <div className={`relative p-2.5 rounded-xl border backdrop-blur-md transition-all ${
               commsModule?.isActive 
                 ? 'bg-sky-950/80 border-sky-400 text-sky-300 shadow-lg shadow-sky-500/20' 
-                : 'bg-slate-900/80 border-slate-700 text-slate-500 opacity-60'
+                : 'bg-slate-900/80 border-slate-700 text-slate-400 opacity-60'
             }`}>
               <div className="text-2xl sm:text-3xl">📡</div>
               {commsModule?.isActive && (
@@ -358,11 +358,11 @@ export const BaseView: React.FC<BaseViewProps> = ({
             <div className={`relative p-2.5 rounded-xl border backdrop-blur-md transition-all ${
               solarModule?.isActive && !dustStormActive && !isLunarNight
                 ? 'bg-amber-950/80 border-amber-400 text-amber-300 shadow-lg shadow-amber-500/20' 
-                : 'bg-slate-900/80 border-slate-700 text-slate-500 opacity-70'
+                : 'bg-slate-900/80 border-slate-700 text-slate-400 opacity-70'
             }`}>
               <div className="text-2xl sm:text-3xl">☀️</div>
               {solarModule?.isActive && !dustStormActive && !isLunarNight && (
-                <div className="absolute -top-1 -right-1 text-[10px] font-black bg-emerald-500 text-white px-1 rounded-full">
+                <div className="absolute -top-1 -right-1 text-[10px] font-black bg-emerald-700 text-white px-1 rounded-full">
                   +35kW
                 </div>
               )}
@@ -414,11 +414,11 @@ export const BaseView: React.FC<BaseViewProps> = ({
             <div className={`relative p-2.5 rounded-xl border backdrop-blur-md transition-all ${
               greenhouseModule?.isActive 
                 ? 'bg-emerald-950/80 border-emerald-400 text-emerald-300 shadow-lg shadow-emerald-500/20' 
-                : 'bg-slate-900/80 border-slate-700 text-slate-500 opacity-60'
+                : 'bg-slate-900/80 border-slate-700 text-slate-400 opacity-60'
             }`}>
               <div className="text-2xl sm:text-3xl">🌱</div>
               {greenhouseModule?.isActive && (
-                <div className="absolute -bottom-1 -right-1 text-[9px] bg-emerald-600 text-white font-bold px-1 rounded">
+                <div className="absolute -bottom-1 -right-1 text-[9px] bg-emerald-700 text-white font-bold px-1 rounded">
                   OSDR
                 </div>
               )}
@@ -440,7 +440,7 @@ export const BaseView: React.FC<BaseViewProps> = ({
             <div className={`relative p-2.5 rounded-xl border backdrop-blur-md transition-all ${
               iceModule?.isActive 
                 ? 'bg-blue-950/80 border-blue-400 text-blue-300 shadow-lg shadow-blue-500/20' 
-                : 'bg-slate-900/80 border-slate-700 text-slate-500 opacity-60'
+                : 'bg-slate-900/80 border-slate-700 text-slate-400 opacity-60'
             }`}>
               <div className="text-2xl sm:text-3xl">⛏️</div>
               {iceModule?.isActive && (
@@ -468,7 +468,7 @@ export const BaseView: React.FC<BaseViewProps> = ({
             }`}>
               <div className="text-2xl sm:text-3xl">🛡️</div>
               {bunkerModule?.isActive && (
-                <div className="absolute -top-1 -right-1 text-[8px] bg-red-600 text-white font-black px-1 rounded-full">
+                <div className="absolute -top-1 -right-1 text-[8px] bg-red-700 text-white font-black px-1 rounded-full">
                   ACTIVO
                 </div>
               )}

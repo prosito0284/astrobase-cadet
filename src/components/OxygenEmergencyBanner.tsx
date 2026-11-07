@@ -109,13 +109,13 @@ export const OxygenEmergencyBanner: React.FC<OxygenEmergencyBannerProps> = ({
   return (
     <div className="w-full bg-red-950/90 border-2 border-red-500 text-red-100 rounded-2xl p-3 sm:p-4 my-2 shadow-[0_0_30px_rgba(239,68,68,0.4)] animate-pulse-subtle flex flex-col sm:flex-row items-center justify-between gap-3">
       <div className="flex items-center gap-3">
-        <div className="p-2 rounded-xl bg-red-600 text-white animate-bounce">
+        <div className="p-2 rounded-xl bg-red-700 text-white animate-bounce">
           <Wind className="w-5 h-5" />
         </div>
         <div>
           <h3 className="text-sm font-black text-white flex items-center gap-2">
             <span>{lang === 'es' ? '¡ALARMA CRÍTICA: FALLA DE PRESIÓN DE OXÍGENO!' : 'CRITICAL ECLSS O2 PRESSURE FAILURE!'}</span>
-            <span className="text-[10px] bg-red-600 text-white font-black px-1.5 py-0.2 rounded uppercase animate-ping">
+            <span className="text-[10px] bg-red-700 text-white font-black px-1.5 py-0.2 rounded uppercase animate-ping">
               ASFIXIA INMINENTE
             </span>
             <span className="text-[10px] bg-amber-500 text-slate-950 font-black px-1.5 py-0.2 rounded uppercase">

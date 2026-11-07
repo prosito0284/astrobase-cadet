@@ -61,7 +61,7 @@ export const ScienceDossierModal: React.FC<ScienceDossierModalProps> = ({
             <div>
               <h2 className="text-base sm:text-lg font-black text-slate-100 flex items-center gap-2">
                 <span>{lang === 'es' ? 'Expediente Científico de Datos Abiertos de la NASA' : 'NASA Open Science Data Repository Dossier'}</span>
-                <span className="text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded font-black">
+                <span className="text-[10px] bg-red-700 text-white px-1.5 py-0.5 rounded font-black">
                   VERIFIED
                 </span>
               </h2>
@@ -73,7 +73,7 @@ export const ScienceDossierModal: React.FC<ScienceDossierModalProps> = ({
             </div>
           </div>
 
-          <button
+          <button aria-label={lang === 'en' ? 'Close' : 'Cerrar'}
             onClick={() => {
               soundFx.playClick();
               onClose();
@@ -196,6 +196,7 @@ export const ScienceDossierModal: React.FC<ScienceDossierModalProps> = ({
                   max="8"
                   value={calcAstronauts}
                   onChange={(e) => setCalcAstronauts(Number(e.target.value))}
+                  aria-label={lang === 'es' ? 'Astronautas' : 'Crew size'}
                   className="w-28 accent-emerald-400 cursor-pointer"
                 />
                 <span className="font-black text-emerald-300">{calcAstronauts}</span>
@@ -220,6 +221,7 @@ export const ScienceDossierModal: React.FC<ScienceDossierModalProps> = ({
                   step="10"
                   value={calcShieldThicknessCm}
                   onChange={(e) => setCalcShieldThicknessCm(Number(e.target.value))}
+                  aria-label={lang === 'es' ? 'Grosor de la cúpula (cm)' : 'Shell depth (cm)'}
                   className="w-28 accent-purple-400 cursor-pointer"
                 />
                 <span className="font-black text-purple-300">{calcShieldThicknessCm} cm</span>

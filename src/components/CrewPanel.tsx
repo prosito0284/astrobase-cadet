@@ -88,7 +88,7 @@ export const CrewPanel: React.FC<CrewPanelProps> = ({ crew, difficulty, lang }) 
                         {member.name}
                       </h3>
                       {isDead && (
-                        <span className="text-[8px] bg-red-600 text-white font-black px-1 rounded uppercase">
+                        <span className="text-[8px] bg-red-700 text-white font-black px-1 rounded uppercase">
                           FALLECIDO
                         </span>
                       )}
@@ -130,7 +130,7 @@ export const CrewPanel: React.FC<CrewPanelProps> = ({ crew, difficulty, lang }) 
                 <div>
                   <div className="flex items-center justify-between text-[10px] font-bold">
                     <span className="flex items-center gap-1 text-slate-400">
-                      <Heart className={`w-3 h-3 ${isDead ? 'text-slate-600' : 'text-rose-400'}`} />
+                      <Heart className={`w-3 h-3 ${isDead ? 'text-slate-400' : 'text-rose-400'}`} />
                       {lang === 'es' ? 'Salud Física' : 'Physical Health'}
                     </span>
                     <span className={isDead ? 'text-red-500 font-black' : member.health > 70 ? 'text-emerald-400' : 'text-amber-400'}>
@@ -151,10 +151,10 @@ export const CrewPanel: React.FC<CrewPanelProps> = ({ crew, difficulty, lang }) 
                 <div>
                   <div className="flex items-center justify-between text-[10px] font-bold">
                     <span className="flex items-center gap-1 text-slate-400">
-                      <Smile className={`w-3 h-3 ${isDead ? 'text-slate-600' : 'text-amber-400'}`} />
+                      <Smile className={`w-3 h-3 ${isDead ? 'text-slate-400' : 'text-amber-400'}`} />
                       {lang === 'es' ? 'Moral & Ánimo' : 'Crew Morale'}
                     </span>
-                    <span className={isDead ? 'text-slate-600' : member.morale > 70 ? 'text-indigo-300' : 'text-amber-300'}>
+                    <span className={isDead ? 'text-slate-400' : member.morale > 70 ? 'text-indigo-300' : 'text-amber-300'}>
                       {member.morale}%
                     </span>
                   </div>

@@ -76,7 +76,7 @@ export const BaseBuildingMenuModal: React.FC<BaseBuildingMenuModalProps> = ({
             <div>
               <h3 className="text-base sm:text-lg font-black text-slate-100 flex items-center gap-2">
                 <span>{lang === 'es' ? '🏗️ Expansión de Base (Base Building 3D)' : '🏗️ Base Expansion (3D Base Building)'}</span>
-                <span className="text-[10px] bg-cyan-600 text-white font-black px-2 py-0.5 rounded-full uppercase">
+                <span className="text-[10px] bg-cyan-700 text-white font-black px-2 py-0.5 rounded-full uppercase">
                   NASA STEM
                 </span>
               </h3>
@@ -88,7 +88,7 @@ export const BaseBuildingMenuModal: React.FC<BaseBuildingMenuModalProps> = ({
             </div>
           </div>
 
-          <button
+          <button aria-label={lang === 'en' ? 'Close' : 'Cerrar'}
             onClick={() => {
               soundFx.playClick();
               onClose();
@@ -229,7 +229,7 @@ export const BaseBuildingMenuModal: React.FC<BaseBuildingMenuModalProps> = ({
                       ? 'bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 cursor-default'
                       : canAfford
                         ? 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-lg shadow-cyan-900/40 active:scale-95'
-                        : 'bg-slate-800 border border-slate-700 text-slate-500 cursor-not-allowed'
+                        : 'bg-slate-800 border border-slate-700 text-slate-400 cursor-not-allowed'
                   }`}
                 >
                   {isBuilt ? (
@@ -261,22 +261,22 @@ export const BaseBuildingMenuModal: React.FC<BaseBuildingMenuModalProps> = ({
             <span>{lang === 'es' ? 'Estado de Bonificaciones Activas de Base:' : 'Base Active Expansion Buffs Status:'}</span>
           </h5>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-[11px] font-mono">
-            <div className={`p-2 rounded-xl border ${builtSet.has('rover_hangar') ? 'bg-amber-950/40 border-amber-500/50 text-amber-300' : 'bg-slate-900 border-slate-800 text-slate-500'}`}>
+            <div className={`p-2 rounded-xl border ${builtSet.has('rover_hangar') ? 'bg-amber-950/40 border-amber-500/50 text-amber-300' : 'bg-slate-900 border-slate-800 text-slate-400'}`}>
               <div className="text-[10px] text-slate-400">{lang === 'es' ? 'Recarga Batería' : 'Battery Recharge'}</div>
               <div className="font-bold">{builtSet.has('rover_hangar') ? '+50% (2x)' : '1x (Base)'}</div>
             </div>
 
-            <div className={`p-2 rounded-xl border ${builtSet.has('rover_hangar') ? 'bg-amber-950/40 border-amber-500/50 text-amber-300' : 'bg-slate-900 border-slate-800 text-slate-500'}`}>
+            <div className={`p-2 rounded-xl border ${builtSet.has('rover_hangar') ? 'bg-amber-950/40 border-amber-500/50 text-amber-300' : 'bg-slate-900 border-slate-800 text-slate-400'}`}>
               <div className="text-[10px] text-slate-400">{lang === 'es' ? 'Láser Rover' : 'Rover Laser'}</div>
               <div className="font-bold">{builtSet.has('rover_hangar') ? '35m (+10m)' : '25m (Base)'}</div>
             </div>
 
-            <div className={`p-2 rounded-xl border ${builtSet.has('greenhouse_2') ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-300' : 'bg-slate-900 border-slate-800 text-slate-500'}`}>
+            <div className={`p-2 rounded-xl border ${builtSet.has('greenhouse_2') ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-300' : 'bg-slate-900 border-slate-800 text-slate-400'}`}>
               <div className="text-[10px] text-slate-400">{lang === 'es' ? 'Capacidad Tripulación' : 'Crew Capacity'}</div>
               <div className="font-bold">{builtSet.has('greenhouse_2') ? '10 Colonos (+4)' : '6 Colonos'}</div>
             </div>
 
-            <div className={`p-2 rounded-xl border ${builtSet.has('dsoc_tower') ? 'bg-cyan-950/40 border-cyan-500/50 text-cyan-300' : 'bg-slate-900 border-slate-800 text-slate-500'}`}>
+            <div className={`p-2 rounded-xl border ${builtSet.has('dsoc_tower') ? 'bg-cyan-950/40 border-cyan-500/50 text-cyan-300' : 'bg-slate-900 border-slate-800 text-slate-400'}`}>
               <div className="text-[10px] text-slate-400">{lang === 'es' ? 'Telemetría DSN' : 'DSN Telemetry'}</div>
               <div className="font-bold">{builtSet.has('dsoc_tower') ? '3.0x Velocidad' : '1.0x (Base)'}</div>
             </div>

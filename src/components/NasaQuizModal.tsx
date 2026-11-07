@@ -233,7 +233,7 @@ export const NasaQuizModal: React.FC<NasaQuizModalProps> = ({
             <div>
               <h2 className="text-base sm:text-lg font-black text-slate-100 flex items-center gap-2">
                 <span>{lang === 'es' ? 'Desafío de Preguntas STEM de la NASA' : 'NASA STEM Knowledge Challenge'}</span>
-                <span className="text-[10px] bg-red-600 text-white px-2 py-0.5 rounded-full font-black uppercase tracking-wider">
+                <span className="text-[10px] bg-red-700 text-white px-2 py-0.5 rounded-full font-black uppercase tracking-wider">
                   ESCUELAS NASA
                 </span>
               </h2>
@@ -245,7 +245,7 @@ export const NasaQuizModal: React.FC<NasaQuizModalProps> = ({
             </div>
           </div>
 
-          <button
+          <button aria-label={lang === 'en' ? 'Close' : 'Cerrar'}
             onClick={() => {
               soundFx.playClick();
               onClose();
@@ -286,7 +286,7 @@ export const NasaQuizModal: React.FC<NasaQuizModalProps> = ({
                   } else if (isChosen && !isCorrect) {
                     optStyle = 'bg-rose-950/80 border-rose-400 text-rose-200 ring-2 ring-rose-400/50';
                   } else {
-                    optStyle = 'bg-slate-950/40 border-slate-900 text-slate-600 opacity-50';
+                    optStyle = 'bg-slate-950/40 border-slate-900 text-slate-400 opacity-50';
                   }
                 }
 
@@ -377,7 +377,7 @@ export const NasaQuizModal: React.FC<NasaQuizModalProps> = ({
                 disabled={isRetryDisabled}
                 className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                   isRetryDisabled
-                    ? 'bg-slate-800/40 border border-slate-700/40 text-slate-500 opacity-60 cursor-not-allowed'
+                    ? 'bg-slate-800/40 border border-slate-700/40 text-slate-400 opacity-60 cursor-not-allowed'
                     : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
                 }`}
                 title={isRetryDisabled ? (lang === 'es' ? 'Quiz ya completado en este Sol (1 intento por Sol)' : 'Quiz already completed this Sol (1 per Sol)') : undefined}

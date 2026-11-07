@@ -286,10 +286,10 @@ export const RoverHUD: React.FC<RoverHUDProps> = ({
             }`}
           >
             {/* Direction hints */}
-            <span className="absolute top-2 text-[8px] font-mono text-slate-500 font-bold">▲ THR</span>
-            <span className="absolute bottom-2 text-[8px] font-mono text-slate-500 font-bold">▼ REV</span>
-            <span className="absolute left-2 text-[8px] font-mono text-slate-500 font-bold">◀</span>
-            <span className="absolute right-2 text-[8px] font-mono text-slate-500 font-bold">▶</span>
+            <span className="absolute top-2 text-[8px] font-mono text-slate-400 font-bold">▲ THR</span>
+            <span className="absolute bottom-2 text-[8px] font-mono text-slate-400 font-bold">▼ REV</span>
+            <span className="absolute left-2 text-[8px] font-mono text-slate-400 font-bold">◀</span>
+            <span className="absolute right-2 text-[8px] font-mono text-slate-400 font-bold">▶</span>
 
             {/* Inner Handle Knob */}
             <div 
@@ -355,8 +355,8 @@ export const RoverHUD: React.FC<RoverHUDProps> = ({
             style={{ touchAction: 'none' }}
             className={`p-3.5 sm:p-4 rounded-2xl border flex flex-col items-center gap-1 shadow-lg transition-all active:scale-95 ${
               isDockingZone
-                ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-300 shadow-emerald-950/50 animate-bounce'
-                : 'bg-slate-900/80 text-slate-500 border-slate-800 opacity-60 cursor-not-allowed'
+                ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-300 shadow-emerald-950/50 animate-bounce'
+                : 'bg-slate-900/80 text-slate-400 border-slate-800 opacity-60 cursor-not-allowed'
             }`}
           >
             <Home className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -372,7 +372,7 @@ export const RoverHUD: React.FC<RoverHUDProps> = ({
             style={{ touchAction: 'none' }}
             className={`w-20 h-20 sm:w-24 sm:h-24 rounded-3xl border-2 flex flex-col items-center justify-center gap-1 shadow-2xl transition-all active:scale-90 ${
               laserCooldownPct > 0
-                ? 'bg-slate-900/90 border-slate-700 text-slate-500 opacity-70 cursor-not-allowed'
+                ? 'bg-slate-900/90 border-slate-700 text-slate-400 opacity-70 cursor-not-allowed'
                 : location === 'moon'
                 ? 'bg-gradient-to-tr from-cyan-600 to-blue-500 hover:from-cyan-500 hover:to-blue-400 text-white border-cyan-300 shadow-cyan-600/50'
                 : 'bg-gradient-to-tr from-rose-600 to-amber-500 hover:from-rose-500 hover:to-amber-400 text-white border-rose-300 shadow-rose-600/50'
