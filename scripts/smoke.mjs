@@ -31,7 +31,7 @@ const results = [];
 const check = (name, ok, extra = '') => { results.push({ name, ok }); console.log(`${ok ? '✔' : '✖'} ${name}${extra ? ` — ${extra}` : ''}`); };
 
 const preview = spawn(process.execPath, [join('node_modules', 'vite', 'bin', 'vite.js'), 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore' });
-const chrome = spawn(CHROME, [...(process.env.CI ? ['--no-sandbox', '--disable-dev-shm-usage'] : []), '--headless=new', '--remote-debugging-port=9336', '--no-first-run', '--no-default-browser-check',
+const chrome = spawn(CHROME, [...(process.env.CI ? ['--no-sandbox', '--disable-dev-shm-usage'] : []), '--headless=new', '--lang=es-MX', '--remote-debugging-port=9336', '--no-first-run', '--no-default-browser-check',
   `--user-data-dir=${mkdtempSync(join(tmpdir(), 'astrobase-smoke-'))}`, 'about:blank'], { stdio: 'ignore' });
 
 let ws, id = 0;
@@ -62,6 +62,9 @@ try {
   await send('Runtime.enable', {}, s);
   await send('Network.enable', {}, s);
   await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true }, s);
+  // La prueba revisa textos en español: forzar el idioma aunque el Chrome del CI esté en inglés.
+  await send('Emulation.setLocaleOverride', { locale: 'es-MX' }, s).catch(() => {});
+  await send('Page.addScriptToEvaluateOnNewDocument', { source: `Object.defineProperty(navigator,'language',{get:()=>'es-MX'});Object.defineProperty(navigator,'languages',{get:()=>['es-MX','es']});` }, s);
   const ev = async expr => (await send('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true }, s)).result.value;
   const go = async url => { await send('Page.navigate', { url }, s); await sleep(2500); };
   // innerText respeta CSS (p. ej. `uppercase`), así que se compara sin mayúsculas.
