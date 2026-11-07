@@ -58,7 +58,7 @@ export const UI = {
     en: 'Connected to NASA DONKI: your first storm will be the strongest REAL flare of the last month ({c}, {d}).',
   },
   liveOkSwpc: {
-    es: 'DONKI no respondió, pero los satélites GOES (NOAA) sí: tu primera tormenta será la llamarada REAL más fuerte de esta semana ({c}, {d}).',
+    es: 'DONKI no respondió, pero los satélites GOES (NOAA) sí. Tu primera tormenta será la llamarada REAL más fuerte de esta semana ({c}, {d}).',
     en: 'DONKI did not answer, but the GOES satellites (NOAA) did: your first storm will be this week\'s strongest REAL flare ({c}, {d}).',
   },
   liveFail: {
@@ -99,7 +99,7 @@ export const UI = {
   signalFast: { es: 'Acelerado: aquí 1 segundo = 1 minuto real', en: 'Sped up: here 1 second = 1 real minute' },
   signalReal: { es: 'Tiempo real', en: 'Real time' },
   marsToday: {
-    es: 'Hoy Marte está a unos {km} millones de km: un mensaje tarda ~{m} min (cálculo con las órbitas de JPL, no es dato en vivo).',
+    es: 'Hoy Marte está a unos {km} millones de km y un mensaje tarda ~{m} min. Es un cálculo con las órbitas de JPL, no un dato en vivo.',
     en: 'Today Mars is about {km} million km away: a message takes ~{m} min (calculated from JPL orbits, not live data).',
   },
   today: { es: 'hoy', en: 'today' },

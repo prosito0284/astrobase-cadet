@@ -301,7 +301,7 @@ export const DECISION_CARDS: DecisionCard[] = [
       },
     ],
     fact: {
-      es: 'Dormir bien en el espacio es difícil. La NASA estudia cómo la luz de distintos colores ayuda al cuerpo a saber cuándo es de día y cuándo es de noche.',
+      es: 'Dormir bien en el espacio es difícil. La NASA estudia cómo las luces de colores ayudan al cuerpo. Así sabe cuándo es de día y cuándo es de noche.',
       en: 'Sleeping well in space is hard. NASA studies how light of different colors helps the body know when it is day and when it is night.',
     },
     source: { name: 'NASA — Human Research Program', url: 'https://www.nasa.gov/hrp/' },
@@ -330,8 +330,8 @@ export const DECISION_CARDS: DecisionCard[] = [
       },
     ],
     fact: {
-      es: 'La Estación Espacial usa "escudos Whipple": una capa delgada separada de la pared que rompe las piedritas antes de que lleguen a la nave.',
-      en: 'The Space Station uses "Whipple shields": a thin layer set apart from the wall that breaks up tiny rocks before they reach the ship.',
+      es: 'La Estación Espacial usa "escudos Whipple". Son capas delgadas, separadas de la pared, que rompen las piedritas antes de que lleguen a la nave.',
+      en: 'The Space Station uses "Whipple shields". They are thin layers, set apart from the wall, that break up tiny rocks before they reach the ship.',
     },
     source: { name: 'NASA — Orbital Debris Program Office', url: 'https://orbitaldebris.jsc.nasa.gov/' },
   },
@@ -446,7 +446,7 @@ export const DECISION_CARDS: DecisionCard[] = [
       },
     ],
     fact: {
-      es: 'En 2015 los astronautas de la Estación Espacial comieron por primera vez lechuga cultivada en el espacio, en el experimento Veggie de la NASA.',
+      es: 'En 2015, los astronautas de la Estación Espacial comieron lechuga cultivada en el espacio por primera vez. Fue el experimento Veggie de la NASA.',
       en: 'In 2015, astronauts on the Space Station ate lettuce grown in space for the first time, in NASA\'s Veggie experiment.',
     },
     source: { name: 'NASA — Veggie', url: 'https://science.nasa.gov/mission/veggie/' },
@@ -604,8 +604,8 @@ export const DECISION_CARDS: DecisionCard[] = [
       },
     ],
     fact: {
-      es: 'En 2009 la misión LCROSS de la NASA chocó a propósito contra un cráter del polo sur de la Luna y encontró agua congelada en el polvo que levantó.',
-      en: 'In 2009 NASA\'s LCROSS mission crashed on purpose into a crater at the Moon\'s south pole and found frozen water in the dust it kicked up.',
+      es: 'En 2009, la misión LCROSS de la NASA chocó a propósito contra un cráter del polo sur de la Luna. En el polvo que levantó encontró agua congelada.',
+      en: 'In 2009, NASA\'s LCROSS mission crashed on purpose into a crater at the Moon\'s south pole. It found frozen water in the dust it kicked up.',
     },
     source: { name: 'NASA — LCROSS', url: 'https://science.nasa.gov/mission/lcross/' },
   },
@@ -662,7 +662,7 @@ export const DECISION_CARDS: DecisionCard[] = [
       },
     ],
     fact: {
-      es: 'En 1972 el astronauta Harrison Schmitt, del Apolo 17, sintió algo parecido a una alergia por el polvo lunar que entró a su nave.',
+      es: 'En 1972, el astronauta Harrison Schmitt, del Apolo 17, sintió algo parecido a una alergia. La causa fue el polvo lunar que entró a su nave.',
       en: 'In 1972, Apollo 17 astronaut Harrison Schmitt felt something like hay fever from the Moon dust that got into his spacecraft.',
     },
     source: { name: 'NASA — Apollo 17', url: 'https://www.nasa.gov/mission/apollo-17/' },

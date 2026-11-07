@@ -71,6 +71,7 @@ Dentro del juego, el botón **"¿De dónde salen los datos?"** muestra esta mism
 
 ## Código
 
+- `tests/cadet_texts.test.ts`: revisa los más de 450 textos. Comprueba que todos existen en español e inglés, que el inglés no tiene acentos ni ñ olvidados y que los `{datos}` coinciden entre idiomas. En tarjetas, cuestionario y mensajes, ninguna frase pasa de 22 palabras (lectura fácil para 7–12 años).
 - `npm test`: pruebas del motor, los datos, los códigos, las insignias, el cuestionario, etc.
 - `npm run build && npm run smoke`: abre Chrome sin ventana y juega una misión completa (inicio, 10 días, final, cuestionario, diploma, guía, código de misión y modo sin internet). Falla si algo no aparece o si hay errores en la consola.
 
