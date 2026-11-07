@@ -39,6 +39,7 @@ jobs:
           grep -E '^\s*✖|^\s*not ok' test.log | head -40 | sed 's/^/- /' >> "$GITHUB_STEP_SUMMARY" || true
           # También como anotaciones (se ven en la lista de checks del commit).
           grep -E '^\s*✖|^\s*not ok|AssertionError|Error:|error:|Cannot find' test.log | head -12 | while IFS= read -r l; do echo "::error::$l"; done || true
+          tail -n 15 test.log | while IFS= read -r l; do echo "::warning::$l"; done || true
       - name: Puente /api empaquetado y al día
         run: npm run build:api -- --check
       - name: Build (incluye revisión de tipos)
