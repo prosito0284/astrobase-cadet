@@ -95,7 +95,15 @@ export default function DoseChart({ game, lang }: { game: CadetState; lang: Lang
                 </>
               )}
               <text x={cx} y={H - PAD_B + 12} textAnchor="middle" fontSize="9" fill="#94a3b8">{day}</text>
-              {d?.storm && <text x={cx} y={H - PAD_B + 24} textAnchor="middle" fontSize="9">☀️</text>}
+              {d?.storm && (
+                // Solecito dibujado (no emoji): los emoji dentro de SVG se ven distinto en cada navegador.
+                <g aria-hidden transform={`translate(${cx} ${H - PAD_B + 21})`}>
+                  {[0, 45, 90, 135].map(a => (
+                    <line key={a} x1={-5} x2={5} y1={0} y2={0} stroke="#fbbf24" strokeWidth={1.3} strokeLinecap="round" transform={`rotate(${a})`} />
+                  ))}
+                  <circle r={2.8} fill="#fbbf24" stroke="#020617" strokeWidth={0.8} />
+                </g>
+              )}
             </g>
           );
         })}

@@ -24,7 +24,7 @@ export function Bar({ icon, label, value, color, term, onTerm, delta }: {
       className={`text-left rounded-2xl border p-2.5 sm:p-3 bg-slate-900/80 transition-colors ${low ? 'border-red-500/70 cadet-glow-red' : 'border-slate-700/70 hover:border-slate-500'}`}
     >
       <div className="flex items-center justify-between gap-1">
-        <span className="font-bold text-sm sm:text-base text-slate-100 truncate">
+        <span className="font-bold text-sm sm:text-base text-slate-100 min-w-0 leading-tight">
           <span aria-hidden className="mr-1">{icon}</span>{label}
           <span className="ml-1 text-[10px] text-slate-400 align-top">ⓘ</span>
         </span>
