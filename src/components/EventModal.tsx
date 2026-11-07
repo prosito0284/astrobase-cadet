@@ -179,8 +179,10 @@ export const EventModal: React.FC<EventModalProps> = ({ event, onSelectOption, l
                   )}
                   {/* Science Points */}
                   {opt.resourceDeltas.sciencePoints !== undefined && opt.resourceDeltas.sciencePoints !== 0 && (
-                    <span className="px-2 py-0.5 rounded-md bg-cyan-950 text-cyan-300 border border-cyan-700 flex items-center gap-1">
-                      🔬 +{opt.resourceDeltas.sciencePoints} Ciencia
+                    <span className={`px-2 py-0.5 rounded-md flex items-center gap-1 ${
+                      opt.resourceDeltas.sciencePoints > 0 ? 'bg-cyan-950 text-cyan-300 border border-cyan-700' : 'bg-rose-950 text-rose-300 border border-rose-700'
+                    }`}>
+                      🔬 {opt.resourceDeltas.sciencePoints > 0 ? `+${opt.resourceDeltas.sciencePoints}` : opt.resourceDeltas.sciencePoints} Ciencia
                     </span>
                   )}
                   {/* Health impact */}

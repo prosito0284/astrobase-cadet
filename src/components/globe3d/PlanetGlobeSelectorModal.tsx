@@ -259,10 +259,11 @@ export const PlanetGlobeSelectorModal: React.FC<PlanetGlobeSelectorModalProps> =
     resizeObserver.observe(container);
 
     // 9. Animation & Physics Loop
-    let clock = new THREE.Clock();
+    const clock = new THREE.Timer();
     let totalTime = 0;
 
     const tick = () => {
+      clock.update();
       const rawDt = clock.getDelta();
       // Delta time clamping
       const dt = Math.min(rawDt, 0.1);

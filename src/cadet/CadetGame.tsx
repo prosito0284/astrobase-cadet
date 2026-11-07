@@ -156,6 +156,8 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
     setSite(where);
     setPrevStats(null);
     setCodeError(false);
+    setVotes({ day: 0, a: 0, b: 0 }); // los votos de la partida anterior no pasan a la nueva
+    setVoteMsg('');
     setShowReport(false);
     setShowDiploma(false);
     setFreshBadges([]);
@@ -215,6 +217,7 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
   const pick = (i: 0 | 1, at: number) => {
     if (!game) return;
     if (at - cardShownAt.current < 450) return;
+    setVoteMsg(''); // un "¡Empate!" de hoy no debe aparecer en la tarjeta de mañana
     const next = choose(game, i);
     setPrevStats({ air: game.air, energy: game.energy, shield: game.shield, health: game.health });
     if (next.status !== 'playing') {
@@ -891,7 +894,7 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
             </>
           )}
         </p>
-        {COMM_CARDS.includes(c.id) && <SignalRace key={`${game.day}-${game.site}`} site={game.site} lang={lang} marsMin={marsNow.min} sfx={sfx} />}
+        {COMM_CARDS.includes(c.id) && <SignalRace key={`${game.seed}-${game.day}-${game.site}`} site={game.site} lang={lang} marsMin={marsNow.min} sfx={sfx} />}
         {hints && !advice && (
           <button type="button" onClick={() => setHintDay(game.day)} className="w-full py-2.5 rounded-2xl text-sm font-black bg-emerald-500/15 border border-emerald-400/50 text-emerald-200 hover:bg-emerald-500/25">
             {tr(UI.askHint)}

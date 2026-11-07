@@ -606,14 +606,15 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
     });
     resizeObserver.observe(container);
 
-    // Clock and Animation Loop
-    const clock = new THREE.Clock();
+    // Timer and Animation Loop (THREE.Clock está obsoleto desde three r17x)
+    const clock = new THREE.Timer();
 
     function startRenderLoop() {
       const targetLookAt = new THREE.Vector3(0, 1.8, 0);
 
       const tick = () => {
         // Delta time clamping against background tab jumps
+        clock.update();
         const rawDt = clock.getDelta();
         const dt = Math.min(rawDt, 0.1);
 
@@ -675,7 +676,7 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
           }
 
           // Update expansion buildings animation (Sprint 5)
-          updateExpansionBuildings(expansionGroup, dt, clock.getElapsedTime());
+          updateExpansionBuildings(expansionGroup, dt, clock.getElapsed());
 
           // Render frame
           renderer.render(scene, camera);
