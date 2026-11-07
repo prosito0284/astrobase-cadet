@@ -28,3 +28,8 @@ archive_argon_earthtrend/
 practica-3d/
 .vercel
 .agents/
+
+# Variables de entorno y secretos: nunca subirlos al repo
+.env
+.env.*
+!.env.example

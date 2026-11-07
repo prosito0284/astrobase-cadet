@@ -9,6 +9,11 @@ const server = http.createServer((request, response) => {
     cleanUrls: true,
     headers: [
       {
+        // Mismas cabeceras de seguridad que vercel.json (si se despliega en Railway).
+        source: '**',
+        headers: require('./vercel.json').headers.find(h => h.source === '/(.*)').headers
+      },
+      {
         source: '**/*.html',
         headers: [
           { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
