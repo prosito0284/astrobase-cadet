@@ -28,6 +28,8 @@ jobs:
         run: npm audit --audit-level=high
       - name: Tests
         run: npm test
+      - name: Puente /api empaquetado y al día
+        run: npm run build:api -- --check
       - name: Build (incluye revisión de tipos)
         run: npm run build
       - name: Smoke (partida completa en Chrome)
