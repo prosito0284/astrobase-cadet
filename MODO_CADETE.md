@@ -41,6 +41,7 @@ Respuesta al reto **NASA Space Apps: Build a Junior Astronaut Mission Trainer**.
 - **Simulador de señal:** en las tarjetas de comunicación el niño envía un mensaje y lo ve viajar a la velocidad de la luz: 1.3 s en tiempo real a la Luna, y acelerado (1 s = 1 min) a Marte, usando la distancia calculada para el día de hoy.
 - **Récords Luna vs Marte:** al terminar se ven partidas, victorias, mejor medalla y menor radiación en cada sitio, para que el niño quiera probar el otro.
 - **✂️ Misión en papel** (desde la guía para maestros): reglas, tabla de llamaradas, hoja de registro y todas las tarjetas recortables, para jugar sin computadoras. Ocupa 4 hojas. Los números salen del mismo motor, y un test juega 160 misiones solo con las reglas impresas y comprueba que dan exactamente lo mismo que el juego, día por día. Ese test encontró y corrigió un error de redondeo del juego (15 × 10 ÷ 100 = 1.5 daba 1 en vez de 2).
+- **📅 Misión del día:** cada día hay una misión nueva, igual para todos (por sitio y nivel). Así una clase entera, o niños de distintas escuelas, juegan la misma misión y comparan resultados sin servidor ni cuentas. La semilla sale de la fecha (`dailyMission` en `missionCode.ts`, con tests).
 - **Guía para maestros y familias:** es imprimible e incluye objetivos, preguntas para conversar, una actividad sin pantalla ("Teléfono espacial") y un reto de matemáticas con la distancia a Marte de hoy.
 - **Funciona sin internet:** después de abrirlo una vez, un *service worker* guarda el juego en el navegador, incluido el Modo Experto. Con cada visita con internet se actualiza y borra los archivos de versiones viejas. Los datos en vivo nunca se guardan: si no hay red, el juego lo dice.
 - **Sonidos** cortos generados en el navegador (sin archivos), con volumen bajo y botón 🔊/🔇.
@@ -84,6 +85,8 @@ El juego consulta a NASA y NOAA a través de un **puente propio** (`/api/live-st
 - La llave de NASA vive **solo en el servidor**: en Vercel, *Settings → Environment Variables*, agrega `NASA_API_KEY` (llave gratis en https://api.nasa.gov) y vuelve a desplegar. Nunca llega al navegador.
 - Es seguro por diseño: solo acepta GET, las direcciones de NASA/NOAA están fijas (no se puede usar para visitar otros sitios), no guarda nada de los usuarios y sus errores no revelan detalles internos. Tiene tests (`tests/api_proxy.test.ts`).
 - Si el puente no está (por ejemplo, la carpeta subida a otro hosting), el juego conecta directo como antes. En ese caso puede usarse `VITE_NASA_API_KEY`, aunque esa sí es visible en el navegador.
+
+- **CodeQL:** GitHub analiza el código en cada cambio y cada lunes en busca de fallas de seguridad (`.github/workflows/codeql.yml`).
 
 ## Resultados verificables (antitrampas)
 

@@ -38,7 +38,7 @@ import { awardBadges, awardManual, BADGES, parseBadges } from './badges';
 import { buildQuiz } from './quiz';
 import { encodeResult } from './resultCode';
 import { bridgeStorm, bridgeSun } from './bridge';
-import { formatMissionCode, MAX_SEED, MIN_SEED, parseMissionCode, randomSeed } from './missionCode';
+import { dailyMission, formatMissionCode, MAX_SEED, MIN_SEED, parseMissionCode, randomSeed } from './missionCode';
 import type { MissionCode } from './missionCode';
 import { playSound } from './sound';
 import type { SoundKind } from './sound';
@@ -549,6 +549,14 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
         >
           {tr(UI.start)}
         </button>
+        <button
+          type="button"
+          onClick={() => startGame(site, dailyMission(site, level))}
+          className="w-full py-3 rounded-3xl text-lg font-black bg-slate-900 border-2 border-amber-400/70 text-amber-200 hover:bg-slate-800"
+        >
+          {tr(UI.daily)} <span className="font-mono text-sm text-amber-300/90">{formatMissionCode(dailyMission(site, level))}</span>
+        </button>
+        <p className="-mt-2 text-xs text-center text-slate-400">{tr(UI.dailyNote)}</p>
         <button type="button" onClick={() => setTeacherPage(true)} className="w-full py-2.5 rounded-2xl text-sm font-bold bg-slate-900 border border-slate-700 text-slate-300 hover:text-white">
           👩‍🏫 {tr(UI.teachers)}
         </button>

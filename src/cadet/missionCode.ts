@@ -30,3 +30,19 @@ export function parseMissionCode(raw: string): MissionCode | null {
 export function randomSeed(rand: () => number = Math.random): number {
   return MIN_SEED + Math.floor(rand() * (MAX_SEED - MIN_SEED + 1));
 }
+
+/** Fecha local "AAAA-MM-DD" (la clase comparte zona horaria). */
+export function dayKey(d: Date = new Date()): string {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+/**
+ * Misión del día: la misma para todos los que juegan ese día (por sitio y nivel),
+ * sin servidor ni cuentas. La semilla sale de un hash FNV-1a de la fecha.
+ */
+export function dailyMission(site: Site, level: Level, d: Date = new Date()): MissionCode {
+  let h = 0x811c9dc5;
+  for (const ch of `${dayKey(d)}|${site}|${level}`) h = Math.imul(h ^ ch.charCodeAt(0), 0x01000193) >>> 0;
+  return { site, level, seed: MIN_SEED + (h % (MAX_SEED - MIN_SEED + 1)) };
+}

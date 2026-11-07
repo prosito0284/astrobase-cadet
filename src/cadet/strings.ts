@@ -148,6 +148,8 @@ export const UI = {
   badges: { es: 'Tus insignias', en: 'Your badges' },
   codeAsk: { es: '🎟️ ¿Tu maestra o maestro te dio un código de misión?', en: '🎟️ Did your teacher give you a mission code?' },
   codePlaceholder: { es: 'Ej.: LN-48213', en: 'E.g. LN-48213' },
+  daily: { es: '📅 Misión del día', en: '📅 Mission of the day' },
+  dailyNote: { es: 'Hoy todos juegan la misma misión. ¡Comparen sus resultados en clase!', en: 'Today everyone plays the same mission. Compare your results in class!' },
   codePlay: { es: 'Jugar esa misión', en: 'Play that mission' },
   codeBad: { es: 'Ese código no existe. Revisa: dos letras, guion y 5 números (ej.: LN-48213).', en: 'That code doesn\'t exist. Check it: two letters, a dash and 5 numbers (e.g. LN-48213).' },
   resultCode: { es: 'Código de resultado', en: 'Result code' },

@@ -150,6 +150,13 @@ try {
   await click('Misión en papel'); await sleep(300);
   check('Misión en papel (reglas, registro y tarjetas)', (await has('Hoja de registro')) && (await ev(`document.querySelectorAll('.paper-card').length`)) >= 10);
 
+  await ev(`localStorage.removeItem('astrobase_cadet_game_v1')`);
+  await go(BASE + '?modo=cadete'); await sleep(400);
+  check('Misión del día muestra su código', (await ev(`[...document.querySelectorAll('button')].some(b=>b.textContent.includes('Misión del día')&&/[LM][FN]-[0-9]{5}/.test(b.textContent))`)) === true);
+  await click('Misión del día'); await sleep(300);
+  check('Misión del día arranca la partida', (await ev(`!!document.querySelector('[role=dialog][aria-label="¡Despegue!"]')`)) === true);
+  await ev(`localStorage.removeItem('astrobase_cadet_game_v1')`);
+
   await go(BASE + '?mision=MF-31415');
   await click('Jugar esa misión'); await sleep(500);
   check('Código de misión arranca Marte en Fácil', (await has('Fácil')) && (await ev(`!!document.querySelector('svg[aria-label*="Marte"]')`)));
