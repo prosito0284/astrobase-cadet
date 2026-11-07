@@ -150,6 +150,14 @@ export const UI = {
   codePlaceholder: { es: 'Ej.: LN-48213', en: 'E.g. LN-48213' },
   codePlay: { es: 'Jugar esa misión', en: 'Play that mission' },
   codeBad: { es: 'Ese código no existe. Revisa: dos letras, guion y 5 números (ej.: LN-48213).', en: 'That code doesn\'t exist. Check it: two letters, a dash and 5 numbers (e.g. LN-48213).' },
+  resultCode: { es: 'Código de resultado', en: 'Result code' },
+  resultCodeHelp: {
+    es: 'Dáselo a tu maestra o maestro. Al verificarlo se vuelve a jugar tu misión, así que nadie puede inventar un resultado.',
+    en: 'Give it to your teacher. Checking it replays your mission, so nobody can make up a result.',
+  },
+  copy: { es: 'Copiar', en: 'Copy' },
+  copied2: { es: '¡Copiado!', en: 'Copied!' },
+  verify: { es: 'Verificar resultados de la clase', en: 'Verify class results' },
   codeThis: { es: 'Código de esta misión', en: 'This mission\'s code' },
   codeShare: {
     es: 'Compártelo: quien lo use jugará exactamente la misma misión (mismas tarjetas y tormentas) y podrán comparar sus decisiones.',

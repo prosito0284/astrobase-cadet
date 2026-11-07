@@ -79,13 +79,15 @@ Dentro del juego, el botón **"¿De dónde salen los datos?"** muestra esta mism
 
 ## Llave de la API de NASA (importante para el día del evento)
 
-El juego usa `DEMO_KEY` de api.nasa.gov, que solo permite unas **30 consultas por hora por red**. En un salón o una sala de jueces con muchas computadoras en el mismo wifi se agota, y entonces el juego usa NOAA o los datos guardados (y lo dice). Para que no pase:
+El juego consulta a NASA y NOAA a través de un **puente propio** (`/api/live-storm` y `/api/sun-now`, funciones de Vercel):
+- NASA y NOAA reciben como mucho una consulta cada 3 h (llamarada) o cada 15 min (gráfica del Sol), **sin importar cuántos niños jueguen**: el CDN de Vercel guarda la respuesta.
+- La llave de NASA vive **solo en el servidor**: en Vercel, *Settings → Environment Variables*, agrega `NASA_API_KEY` (llave gratis en https://api.nasa.gov) y vuelve a desplegar. Nunca llega al navegador.
+- Es seguro por diseño: solo acepta GET, las direcciones de NASA/NOAA están fijas (no se puede usar para visitar otros sitios), no guarda nada de los usuarios y sus errores no revelan detalles internos. Tiene tests (`tests/api_proxy.test.ts`).
+- Si el puente no está (por ejemplo, la carpeta subida a otro hosting), el juego conecta directo como antes. En ese caso puede usarse `VITE_NASA_API_KEY`, aunque esa sí es visible en el navegador.
 
-1. Pide una llave gratis en https://api.nasa.gov (permite 1,000 consultas por hora).
-2. En Vercel, en *Settings → Environment Variables*, agrega `VITE_NASA_API_KEY` con esa llave.
-3. Vuelve a desplegar.
+## Resultados verificables (antitrampas)
 
-Además, cada navegador reutiliza la llamarada en vivo durante 3 horas para gastar menos cuota. Si DONKI responde "límite de uso" (429) o da un error del servidor, durante 1 hora el juego le pregunta directamente a NOAA.
+Al terminar, cada niño ve un **código de resultado** (`R-XXXX-XXXX-XXXX`). Ese código no contiene el puntaje, sino la misión y sus 10 decisiones. En la guía para maestros, **✅ Verificar resultados** vuelve a jugar cada misión y calcula el resultado real. Editar el navegador o inventar códigos no sirve: los tests lo comprueban con 400 partidas, puntajes editados, errores de tipeo y 5,000 códigos al azar.
 
 ## Código
 

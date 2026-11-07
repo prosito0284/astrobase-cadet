@@ -25,6 +25,7 @@ const SECTIONS: Section[] = [
     items: [
       { es: 'Pregunten: "¿Qué necesitas para vivir un día?" Hagan una lista y luego vean cuáles de esas cosas hay en la Luna.', en: 'Ask: "What do you need to live for one day?" Make a list, then check which of those things exist on the Moon.' },
       { es: 'Con una sola computadora y un proyector: en ⚙️ Ajustes activen «Modo clase» y, si la imagen se ve lavada, «Tema claro». La letra se agranda y en cada tarjeta aparece una votación: cuenten las manos para A y para B y toquen "Decidir por mayoría". Si hay empate, el juego pide discutir y votar otra vez.', en: 'With one computer and a projector: in ⚙️ Settings turn on “Class mode” and, if the image looks washed out, “Light theme”. The text gets bigger and each card shows a vote: count hands for A and B and tap "Decide by majority". If there is a tie, the game asks the class to discuss and vote again.' },
+      { es: 'Competencias sin trampas: al final de cada misión aparece un «Código de resultado» (R-…). En «✅ Verificar resultados» pegan los códigos de la clase y el juego vuelve a jugar cada misión con las decisiones del niño, así que nadie puede inventar ni editar su puntaje.', en: 'Cheat-proof contests: at the end of each mission there is a “Result code” (R-…). In “✅ Verify results” paste the class codes and the game replays each mission with the child’s decisions, so nobody can make up or edit their score.' },
       { es: 'Misma misión para toda la clase: jueguen una vez y copien el "Código de misión" que sale al final (por ejemplo LN-48213), o inventen uno con dos letras y 5 números (L = Luna, M = Marte; F = Fácil, N = Normal). Todos lo escriben en "¿Tu maestra o maestro te dio un código?" y juegan exactamente la misma misión. Al final comparen: ¿quién eligió distinto y qué pasó?', en: 'Same mission for the whole class: play once and copy the "Mission code" shown at the end (for example LN-48213), or make one up with two letters and 5 numbers (L = Moon, M = Mars; F = Easy, N = Normal). Everyone types it in "Did your teacher give you a mission code?" and plays exactly the same mission. Afterwards compare: who chose differently and what happened?' },
     ],
   },
@@ -62,11 +63,12 @@ const SECTIONS: Section[] = [
 
 const fillKm = (s: string, km: number) => s.replace(/\{km\}/g, String(km));
 
-export default function TeacherGuide({ lang, marsKm, onBack, onPaper, labels }: {
+export default function TeacherGuide({ lang, marsKm, onBack, onPaper, onVerify, labels }: {
   lang: Lang;
   marsKm: number;
   onBack: () => void;
   onPaper: () => void;
+  onVerify: () => void;
   labels: { title: string; print: string; back: string };
 }) {
   return (
@@ -78,6 +80,7 @@ export default function TeacherGuide({ lang, marsKm, onBack, onPaper, labels }: 
         </div>
         <div className="cadet-no-print flex gap-2">
           <button type="button" onClick={() => window.print()} className="px-3 py-2 rounded-xl text-sm font-black bg-amber-400 text-slate-950 hover:brightness-110">🖨️ {labels.print}</button>
+          <button type="button" onClick={onVerify} className="px-3 py-2 rounded-xl text-sm font-black bg-emerald-400 text-slate-950 hover:brightness-110">✅ {lang === 'es' ? 'Verificar resultados' : 'Verify results'}</button>
           <button type="button" onClick={onPaper} className="px-3 py-2 rounded-xl text-sm font-black bg-cyan-400 text-slate-950 hover:brightness-110">✂️ {lang === 'es' ? 'Misión en papel' : 'Paper mission'}</button>
           <button type="button" autoFocus onClick={onBack} className="px-3 py-2 rounded-xl text-sm font-bold bg-slate-800 border border-slate-600 text-white hover:bg-slate-700">← {labels.back}</button>
         </div>

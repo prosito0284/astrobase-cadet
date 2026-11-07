@@ -122,6 +122,8 @@ try {
   await ev(`(async()=>{for(const f of document.querySelectorAll('fieldset')){f.querySelector('button').click();await new Promise(r=>setTimeout(r,50))}})()`);
   check('Cuestionario muestra el puntaje', await has('Acertaste'));
   check('Final: insignias', await has('Tus insignias'));
+  const resultCode = await ev(`[...document.querySelectorAll('p')].map(p=>p.textContent.trim()).find(t=>/^R-[0-9A-Z]{4}-[0-9A-Z]{4}-[0-9A-Z]{4}$/.test(t))`);
+  check('Final: código de resultado verificable', !!resultCode, resultCode ?? 'no apareció');
   check('Final: "¿Y si hubieras elegido otra cosa?"', await has('¿Y si hubieras elegido otra cosa?'));
   check('Final: sin desborde horizontal', await noOverflow());
 
@@ -133,6 +135,15 @@ try {
   await go(BASE + '?modo=cadete');
   await click('Guía para maestros'); await sleep(300);
   check('Guía para maestros', await has('Preguntas para conversar'));
+  await click('Verificar resultados'); await sleep(400);
+  const pasted = JSON.stringify(['Prueba: ' + resultCode, 'Trampa: R-0000-0000-0000'].join('\n'));
+  await ev(`(()=>{const t=document.querySelector('textarea');const set=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set;set.call(t,${pasted});t.dispatchEvent(new Event('input',{bubbles:true}))})()`);
+  await sleep(300);
+  check('Verificación de la maestra: acepta el real y rechaza el inventado', (await has('1 válidos')) && (await has('1 no válidos')));
+  await click('Volver'); await sleep(200);
+  await ev(`localStorage.removeItem('astrobase_cadet_game_v1')`);
+  await go(BASE + '?modo=cadete');
+  await click('Guía para maestros'); await sleep(300);
   await click('Misión en papel'); await sleep(300);
   check('Misión en papel (reglas, registro y tarjetas)', (await has('Hoja de registro')) && (await ev(`document.querySelectorAll('.paper-card').length`)) >= 10);
 

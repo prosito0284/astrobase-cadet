@@ -27,6 +27,7 @@ import type { Records } from './records';
 const TeacherGuide = lazy(() => import('./TeacherGuide'));
 const PaperMission = lazy(() => import('./PaperMission'));
 const CompareSites = lazy(() => import('./CompareSites'));
+const VerifyResults = lazy(() => import('./VerifyResults'));
 import SunPanel from './SunPanel';
 import DoseChart from './DoseChart';
 import LaunchOverlay from './LaunchOverlay';
@@ -35,6 +36,8 @@ import { fetchSunNow } from './spaceweather';
 import type { SunNow } from './spaceweather';
 import { awardBadges, awardManual, BADGES, parseBadges } from './badges';
 import { buildQuiz } from './quiz';
+import { encodeResult } from './resultCode';
+import { bridgeStorm, bridgeSun } from './bridge';
 import { formatMissionCode, MAX_SEED, MIN_SEED, parseMissionCode, randomSeed } from './missionCode';
 import type { MissionCode } from './missionCode';
 import { playSound } from './sound';
@@ -84,6 +87,8 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
   const endLaunch = useCallback(() => setLaunching(false), []);
   const [teacherPage, setTeacherPage] = useState(false);
   const [paperPage, setPaperPage] = useState(false);
+  const [verifyPage, setVerifyPage] = useState(false);
+  const [resultCopied, setResultCopied] = useState(false);
   const [marsNow] = useState(() => {
     const t = Date.now();
     return { km: Math.round(earthMarsDistanceKm(t) / 1e6), min: marsDelayMinutes(t) };
@@ -113,7 +118,8 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
   // Rayos X del Sol de las últimas 24 h (NOAA GOES). Si falla, el panel no se muestra.
   useEffect(() => {
     let cancelled = false;
-    fetchSunNow().then(s => { if (!cancelled) setSun(s); });
+    // Primero el puente propio (caché compartido); si no está, directo a NOAA.
+    bridgeSun().then(b => (b.ok ? b.sun ?? undefined : fetchSunNow())).then(s => { if (!cancelled) setSun(s); });
     return () => { cancelled = true; };
   }, []);
   useEffect(() => { safeSet(SAVE_KEY, game ? JSON.stringify(game) : null); }, [game]);
@@ -143,10 +149,12 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
   useEffect(() => {
     if (cachedLive) return;
     let cancelled = false;
-    fetchLiveStorm(6000, import.meta.env.VITE_NASA_API_KEY || 'DEMO_KEY', {
+    // Primero el puente propio (/api/live-storm): llave escondida y caché de 3 h para
+    // todos. Si no está disponible, se conecta directo como antes.
+    bridgeStorm().then(b => (b.ok ? b.storm ?? undefined : fetchLiveStorm(6000, import.meta.env.VITE_NASA_API_KEY || 'DEMO_KEY', {
       skipDonki: donkiBackedOff(),
       onDonkiStatus: st => { if (donkiShouldBackOff(st)) setDonkiBackoff(); },
-    }).then(storm => {
+    }))).then(storm => {
       if (cancelled) return;
       setLiveStorm(storm);
       setLiveStatus(storm ? 'ok' : 'fail');
@@ -166,6 +174,7 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
     setShowReport(false);
     setShowDiploma(false);
     setFreshBadges([]);
+    setResultCopied(false);
     setShareMsg('');
     setQuizAnswers({});
     safeSet(LEVEL_KEY, level);
@@ -434,6 +443,11 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
     </div>
   );
 
+  // ── Verificar resultados (maestros) ──
+  if (verifyPage) {
+    return shell(<Suspense fallback={<p className="text-slate-300">⏳</p>}><VerifyResults lang={lang} onBack={() => setVerifyPage(false)} /></Suspense>);
+  }
+
   // ── Misión en papel ──
   if (paperPage) {
     return shell(<Suspense fallback={<p className="text-slate-300">⏳</p>}><PaperMission lang={lang} onBack={() => setPaperPage(false)} /></Suspense>);
@@ -448,6 +462,7 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
           marsKm={marsNow.km}
           onBack={() => setTeacherPage(false)}
           onPaper={() => { setTeacherPage(false); setPaperPage(true); }}
+          onVerify={() => { setTeacherPage(false); setVerifyPage(true); }}
           labels={{ title: tr(UI.teachers), print: tr(UI.print), back: tr(UI.back) }}
         />
       </Suspense>,
@@ -767,6 +782,26 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
               <p className="text-xs text-slate-400 mt-1">{tr(UI.codeShare)}</p>
             </div>
           )}
+          {(() => {
+            const rc = encodeResult(game);
+            if (!rc) return null;
+            return (
+              <div className="rounded-2xl bg-slate-950/70 border border-emerald-500/40 p-3 text-left">
+                <p className="text-sm text-slate-300">🧾 {tr(UI.resultCode)}:</p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-xl font-black tracking-wider text-emerald-300 font-mono">{rc}</p>
+                  <button
+                    type="button"
+                    onClick={async () => { try { await navigator.clipboard.writeText(rc); setResultCopied(true); } catch { /* sin portapapeles */ } }}
+                    className="px-2.5 py-1 rounded-lg text-xs font-black bg-slate-800 border border-slate-600 text-slate-100 hover:bg-slate-700"
+                  >
+                    📋 {resultCopied ? tr(UI.copied2) : tr(UI.copy)}
+                  </button>
+                </div>
+                <p className="text-xs text-slate-400 mt-1">{tr(UI.resultCodeHelp)}</p>
+              </div>
+            );
+          })()}
           <RecordsTable records={records} lang={lang} />
           <div className="rounded-2xl bg-slate-950/70 border border-slate-800 p-3 text-left">
             <h3 className="font-black text-white mb-2">🏅 {tr(UI.badges)} <span className="text-slate-400 text-sm">{badges.length}/{BADGES.length}</span></h3>
