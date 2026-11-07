@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // MODO CADETE (7–12 años) — Una decisión por día, tres barras, datos reales.
 // ─────────────────────────────────────────────────────────────────────────────
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   choose,
   createGame,
@@ -22,9 +22,10 @@ import type { CadetState, Level } from './engine';
 import { earthMarsDistanceKm, marsDelayMinutes } from './orbit';
 import { addResult, parseRecords } from './records';
 import type { Records } from './records';
-import TeacherGuide from './TeacherGuide';
-import PaperMission from './PaperMission';
-import CompareSites from './CompareSites';
+// Pantallas que pocos abren: se descargan solo al usarlas (carga inicial más rápida).
+const TeacherGuide = lazy(() => import('./TeacherGuide'));
+const PaperMission = lazy(() => import('./PaperMission'));
+const CompareSites = lazy(() => import('./CompareSites'));
 import SunPanel from './SunPanel';
 import DoseChart from './DoseChart';
 import LaunchOverlay from './LaunchOverlay';
@@ -39,7 +40,7 @@ import { playSound } from './sound';
 import type { SoundKind } from './sound';
 import { DATA_SOURCES, GLOSSARY, REAL_STORMS, SITE_INFO } from './data';
 import type { Lang, Site, SolarStorm, T } from './data';
-import { AUTOREAD_KEY, THEME_KEY, BADGES_KEY, CLASS_KEY, LANG_KEY, LEVEL_KEY, LIVE_KEY, loadGame, NAME_KEY, readCachedLive, RECORDS_KEY, safeGet, safeSet, SAVE_KEY, SOUND_KEY, TUTORIAL_KEY } from './storage';
+import { AUTOREAD_KEY, THEME_KEY, BADGES_KEY, CLASS_KEY, LANG_KEY, LEVEL_KEY, loadGame, NAME_KEY, readCachedLive, RECORDS_KEY, writeCachedLive, safeGet, safeSet, SAVE_KEY, SOUND_KEY, TUTORIAL_KEY } from './storage';
 import type { LiveStatus } from './storage';
 import { fill, SITE_IN, TIPS, UI } from './strings';
 import { Bar, EffectChips, Modal, RecordsTable, RichText, SignalRace } from './widgets';
@@ -141,12 +142,12 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
   useEffect(() => {
     if (cachedLive) return;
     let cancelled = false;
-    fetchLiveStorm().then(storm => {
+    fetchLiveStorm(6000, import.meta.env.VITE_NASA_API_KEY || 'DEMO_KEY').then(storm => {
       if (cancelled) return;
       setLiveStorm(storm);
       setLiveStatus(storm ? 'ok' : 'fail');
       if (storm) {
-        try { sessionStorage.setItem(LIVE_KEY, JSON.stringify(storm)); } catch { /* ignorar */ }
+        writeCachedLive(storm);
       }
     });
     return () => { cancelled = true; };
@@ -363,7 +364,9 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
   } else if (modal === 'compare') {
     modalNode = (
       <Modal title={`🌕🔴 ${tr(UI.compare)}`} onClose={() => setModal(null)} closeLabel={tr(UI.close)}>
-        <CompareSites lang={lang} marsKm={marsNow.km} marsMin={marsNow.min} />
+        <Suspense fallback={<p className="text-sm text-slate-300">⏳</p>}>
+          <CompareSites lang={lang} marsKm={marsNow.km} marsMin={marsNow.min} />
+        </Suspense>
       </Modal>
     );
   } else if (modal === 'sources') {
@@ -429,19 +432,21 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
 
   // ── Misión en papel ──
   if (paperPage) {
-    return shell(<PaperMission lang={lang} onBack={() => setPaperPage(false)} />);
+    return shell(<Suspense fallback={<p className="text-slate-300">⏳</p>}><PaperMission lang={lang} onBack={() => setPaperPage(false)} /></Suspense>);
   }
 
   // ── Guía para maestros ──
   if (teacherPage) {
     return shell(
-      <TeacherGuide
-        lang={lang}
-        marsKm={marsNow.km}
-        onBack={() => setTeacherPage(false)}
-        onPaper={() => { setTeacherPage(false); setPaperPage(true); }}
-        labels={{ title: tr(UI.teachers), print: tr(UI.print), back: tr(UI.back) }}
-      />,
+      <Suspense fallback={<p className="text-slate-300">⏳</p>}>
+        <TeacherGuide
+          lang={lang}
+          marsKm={marsNow.km}
+          onBack={() => setTeacherPage(false)}
+          onPaper={() => { setTeacherPage(false); setPaperPage(true); }}
+          labels={{ title: tr(UI.teachers), print: tr(UI.print), back: tr(UI.back) }}
+        />
+      </Suspense>,
     );
   }
 

@@ -726,11 +726,11 @@ export const SWPC_FLARES_URL = 'https://services.swpc.noaa.gov/json/goes/primary
  * Si DONKI no responde, prueba NOAA SWPC (últimos 7 días). Si ninguno responde,
  * devuelve undefined y el juego usa solo llamaradas guardadas (y lo dice).
  */
-export async function fetchLiveStorm(timeoutMs = 6000): Promise<SolarStorm | undefined> {
+export async function fetchLiveStorm(timeoutMs = 6000, apiKey = 'DEMO_KEY'): Promise<SolarStorm | undefined> {
   const end = new Date();
   const start = new Date(end.getTime() - 30 * 24 * 3600 * 1000);
   const donki = await getJson(
-    `https://api.nasa.gov/DONKI/FLR?startDate=${isoDate(start)}&endDate=${isoDate(end)}&api_key=DEMO_KEY`,
+    `https://api.nasa.gov/DONKI/FLR?startDate=${isoDate(start)}&endDate=${isoDate(end)}&api_key=${encodeURIComponent(apiKey)}`,
     timeoutMs,
   );
   const fromDonki = Array.isArray(donki) ? stormFromDonki(donki as DonkiFlare[]) : undefined;

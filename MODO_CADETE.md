@@ -70,6 +70,16 @@ Respuesta al reto **NASA Space Apps: Build a Junior Astronaut Mission Trainer**.
 
 Dentro del juego, el botón **"¿De dónde salen los datos?"** muestra esta misma lista con sus enlaces.
 
+## Llave de la API de NASA (importante para el día del evento)
+
+El juego usa `DEMO_KEY` de api.nasa.gov, que solo permite unas **30 consultas por hora por red**. En un salón o una sala de jueces con muchas computadoras en el mismo wifi se agota, y entonces el juego usa NOAA o los datos guardados (y lo dice). Para que no pase:
+
+1. Pide una llave gratis en https://api.nasa.gov (permite 1,000 consultas por hora).
+2. En Vercel, en *Settings → Environment Variables*, agrega `VITE_NASA_API_KEY` con esa llave.
+3. Vuelve a desplegar.
+
+Además, cada navegador reutiliza la llamarada en vivo durante 3 horas para gastar menos cuota.
+
 ## Código
 
 - `tests/cadet_texts.test.ts`: revisa los más de 450 textos. Comprueba que todos existen en español e inglés, que el inglés no tiene acentos ni ñ olvidados y que los `{datos}` coinciden entre idiomas. En tarjetas, cuestionario y mensajes, ninguna frase pasa de 22 palabras (lectura fácil para 7–12 años).

@@ -36,15 +36,31 @@ export function loadGame(): CadetState | null {
   } catch { return null; }
 }
 
-/** Resultado de DONKI ya consultado en esta sesión del navegador (para no gastar la cuota de la API). */
-export function readCachedLive(): { status: LiveStatus; storm?: SolarStorm } | null {
+/** Cuánto tiempo se reutiliza una llamarada en vivo ya descargada. */
+export const LIVE_TTL_MS = 3 * 60 * 60 * 1000;
+
+/**
+ * Llamarada en vivo ya consultada en este navegador en las últimas 3 horas.
+ * La llave pública DEMO_KEY de api.nasa.gov solo permite ~30 consultas por hora por
+ * red: en un salón con muchas computadoras en el mismo wifi se agota rápido. Por eso
+ * se reutiliza el resultado y solo se guardan los éxitos (un fallo se reintenta).
+ */
+export function readCachedLive(now: number = Date.now()): { status: LiveStatus; storm?: SolarStorm } | null {
   try {
-    const cached = sessionStorage.getItem(LIVE_KEY);
-    if (!cached) return null;
-    const parsed = JSON.parse(cached) as SolarStorm | null;
-    // Solo se guardan los éxitos: un fallo pasajero se vuelve a intentar al recargar.
-    return parsed ? { status: 'ok', storm: parsed } : null;
+    const raw = localStorage.getItem(LIVE_KEY) ?? sessionStorage.getItem(LIVE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { storm?: SolarStorm; savedAt?: number } | SolarStorm | null;
+    if (!parsed) return null;
+    // Formato nuevo { storm, savedAt }; el viejo era la llamarada sola (de esta sesión).
+    const storm = 'savedAt' in parsed ? parsed.storm : (parsed as SolarStorm);
+    const savedAt = 'savedAt' in parsed ? parsed.savedAt ?? 0 : now;
+    if (!storm || typeof storm.classType !== 'string' || now - savedAt > LIVE_TTL_MS) return null;
+    return { status: 'ok', storm };
   } catch {
     return null;
   }
+}
+
+export function writeCachedLive(storm: SolarStorm, now: number = Date.now()) {
+  try { localStorage.setItem(LIVE_KEY, JSON.stringify({ storm, savedAt: now })); } catch { /* sin almacenamiento */ }
 }
