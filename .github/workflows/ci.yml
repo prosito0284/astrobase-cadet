@@ -45,6 +45,14 @@ jobs:
       - name: Build (incluye revisión de tipos)
         run: npm run build
       - name: Smoke (partida completa en Chrome)
-        run: npm run smoke
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run smoke 2>&1 | tee smoke.log
         env:
           CHROME_PATH: /usr/bin/google-chrome
+      - name: Qué falló en el smoke
+        if: failure()
+        shell: bash
+        run: |
+          grep -E '✖|comprobaciones' smoke.log 2>/dev/null | head -12 | while IFS= read -r l; do echo "::error::$l"; done || true
