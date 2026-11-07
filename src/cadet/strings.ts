@@ -112,6 +112,7 @@ export const UI = {
   teachers: { es: 'Guía para maestros y familias', en: 'Guide for teachers and families' },
   soundOn: { es: 'Silenciar sonidos', en: 'Mute sounds' },
   settings: { es: 'Ajustes', en: 'Settings' },
+  compare: { es: '¿Luna o Marte? Compáralos (y descubre cuánto pesarías)', en: 'Moon or Mars? Compare them (and find out how much you would weigh)' },
   language: { es: 'Idioma', en: 'Language' },
   soundLabel: { es: 'Sonidos', en: 'Sounds' },
   soundHelp: { es: 'Pitidos cortos y bajitos al elegir y en las tormentas.', en: 'Short, quiet beeps when choosing and during storms.' },

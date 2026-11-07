@@ -15,6 +15,7 @@ Respuesta al reto **NASA Space Apps: Build a Junior Astronaut Mission Trainer**.
 - Bilingüe (ES/EN), con lectura en voz alta y un glosario de palabras difíciles. No necesita cuenta ni descarga.
 - Debajo de las barras se ve lo que pasa **cada día, pase lo que pase**: el aire que se respira y la energía que dan los paneles menos la que gastan las máquinas. Así el niño puede planear.
 - Un **doble toque** rápido en "Siguiente día" no elige sin querer la opción que aparece debajo del dedo.
+- **🌕🔴 ¿Luna o Marte?:** antes de elegir, una tabla compara la distancia (la de Marte calculada para hoy), el retraso de los mensajes, el viaje, la gravedad, la duración del día, el aire y la radiación. Incluye la calculadora "¿cuánto pesarías?". La gravedad viene de NASA: 1/6 en la Luna y 38 % en Marte (100 → 38). El peso no se guarda.
 - **🗣️ Lectura automática:** al activarla, el juego lee en voz alta cada tarjeta y cada reporte apenas aparecen. Pensado para niñas y niños de 7–8 años que todavía leen despacio.
 - **Palabras difíciles tocables:** dentro de las tarjetas y de "Esto pasó de verdad", palabras como *radiación*, *escudo*, *llamarada* o *mSv* aparecen subrayadas, y al tocarlas se abre su explicación.
 - **☀️ Tema claro para proyectores:** los proyectores "lavan" los fondos oscuros. Este tema reasigna los colores de Tailwind solo dentro del juego, y pasó la auditoría axe con 0 fallas de contraste, igual que el tema oscuro.

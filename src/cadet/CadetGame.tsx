@@ -24,6 +24,7 @@ import { addResult, parseRecords } from './records';
 import type { Records } from './records';
 import TeacherGuide from './TeacherGuide';
 import PaperMission from './PaperMission';
+import CompareSites from './CompareSites';
 import SunPanel from './SunPanel';
 import DoseChart from './DoseChart';
 import LaunchOverlay from './LaunchOverlay';
@@ -356,6 +357,12 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
         </ul>
       </Modal>
     );
+  } else if (modal === 'compare') {
+    modalNode = (
+      <Modal title={`🌕🔴 ${tr(UI.compare)}`} onClose={() => setModal(null)} closeLabel={tr(UI.close)}>
+        <CompareSites lang={lang} marsKm={marsNow.km} marsMin={marsNow.min} />
+      </Modal>
+    );
   } else if (modal === 'sources') {
     modalNode = (
       <Modal title={tr(UI.sources)} onClose={() => setModal(null)} closeLabel={tr(UI.close)}>
@@ -461,6 +468,9 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
             🔴 {fill(tr(UI.marsToday), { km: marsNow.km, m: marsNow.min })}
           </p>
         )}
+        <button type="button" onClick={() => setModal('compare')} className="w-full py-2.5 rounded-2xl text-sm font-bold bg-slate-900 border border-slate-700 text-slate-200 hover:text-white">
+          🌕🔴 {tr(UI.compare)}
+        </button>
         <h2 className="text-xl font-black text-white">{tr(UI.pickLevel)}</h2>
         <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label={tr(UI.pickLevel)}>
           {(['easy', 'normal'] as Level[]).map(l => (

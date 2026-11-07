@@ -79,6 +79,10 @@ try {
   await go(BASE + '?modo=cadete');
   check('Inicio: título y botón de empezar', (await has('ASTROBASE')) && (await has('Empezar misión')));
   check('Inicio: sin desborde horizontal en celular', await noOverflow());
+  await click('Compáralos'); await sleep(300);
+  check('Comparador Luna/Marte con calculadora de peso', (await has('Gravedad')) && (await has('marcaría 5 kg')) && (await has('Marte 11.4 kg')));
+  check('Comparador: sin desborde horizontal', await noOverflow());
+  await click('Cerrar'); await sleep(200);
 
   await click('Normal');
   await click('Empezar misión'); await sleep(300);
