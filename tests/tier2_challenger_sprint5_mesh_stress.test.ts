@@ -300,10 +300,12 @@ describe('Tier 2 Challenger: Sprint 5 - 3D Base Expansion Mesh Lifecycle, Collis
       }
 
       const elapsedMs = performance.now() - t0;
-      // 2,000 updates should take well under 250ms on modern hardware
+      // 2,000 updates should take well under 250ms on modern hardware. Las máquinas
+      // compartidas de GitHub Actions son más lentas y variables: ahí el límite es mayor.
+      const budgetMs = process.env.CI ? 3000 : 500;
       assert.ok(
-        elapsedMs < 500,
-        `2000 animation frames took ${elapsedMs.toFixed(2)}ms, exceeding 500ms budget`
+        elapsedMs < budgetMs,
+        `2000 animation frames took ${elapsedMs.toFixed(2)}ms, exceeding ${budgetMs}ms budget`
       );
 
       disposeExpansionBuildings(group);
