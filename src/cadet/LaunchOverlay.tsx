@@ -28,6 +28,13 @@ export default function LaunchOverlay({ site, lang, onDone }: { site: Site; lang
     return () => window.clearTimeout(id);
   }, [step, onDone]);
 
+  // Esc salta la cuenta regresiva.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onDone(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onDone]);
+
   const s = STEPS[step];
   return (
     <div

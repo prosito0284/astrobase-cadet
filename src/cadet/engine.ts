@@ -701,18 +701,25 @@ export function stormFromSwpc(flares: SwpcFlare[]): SolarStorm | undefined {
   };
 }
 
-async function getJson(url: string, timeoutMs: number): Promise<unknown> {
+async function getJson(url: string, timeoutMs: number): Promise<{ status: number; data?: unknown }> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     const res = await fetch(url, { signal: ctrl.signal });
-    if (!res.ok) return undefined;
-    return await res.json();
+    if (!res.ok) return { status: res.status };
+    return { status: res.status, data: await res.json() };
   } catch {
-    return undefined;
+    return { status: 0 }; // sin red, CORS o tiempo agotado
   } finally {
     clearTimeout(timer);
   }
+}
+
+export interface LiveFetchOptions {
+  /** No preguntar a DONKI (p. ej. porque hace poco respondió "límite de uso"). */
+  skipDonki?: boolean;
+  /** Avisa cómo respondió DONKI: 200, 429 (límite de uso), 503, 0 (sin conexión)… */
+  onDonkiStatus?: (status: number) => void;
 }
 
 function isoDate(d: Date): string {
@@ -726,15 +733,23 @@ export const SWPC_FLARES_URL = 'https://services.swpc.noaa.gov/json/goes/primary
  * Si DONKI no responde, prueba NOAA SWPC (últimos 7 días). Si ninguno responde,
  * devuelve undefined y el juego usa solo llamaradas guardadas (y lo dice).
  */
-export async function fetchLiveStorm(timeoutMs = 6000, apiKey = 'DEMO_KEY'): Promise<SolarStorm | undefined> {
-  const end = new Date();
-  const start = new Date(end.getTime() - 30 * 24 * 3600 * 1000);
-  const donki = await getJson(
-    `https://api.nasa.gov/DONKI/FLR?startDate=${isoDate(start)}&endDate=${isoDate(end)}&api_key=${encodeURIComponent(apiKey)}`,
-    timeoutMs,
-  );
-  const fromDonki = Array.isArray(donki) ? stormFromDonki(donki as DonkiFlare[]) : undefined;
-  if (fromDonki) return fromDonki;
+export async function fetchLiveStorm(timeoutMs = 6000, apiKey = 'DEMO_KEY', opts: LiveFetchOptions = {}): Promise<SolarStorm | undefined> {
+  if (!opts.skipDonki) {
+    const end = new Date();
+    const start = new Date(end.getTime() - 30 * 24 * 3600 * 1000);
+    const donki = await getJson(
+      `https://api.nasa.gov/DONKI/FLR?startDate=${isoDate(start)}&endDate=${isoDate(end)}&api_key=${encodeURIComponent(apiKey)}`,
+      timeoutMs,
+    );
+    opts.onDonkiStatus?.(donki.status);
+    const fromDonki = Array.isArray(donki.data) ? stormFromDonki(donki.data as DonkiFlare[]) : undefined;
+    if (fromDonki) return fromDonki;
+  }
   const swpc = await getJson(SWPC_FLARES_URL, timeoutMs);
-  return Array.isArray(swpc) ? stormFromSwpc(swpc as SwpcFlare[]) : undefined;
+  return Array.isArray(swpc.data) ? stormFromSwpc(swpc.data as SwpcFlare[]) : undefined;
+}
+
+/** ¿Conviene dejar de preguntarle a DONKI un rato? Sí si respondió "límite de uso" (429) o error del servidor. */
+export function donkiShouldBackOff(status: number): boolean {
+  return status === 429 || status >= 500;
 }

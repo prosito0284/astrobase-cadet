@@ -78,7 +78,7 @@ El juego usa `DEMO_KEY` de api.nasa.gov, que solo permite unas **30 consultas po
 2. En Vercel, en *Settings → Environment Variables*, agrega `VITE_NASA_API_KEY` con esa llave.
 3. Vuelve a desplegar.
 
-Además, cada navegador reutiliza la llamarada en vivo durante 3 horas para gastar menos cuota.
+Además, cada navegador reutiliza la llamarada en vivo durante 3 horas para gastar menos cuota. Si DONKI responde "límite de uso" (429) o da un error del servidor, durante 1 hora el juego le pregunta directamente a NOAA.
 
 ## Código
 

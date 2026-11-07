@@ -9,6 +9,7 @@ import {
   energyFactor,
   bestWhatIf,
   dailyRoutine,
+  donkiShouldBackOff,
   hint,
   LEVELS,
   fetchLiveStorm,
@@ -40,7 +41,7 @@ import { playSound } from './sound';
 import type { SoundKind } from './sound';
 import { DATA_SOURCES, GLOSSARY, REAL_STORMS, SITE_INFO } from './data';
 import type { Lang, Site, SolarStorm, T } from './data';
-import { AUTOREAD_KEY, THEME_KEY, BADGES_KEY, CLASS_KEY, LANG_KEY, LEVEL_KEY, loadGame, NAME_KEY, readCachedLive, RECORDS_KEY, writeCachedLive, safeGet, safeSet, SAVE_KEY, SOUND_KEY, TUTORIAL_KEY } from './storage';
+import { AUTOREAD_KEY, THEME_KEY, BADGES_KEY, CLASS_KEY, LANG_KEY, LEVEL_KEY, loadGame, NAME_KEY, readCachedLive, RECORDS_KEY, writeCachedLive, donkiBackedOff, setDonkiBackoff, safeGet, safeSet, SAVE_KEY, SOUND_KEY, TUTORIAL_KEY } from './storage';
 import type { LiveStatus } from './storage';
 import { fill, SITE_IN, TIPS, UI } from './strings';
 import { Bar, EffectChips, Modal, RecordsTable, RichText, SignalRace } from './widgets';
@@ -142,7 +143,10 @@ export default function CadetGame({ onExpert }: { onExpert: () => void }) {
   useEffect(() => {
     if (cachedLive) return;
     let cancelled = false;
-    fetchLiveStorm(6000, import.meta.env.VITE_NASA_API_KEY || 'DEMO_KEY').then(storm => {
+    fetchLiveStorm(6000, import.meta.env.VITE_NASA_API_KEY || 'DEMO_KEY', {
+      skipDonki: donkiBackedOff(),
+      onDonkiStatus: st => { if (donkiShouldBackOff(st)) setDonkiBackoff(); },
+    }).then(storm => {
       if (cancelled) return;
       setLiveStorm(storm);
       setLiveStatus(storm ? 'ok' : 'fail');

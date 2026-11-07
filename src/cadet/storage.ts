@@ -61,6 +61,18 @@ export function readCachedLive(now: number = Date.now()): { status: LiveStatus; 
   }
 }
 
+export const DONKI_BACKOFF_KEY = 'astrobase_donki_backoff_until';
+export const DONKI_BACKOFF_MS = 60 * 60 * 1000;
+
+/** ¿DONKI respondió "límite de uso" o falló hace menos de 1 hora? Entonces no se le pregunta. */
+export function donkiBackedOff(now: number = Date.now()): boolean {
+  try { return now < Number(localStorage.getItem(DONKI_BACKOFF_KEY) ?? 0); } catch { return false; }
+}
+
+export function setDonkiBackoff(now: number = Date.now()) {
+  try { localStorage.setItem(DONKI_BACKOFF_KEY, String(now + DONKI_BACKOFF_MS)); } catch { /* sin almacenamiento */ }
+}
+
 export function writeCachedLive(storm: SolarStorm, now: number = Date.now()) {
   try { localStorage.setItem(LIVE_KEY, JSON.stringify({ storm, savedAt: now })); } catch { /* sin almacenamiento */ }
 }
