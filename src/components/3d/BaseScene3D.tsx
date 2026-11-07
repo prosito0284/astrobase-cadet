@@ -40,6 +40,18 @@ import {
 import { setExpansionColliders, clearExpansionColliders, DomeCollider } from './evaControls';
 import { getTerrainHeight } from './base3DBuilder';
 
+/**
+ * Pide "pointer lock" sin dejar promesas rechazadas sin manejar: en navegadores
+ * modernos requestPointerLock() devuelve una promesa que falla si no hubo un gesto
+ * del usuario (y try/catch no la atrapa).
+ */
+function lockPointer(el: HTMLElement | null) {
+  try {
+    const p = el?.requestPointerLock?.() as unknown;
+    if (p && typeof (p as Promise<void>).catch === 'function') (p as Promise<void>).catch(() => { /* sin pointer lock: se puede mirar arrastrando */ });
+  } catch { /* navegador sin soporte */ }
+}
+
 export interface BaseScene3DProps {
   location: BaseLocation;
   modules: BaseModule[];
@@ -225,7 +237,7 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
 
     if (canvasRef.current) {
       try {
-        canvasRef.current.requestPointerLock?.();
+        lockPointer(canvasRef.current);
       } catch {
         // Fallback if browser requires gesture or unsupported
       }
@@ -385,7 +397,7 @@ export const BaseScene3D: React.FC<BaseScene3DProps> = ({
         // In EVA mode, clicking the canvas requests pointer lock
         if (canvas && typeof document !== 'undefined' && document.pointerLockElement !== canvas) {
           try {
-            canvas.requestPointerLock?.();
+            lockPointer(canvas);
           } catch {
             // Pointerlock fallback
           }

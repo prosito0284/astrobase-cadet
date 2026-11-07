@@ -447,8 +447,8 @@ export const BotanicalLabModal: React.FC<BotanicalLabModalProps> = ({
               className="w-full flex items-center justify-around py-2 px-4 rounded-xl border border-white/10 backdrop-blur-md transition-all duration-500"
               style={{ backgroundColor: `${ledGlowColor}22`, borderColor: `${ledGlowColor}55` }}
             >
-              <div className="flex items-center gap-1 text-[11px] font-mono font-bold" style={{ color: ledGlowColor }}>
-                <Zap className="w-3.5 h-3.5 animate-pulse" />
+              <div className="flex items-center gap-1 text-[11px] font-mono font-bold text-slate-100">
+                <Zap className="w-3.5 h-3.5 animate-pulse" style={{ color: ledGlowColor }} />
                 <span>LED Spectrum: {redSpectrum}% Red / {blueSpectrum}% Blue • Bus: {Math.round(currentEnergy)} kWh</span>
               </div>
             </div>
@@ -519,6 +519,7 @@ export const BotanicalLabModal: React.FC<BotanicalLabModalProps> = ({
                     setRedSpectrum(r);
                     setBlueSpectrum(100 - r);
                   }}
+                  aria-label={lang === 'es' ? 'LED rojo 660 nm (%)' : 'Red LED 660 nm (%)'}
                   className="w-full accent-red-500 cursor-pointer"
                 />
               </div>
@@ -539,6 +540,7 @@ export const BotanicalLabModal: React.FC<BotanicalLabModalProps> = ({
                     setBlueSpectrum(b);
                     setRedSpectrum(100 - b);
                   }}
+                  aria-label={lang === 'es' ? 'LED azul 450 nm (%)' : 'Blue LED 450 nm (%)'}
                   className="w-full accent-sky-500 cursor-pointer"
                 />
               </div>

@@ -355,7 +355,7 @@ export const RoverHUD: React.FC<RoverHUDProps> = ({
             style={{ touchAction: 'none' }}
             className={`p-3.5 sm:p-4 rounded-2xl border flex flex-col items-center gap-1 shadow-lg transition-all active:scale-95 ${
               isDockingZone
-                ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-300 shadow-emerald-950/50 animate-bounce'
+                ? 'bg-emerald-700 hover:bg-emerald-800 text-white border-emerald-300 shadow-emerald-950/50 animate-bounce'
                 : 'bg-slate-900/80 text-slate-400 border-slate-800 opacity-60 cursor-not-allowed'
             }`}
           >

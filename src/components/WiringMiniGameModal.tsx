@@ -252,7 +252,7 @@ export const WiringMiniGameModal: React.FC<WiringMiniGameModalProps> = ({
             <div className="text-left">
               <h3 className="text-sm sm:text-base font-black text-slate-100 flex items-center gap-2">
                 <span>{lang === 'es' ? '¡Cortocircuito en el Banco de Baterías!' : 'Battery Bank Short Circuit!'}</span>
-                <span className="text-[10px] bg-red-700 text-white font-black px-1.5 py-0.2 rounded uppercase animate-ping">
+                <span className="text-[10px] bg-red-700 text-white font-black px-1.5 py-0.2 rounded uppercase ring-2 ring-red-400 cadet-glow-red">
                   ERROR BMS
                 </span>
               </h3>

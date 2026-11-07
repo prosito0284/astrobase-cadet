@@ -157,7 +157,7 @@ export const TutorialGuide: React.FC<TutorialGuideProps> = ({ isOpen, onClose, l
                 soundFx.playClick();
                 setCurrentStep(p => Math.min(steps.length - 1, p + 1));
               }}
-              className="flex items-center gap-1 px-4 py-2 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-900/40 transition-all"
+              className="flex items-center gap-1 px-4 py-2 rounded-xl text-xs font-black bg-emerald-700 hover:bg-emerald-800 text-white shadow-md shadow-emerald-900/40 transition-all"
             >
               <span>{lang === 'es' ? 'Siguiente' : 'Next'}</span>
               <ChevronRight className="w-4 h-4" />

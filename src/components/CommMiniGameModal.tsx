@@ -79,7 +79,7 @@ export const CommMiniGameModal: React.FC<CommMiniGameModalProps> = ({
             <div className="text-left">
               <h3 className="text-sm sm:text-base font-black text-slate-100 flex items-center gap-2">
                 <span>{lang === 'es' ? '¡Pérdida de Comunicación DSN!' : 'DSN Radio Blackout!'}</span>
-                <span className="text-[10px] bg-red-700 text-white font-black px-1.5 py-0.2 rounded uppercase animate-ping">
+                <span className="text-[10px] bg-red-700 text-white font-black px-1.5 py-0.2 rounded uppercase ring-2 ring-red-400 cadet-glow-red">
                   OFFLINE
                 </span>
               </h3>
@@ -140,6 +140,7 @@ export const CommMiniGameModal: React.FC<CommMiniGameModalProps> = ({
                 playThrottledClick();
                 setCurrentFreq(parseFloat(e.target.value));
               }}
+              aria-label="Frecuencia de radio (GHz)"
               className="w-full accent-cyan-400 cursor-pointer"
             />
           </div>
@@ -159,6 +160,7 @@ export const CommMiniGameModal: React.FC<CommMiniGameModalProps> = ({
                 playThrottledClick();
                 setAzimuthAngle(parseInt(e.target.value, 10));
               }}
+              aria-label="Ángulo de la antena parabólica (grados)"
               className="w-full accent-indigo-400 cursor-pointer"
             />
           </div>

@@ -773,6 +773,7 @@ export const Rover3DCanvas: React.FC<Rover3DCanvasProps> = ({
       <div 
         ref={containerRef} 
         tabIndex={0}
+        role="application"
         aria-label={lang === 'es' ? 'Simulador de conducción 3D del Rover' : '3D Rover Driving Simulator'}
         className="w-full h-full cursor-crosshair focus:outline-none" 
         onClick={triggerLaserFire} 

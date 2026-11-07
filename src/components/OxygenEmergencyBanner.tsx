@@ -115,7 +115,7 @@ export const OxygenEmergencyBanner: React.FC<OxygenEmergencyBannerProps> = ({
         <div>
           <h3 className="text-sm font-black text-white flex items-center gap-2">
             <span>{lang === 'es' ? '¡ALARMA CRÍTICA: FALLA DE PRESIÓN DE OXÍGENO!' : 'CRITICAL ECLSS O2 PRESSURE FAILURE!'}</span>
-            <span className="text-[10px] bg-red-700 text-white font-black px-1.5 py-0.2 rounded uppercase animate-ping">
+            <span className="text-[10px] bg-red-700 text-white font-black px-1.5 py-0.2 rounded uppercase ring-2 ring-red-400 cadet-glow-red">
               ASFIXIA INMINENTE
             </span>
             <span className="text-[10px] bg-amber-500 text-slate-950 font-black px-1.5 py-0.2 rounded uppercase">
